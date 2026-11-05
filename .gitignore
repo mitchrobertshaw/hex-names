@@ -1,0 +1,13 @@
+# Contracts: build output, deploy records, and libraries installed by contracts/install-deps.sh
+contracts/out/
+contracts/cache/
+contracts/lib/
+contracts/broadcast/
+
+# JavaScript parts (relayer, snap, sdk, web)
+node_modules/
+dist/
+
+# Secrets
+.env
+.env.*
