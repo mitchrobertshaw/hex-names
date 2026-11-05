@@ -36,6 +36,9 @@ contract PulseChainForkTest is Test, HexDeployer {
 
     function setUp() public {
         vm.createSelectFork(vm.envOr("PULSECHAIN_RPC_URL", string("https://rpc.pulsechain.com")));
+        // The public RPC is a group of nodes that can briefly disagree about the newest block, which
+        // made setUp fail at random. Step back to a block they have all settled on.
+        vm.rollFork(block.number - 16);
         address[] memory routers = new address[](2);
         routers[0] = P.PULSEX_V1_ROUTER;
         routers[1] = P.PULSEX_V2_ROUTER;

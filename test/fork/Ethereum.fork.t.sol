@@ -33,6 +33,9 @@ contract EthereumForkTest is Test, HexDeployer {
 
     function setUp() public {
         vm.createSelectFork(vm.envOr("ETHEREUM_RPC_URL", string("https://ethereum-rpc.publicnode.com")));
+        // Public RPCs are groups of nodes that can briefly disagree about the newest block. Step
+        // back to a block they have all settled on.
+        vm.rollFork(block.number - 16);
         address[] memory routers = new address[](1);
         routers[0] = E.UNISWAP_V2_ROUTER;
         mirror = _deployMirror(

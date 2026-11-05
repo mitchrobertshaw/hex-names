@@ -1,9 +1,8 @@
 name: test
 
+# Every push, on every branch. Pull requests show these results too, since checks follow the commit.
 on:
   push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:

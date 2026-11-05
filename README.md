@@ -11,6 +11,10 @@ both chains from the moment it is registered.
 > runs it on PulseChain and the contracts in `src/` have not. Don't put real money through them
 > until someone other than their author has reviewed them.
 
+> **`.hex` names never end in `.eth`.** `alice.hex` and `alice.hex.eth` are different names. This
+> project doesn't control `hex.eth`, so whoever does decides where `alice.hex.eth` points. When
+> sending to someone's `.hex` name, type it exactly as `name.hex`.
+
 ## Is `.hex` free?
 
 Yes, as of 5 November 2026. Checked on-chain: ENS on Ethereum has no `.hex` ending, Pulse Domains
@@ -238,6 +242,7 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
   `getEnsAddress` and the deployment's `universalResolverAddress`.
 - **Names must be in ENS normal form** (lower case, ENSIP-15). `prepareOrder` and the bot refuse
   anything else.
+- **Say that `.hex` names never end in `.eth`** wherever people type a name.
 
 ## Not done yet
 
@@ -245,7 +250,7 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 - Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
   For now, names are managed on PulseChain, and anyone can renew any name there.
 - Wallet support: wallets look up ENS out of the box but need adding `.hex`, for example as a
-  MetaMask Snap.
+  MetaMask Snap. What to have ready, and who to ask: [docs/WALLET_CHECKLIST.md](docs/WALLET_CHECKLIST.md).
 - A review by someone other than the author.
 
 ## License
