@@ -26,8 +26,8 @@ The full design, and the reasoning behind each choice, is in
 | Piece | Folder | Status |
 |---|---|---|
 | Pay-with-any-token checkout | `contracts/` | Built and tested, not deployed |
-| PulseChain registry (ENSv2, ported) | `contracts/` | Next |
-| Ethereum copy | `contracts/` | Not started |
+| PulseChain registry (ENSv2, ported) | `contracts/` | Built and tested, not deployed |
+| Ethereum copy | `contracts/` | Next |
 | Ethereum checkout | `contracts/` | Not started |
 | Relayer | `relayer/` | Not started |
 | MetaMask Snap | `snap/` | Not started |

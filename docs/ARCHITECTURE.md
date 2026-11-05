@@ -9,16 +9,21 @@ token. Wallets look names up through a MetaMask Snap and a small JavaScript libr
 - **`.hex` names never end in `.eth`.** `alice.hex` and `alice.hex.eth` are different names. This
   project doesn't own `hex.eth`, so `alice.hex.eth` is controlled by whoever does. Say this on the
   website, in the docs and in the Snap.
-- **Price:** $5 a year for names of 5 or more letters. Shorter names cost more (prices to be decided).
+- **Price:** $5 a year for names of 5 or more characters, with no multi-year discount. 3 and 4
+  character names cost more (placeholders copied from ENS until decided), and 1 or 2 character
+  names can't be registered.
+- **Expiry:** a name that isn't renewed can still be renewed by its owner for 28 days. After that
+  it's released, and for 21 days it costs extra, falling by half each day, which stops people
+  grabbing expired names the moment they lapse.
 - **Renewing on PulseChain covers both chains.** A name that isn't renewed expires on both.
 
 ## The pieces
 
 | Piece | Where | What it does | Status |
 |---|---|---|---|
-| Registry | PulseChain | The source of truth. Buying, renewing, selling and setting addresses happen here. Built from ENSv2, ported to PulseChain. | Next |
+| Registry | PulseChain | The source of truth. Buying, renewing, selling and setting addresses happen here. Built from ENSv2, ported to PulseChain. | Built and tested |
 | `AnyTokenCheckout` | PulseChain | Takes payment in PLS or any token with a PulseX pool, swaps it to DAI bridged from Ethereum, and pays the registrar exactly $5 plus the sync fee. | Built and tested |
-| Ethereum copy | Ethereum | Follows the registry. Accepts only signed, numbered updates. Lets Ethereum contracts read names. | Not started |
+| Ethereum copy | Ethereum | Follows the registry. Accepts only signed, numbered updates. Lets Ethereum contracts read names. | Next |
 | Ethereum checkout | Ethereum | Lets someone pay from Ethereum without needing PLS. Takes a sealed name and refunds if the purchase isn't completed in time. | Not started |
 | Relayer | Server | Does the commit step for buyers, copies changes to Ethereum, completes Ethereum purchases, and issues refunds. | Not started |
 | MetaMask Snap | Wallet | Looks up `.hex` names when someone types one into MetaMask's send box, on PulseChain or Ethereum. | Not started |
@@ -91,9 +96,9 @@ don't carry across.
 ## PulseChain constraints
 
 - **No opcodes from Ethereum's March 2024 upgrade** (`TSTORE`, `MCOPY`; checked against the live
-  chain on 2026-11-05). Everything is compiled for Shanghai. ENSv2 uses `mcopy` in
-  `contracts/src/utils/LibMem.sol`, `contracts/src/resolver/PermissionedResolver.sol` and
-  `contracts/src/dns/DNSTLDResolver.sol`, which need a plain memory-copy loop instead.
+  chain on 2026-11-05). Everything is compiled for Shanghai. ENSv2 used `mcopy` in two of the
+  files we deploy; both now use a plain copy routine that gives the same result. See
+  [contracts/src/ensv2/README.md](../contracts/src/ensv2/README.md).
 - **No Chainlink.** Prices are fixed in stablecoins (DAI and USDC bridged from Ethereum), and other
   tokens are swapped at checkout.
 
@@ -115,7 +120,7 @@ them adding support for `.hex`. It isn't needed, and it isn't available.
 
 ## Build order
 
-1. PulseChain registry.
+1. PulseChain registry. Done: built and tested; next is handing its setup roles to a multisig.
 2. Ethereum copy and relayer.
 3. MetaMask Snap and JavaScript library.
 4. Ethereum checkout.

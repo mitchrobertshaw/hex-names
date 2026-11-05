@@ -2,6 +2,42 @@
 
 Solidity contracts for hex-names, built and tested with [Foundry](https://getfoundry.sh).
 
+## The `.hex` registry
+
+Built and tested, not deployed.
+
+The registry is ENSv2, ported to PulseChain: see [src/ensv2/README.md](src/ensv2/README.md) for what
+was copied and the two changes needed. `script/HexStack.sol` deploys it for the `.hex` ending,
+wired the same way ENS wires `.eth`:
+
+- a **root registry** holding `hex`, and a **`.hex` registry** holding the names;
+- a **registrar** with permission to register and renew in the `.hex` registry, taking payment in
+  DAI or USDC bridged from Ethereum;
+- a **rent price oracle** with the prices below;
+- a **universal resolver** that looks names up by walking down from the root;
+- a **resolver template**: each owner gets their own copy, through the verifiable factory, to hold
+  their addresses and other records.
+
+The settings are in `script/HexConfig.sol`:
+
+| Setting | Value |
+|---|---|
+| Names of 5+ characters | $5 a year |
+| 4 characters | $160 a year (placeholder copied from ENS, to be decided) |
+| 3 characters | $640 a year (placeholder copied from ENS, to be decided) |
+| 1–2 characters | Can't be registered |
+| Multi-year discounts | None |
+| Shortest registration | 28 days |
+| Grace period after expiry | 28 days |
+| Commit, then wait | At least 60 seconds, at most 1 day |
+| Recently released names | Extra premium, starting at ENS's level and halving daily, gone after 21 days |
+
+The oracle charges per second with the rate rounded up, so a year costs $5.000001264.
+
+`script/DeployHexRegistry.s.sol` deploys the whole stack. A dry run against live PulseChain on
+2026-11-05 used about 30.7 million gas, roughly 27,400 PLS. The deploying account keeps the setup
+roles, so use it for dry runs only until the step that hands them to a multisig exists.
+
 ## `AnyTokenCheckout`
 
 Built and tested, not deployed.
@@ -47,8 +83,8 @@ Renewals work the same way through `renewWithToken` and `renewWithPLS`, without 
 
 ## Coming next
 
-- **The PulseChain registry:** ENSv2 ([ensdomains/contracts-v2](https://github.com/ensdomains/contracts-v2),
-  MIT), ported to PulseChain for the `.hex` ending.
+- **Handing over the setup roles:** a deploy step that gives the registry's setup roles to a
+  multisig, or gives them up, so no single key keeps them.
 - **The Ethereum copy and the Ethereum checkout.** See [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
 ## PulseChain notes
@@ -71,11 +107,17 @@ Addresses used (PulseChain, checked 2026-11-05):
 ## Running the tests
 
 Nothing needs installing on your own computer: GitHub runs the tests on every push (the **Actions**
-tab, workflow **test**). There are two sets:
+tab, workflow **test**).
 
-- **Unit tests** (`test/AnyTokenCheckout.t.sol`), with stand-in tokens, router and registrar.
-- **Fork tests** (`test/fork/`), against a live copy of PulseChain, with the real PulseX routers and
-  real PLS, HEX, PLSX and pDAI. Only the registrar is a stand-in.
+- **`test/HexRegistry.t.sol`:** the real registry stack for `.hex`. Prices, short names rejected,
+  registering, looking `alice.hex` up, renewing, and paying through `AnyTokenCheckout`.
+- **`test/LibMem.t.sol`:** the copy routine that replaces `mcopy`, checked against a byte-by-byte
+  reference, including overlapping copies.
+- **`test/AnyTokenCheckout.t.sol`:** the checkout on its own, with stand-in tokens, router and
+  registrar.
+- **`test/fork/`:** against a live copy of PulseChain. The whole registry, deployed with the real
+  bridged DAI and USDC, paid for in PLS through the real PulseX pools and looked up; plus the
+  checkout paying with real PLS, HEX, PLSX and pDAI.
 
 If you do have Foundry, from this folder:
 
@@ -89,9 +131,10 @@ forge test
 
 ## Deploying without installing anything
 
-The **deploy** workflow deploys from GitHub's servers. You start it from the GitHub website, which
-works from a phone too. Deploy the checkout only once the `.hex` registrar exists, because it needs
-the registrar's address.
+The **deploy** workflow deploys the checkout from GitHub's servers. You start it from the GitHub
+website, which works from a phone too. Deploy the checkout only once the `.hex` registrar exists,
+because it needs the registrar's address. The registry gets its own deploy option once the role
+handover step is built.
 
 1. **Create a new wallet just for deploying** and send it a little PLS for gas. Don't use your main
    wallet: the contract has no owner, so this key has no power once the deployment is done, and you
