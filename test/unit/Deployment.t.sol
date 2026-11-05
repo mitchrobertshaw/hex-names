@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IRentPriceOracle} from "@ensv2/registrar/interfaces/IRentPriceOracle.sol";
+import {IPermissionedRegistry} from "@ensv2/registry/interfaces/IPermissionedRegistry.sol";
+import {IRegistry} from "@ensv2/registry/interfaces/IRegistry.sol";
+import {RegistryRolesLib} from "@ensv2/registry/libraries/RegistryRolesLib.sol";
+import {EACBaseRolesLib} from "@ensv2/access-control/libraries/EACBaseRolesLib.sol";
+import {IEnhancedAccessControl} from "@ensv2/access-control/interfaces/IEnhancedAccessControl.sol";
+
+import {HexTestBase} from "../helpers/HexTestBase.sol";
+
+/// @notice The deployment itself: prices, who holds which roles, and that nobody can take names.
+contract DeploymentTest is HexTestBase {
+    uint256 internal constant ROOT = 0;
+
+    // ------------------------------------------------------------------------------------------
+    // Prices
+    // ------------------------------------------------------------------------------------------
+
+    function test_prices_byLength() public view {
+        (uint256 base5,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
+        (uint256 base4,) = hub.registrar.getRegisterPrice("four", ONE_YEAR, plsUsdc);
+        (uint256 base3,) = hub.registrar.getRegisterPrice("abc", ONE_YEAR, plsUsdc);
+        // ENS rounds the per-second rate up, so a year costs a few millionths of a dollar more.
+        assertApproxEqAbs(base5, 5e6, 10, "5+ letters: $5 a year");
+        assertApproxEqAbs(base4, 160e6, 10, "4 letters: $160 a year");
+        assertApproxEqAbs(base3, 640e6, 10, "3 letters: $640 a year");
+    }
+
+    function test_prices_sameInDai() public view {
+        (uint256 usdc,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
+        (uint256 dai,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsDai);
+        assertApproxEqAbs(dai, usdc * 1e12, 1e12, "the same price in DAI, to within a millionth of a dollar");
+    }
+
+    function test_prices_shortNamesNotForSale() public {
+        vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.NotValid.selector, "ab"));
+        hub.registrar.getRegisterPrice("ab", ONE_YEAR, plsUsdc);
+        vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.NotValid.selector, "a"));
+        hub.registrar.getRegisterPrice("a", ONE_YEAR, plsUsdc);
+    }
+
+    function test_prices_multiYearDiscount() public view {
+        (uint256 one,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
+        (uint256 two,) = hub.registrar.getRegisterPrice("alice", 2 * ONE_YEAR, plsUsdc);
+        assertApproxEqAbs(two, one * 2 * 7 / 8, 2, "12.5% off from 2 years");
+    }
+
+    function test_prices_onlyStablecoinsAccepted() public {
+        vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.PaymentTokenNotSupported.selector, wpls));
+        hub.registrar.getRegisterPrice("alice", ONE_YEAR, IERC20(address(wpls)));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Roles
+    // ------------------------------------------------------------------------------------------
+
+    function test_roles_deployerKeepsNothing() public view {
+        for (uint256 i = 0; i < 2; ++i) {
+            Core memory core = i == 0 ? hub.core : mirror.core;
+            assertEq(core.rootRegistry.roles(ROOT, address(this)), 0, "root registry");
+            assertEq(core.hexRegistry.roles(ROOT, address(this)), 0, ".hex registry");
+        }
+    }
+
+    function test_roles_pulseChainRegistrarCanOnlyRegisterAndRenew() public view {
+        assertEq(
+            hub.core.hexRegistry.roles(ROOT, address(hub.registrar)),
+            RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_RENEW
+        );
+    }
+
+    function test_roles_pulseChainAdminCannotUnregisterOrMoveNames() public view {
+        uint256 adminRoles = hub.core.hexRegistry.roles(ROOT, admin);
+        assertEq(adminRoles, RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN);
+        uint256 dangerous = RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_UNREGISTER_ADMIN
+            | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_RESOLVER_ADMIN
+            | RegistryRolesLib.ROLE_SET_SUBREGISTRY | RegistryRolesLib.ROLE_SET_SUBREGISTRY_ADMIN
+            | RegistryRolesLib.ROLE_CAN_TRANSFER_ADMIN;
+        assertEq(adminRoles & dangerous, 0);
+    }
+
+    function test_roles_ethereumCopyHasNoAdmin() public view {
+        assertEq(mirror.core.hexRegistry.roles(ROOT, admin), 0);
+        assertEq(mirror.core.rootRegistry.roles(ROOT, admin), 0);
+        assertEq(
+            mirror.core.hexRegistry.roles(ROOT, address(mirror.mirrorRegistrar)),
+            RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_RENEW
+        );
+    }
+
+    function test_roles_adminCannotTakeAName() public {
+        uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
+
+        vm.startPrank(admin);
+        // The admin may make itself a registrar, but a registrar cannot overwrite a live name...
+        hub.core.hexRegistry.grantRootRoles(RegistryRolesLib.ROLE_REGISTRAR, admin);
+        vm.expectRevert(abi.encodeWithSignature("LabelAlreadyRegistered(string)", "alice"));
+        hub.core.hexRegistry
+            .register("alice", admin, IRegistry(address(0)), address(0), 0, uint64(block.timestamp + 1 days));
+        // ...and cannot give itself the roles to unregister it or change its resolver.
+        vm.expectRevert();
+        hub.core.hexRegistry.grantRootRoles(RegistryRolesLib.ROLE_UNREGISTER, admin);
+        vm.expectRevert();
+        hub.core.hexRegistry.unregister(tokenId);
+        vm.expectRevert();
+        hub.core.hexRegistry.setResolver(tokenId, admin);
+        vm.stopPrank();
+
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice);
+    }
+
+    function test_roles_hexEndingIsLocked() public {
+        uint256 hexId = _labelId("hex");
+        for (uint256 i = 0; i < 2; ++i) {
+            Core memory core = i == 0 ? hub.core : mirror.core;
+            assertEq(address(core.rootRegistry.getSubregistry("hex")), address(core.hexRegistry));
+            assertEq(core.rootRegistry.getResolver("hex"), address(core.ownerResolver));
+            assertEq(core.rootRegistry.findExpiry("hex"), MAX_EXPIRY);
+            // No one, not even the admin or the deployer, can replace the .hex registry or resolver.
+            vm.prank(admin);
+            vm.expectRevert();
+            core.rootRegistry.setSubregistry(hexId, IRegistry(admin));
+            vm.prank(address(this));
+            vm.expectRevert();
+            core.rootRegistry.setResolver(hexId, admin);
+        }
+    }
+
+    function test_roles_ownerOnPulseChainCanTransfer() public {
+        uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
+        vm.prank(alice);
+        hub.core.hexRegistry.safeTransferFrom(alice, bob, tokenId, 1, "");
+        assertEq(hub.core.hexRegistry.findOwner("alice"), bob);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Links
+    // ------------------------------------------------------------------------------------------
+
+    function test_links_setOnBothSides() public view {
+        assertEq(hub.mirrorSync.peer(), address(mirror.mirrorRegistrar));
+        assertEq(hub.orderFiller.peer(), address(mirror.orderBook));
+        assertEq(mirror.mirrorRegistrar.peer(), address(hub.mirrorSync));
+        assertEq(mirror.orderBook.peer(), address(hub.orderFiller));
+    }
+
+    function test_links_cannotBeChanged() public {
+        vm.expectRevert(abi.encodeWithSignature("AlreadyLinked()"));
+        hub.mirrorSync.link(alice);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("NotLinker()"));
+        mirror.orderBook.link(alice);
+    }
+}
