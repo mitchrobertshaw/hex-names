@@ -1,0 +1,132 @@
+name: deploy
+
+# Run by hand from the Actions tab: Actions > deploy > Run workflow. Three steps, in order:
+#   1. Deploy on PulseChain                -> gives PULSECHAIN_MIRROR_SYNC and PULSECHAIN_ORDER_FILLER
+#   2. Deploy on Ethereum and link it      -> needs those two; gives ETHEREUM_MIRROR_REGISTRAR and ETHEREUM_ORDER_BOOK
+#   3. Link PulseChain                     -> needs all four
+# Leave "broadcast" unticked for a dry run, which simulates the step and sends nothing.
+# Use the same DEPLOYER_PRIVATE_KEY for all three steps: only it can link the chains, once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "Step"
+        required: true
+        type: choice
+        options:
+          - "1. Deploy on PulseChain"
+          - "2. Deploy on Ethereum and link it"
+          - "3. Link PulseChain"
+      broadcast:
+        description: "Send it for real (leave unticked for a dry run)"
+        required: true
+        type: boolean
+        default: false
+      admin:
+        description: "Admin wallet (steps 1 and 2): a plain wallet or a Safe"
+        required: false
+        type: string
+      beneficiary:
+        description: "Who receives payments (step 1). Leave empty to use the admin"
+        required: false
+        type: string
+      pulsechain_mirror_sync:
+        description: "PULSECHAIN_MIRROR_SYNC from step 1 (steps 2 and 3)"
+        required: false
+        type: string
+      pulsechain_order_filler:
+        description: "PULSECHAIN_ORDER_FILLER from step 1 (steps 2 and 3)"
+        required: false
+        type: string
+      ethereum_mirror_registrar:
+        description: "ETHEREUM_MIRROR_REGISTRAR from step 2 (step 3)"
+        required: false
+        type: string
+      ethereum_order_book:
+        description: "ETHEREUM_ORDER_BOOK from step 2 (step 3)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: ${{ inputs.step }}
+    runs-on: ubuntu-latest
+    # Settings > Environments > deploy holds the key, and can require your approval before each run.
+    environment: deploy
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.5.1
+
+      - name: Cache ENSv2 and its libraries
+        uses: actions/cache@v4
+        with:
+          path: lib
+          key: deps-${{ hashFiles('install-deps.sh', 'patches/**') }}
+
+      - name: Install dependencies
+        run: bash install-deps.sh
+
+      - name: Run the unit tests first
+        run: forge test --no-match-path "test/fork/*"
+
+      - name: Run the step
+        env:
+          STEP: ${{ inputs.step }}
+          BROADCAST: ${{ inputs.broadcast }}
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          PULSECHAIN_RPC_URL: ${{ vars.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com' }}
+          ETHEREUM_RPC_URL: ${{ vars.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com' }}
+          ADMIN: ${{ inputs.admin }}
+          BENEFICIARY: ${{ inputs.beneficiary }}
+          PULSECHAIN_MIRROR_SYNC: ${{ inputs.pulsechain_mirror_sync }}
+          PULSECHAIN_ORDER_FILLER: ${{ inputs.pulsechain_order_filler }}
+          ETHEREUM_MIRROR_REGISTRAR: ${{ inputs.ethereum_mirror_registrar }}
+          ETHEREUM_ORDER_BOOK: ${{ inputs.ethereum_order_book }}
+        run: |
+          # Leave out inputs that were left empty, so the scripts use their defaults or say what is missing.
+          for v in ADMIN BENEFICIARY PULSECHAIN_MIRROR_SYNC PULSECHAIN_ORDER_FILLER ETHEREUM_MIRROR_REGISTRAR ETHEREUM_ORDER_BOOK; do
+            if [ -z "${!v}" ]; then unset "$v"; fi
+          done
+          case "$STEP" in
+            1.*) target="script/DeployPulseChain.s.sol:DeployPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
+            2.*) target="script/DeployEthereum.s.sol:DeployEthereum"; rpc="$ETHEREUM_RPC_URL" ;;
+            3.*) target="script/LinkPulseChain.s.sol:LinkPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
+            *) echo "::error::Unknown step: $STEP"; exit 1 ;;
+          esac
+          args=(script "$target" --rpc-url "$rpc" --slow)
+          if [ "$BROADCAST" = "true" ]; then
+            if [ -z "$DEPLOYER_PRIVATE_KEY" ]; then
+              echo "::error::Add the DEPLOYER_PRIVATE_KEY secret to the deploy environment before broadcasting."
+              exit 1
+            fi
+            args+=(--broadcast)
+          else
+            echo "Dry run: simulating only, nothing will be sent."
+          fi
+          forge "${args[@]}" 2>&1 | tee output.txt
+          status=${PIPESTATUS[0]}
+          {
+            echo "## $STEP"
+            if [ "$BROADCAST" = "true" ]; then echo "Sent for real."; else echo "Dry run: nothing was sent."; fi
+            echo '```'
+            grep -E "^\s+(PULSECHAIN_|ETHEREUM_|Registrar|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Resolver|Label|Deployer|Linked)" output.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+      - name: Save the deployment record
+        if: ${{ inputs.broadcast }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-${{ github.run_number }}
+          path: |
+            broadcast/
+            output.txt
