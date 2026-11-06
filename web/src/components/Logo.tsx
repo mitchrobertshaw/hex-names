@@ -10,10 +10,10 @@ export const ROUTE_PATH =
 const RATIO = 0.8807; // width / height
 
 /**
- * The mark in the HexNS gradient, `height` pixels tall. Beside the HexNS wordmark it's 0.9 times
+ * The mark in the HexNS gradient, `height` pixels tall. Beside the HexNS wordmark it's 1.5 times
  * the wordmark's font size. Decorative: "HexNS" is always written beside it or nearby.
  */
-export function Logo({ height = 18 }: { height?: number }) {
+export function Logo({ height = 30 }: { height?: number }) {
   const id = `hexns-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   return (
     <svg

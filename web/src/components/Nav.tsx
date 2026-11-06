@@ -7,7 +7,7 @@ export function Nav() {
     <header className="nav">
       <div className="container nav__inner">
         <a className="brand" href="#top" aria-label="HexNS, Hex Name Service: back to the top">
-          <Logo height={18} />
+          <Logo height={30} />
           <span className="brand__name">HexNS</span>
         </a>
         <nav className="nav__links" aria-label="Sections">

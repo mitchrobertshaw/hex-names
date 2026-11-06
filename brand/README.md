@@ -31,8 +31,8 @@ is in `web/src/components/Logo.tsx`.
 
 ## Using it
 
-- Beside the HexNS wordmark (Space Grotesk Bold), make the mark 0.9 times the wordmark's font size
-  tall, with a gap of 0.45 times the font size: an 18px mark beside 20px text, as on the website.
+- Beside the HexNS wordmark (Space Grotesk Bold), make the mark 1.5 times the wordmark's font size
+  tall, with a gap of 0.35 times the font size: a 30px mark beside 20px text, as on the website.
   On its own, it can be as large as you like.
 - Leave space around the mark at least the size of its centre node.
 - Smallest sizes: 16px tall for the mark, 16px for the square favicon.
