@@ -197,7 +197,7 @@ export function Ownership() {
               }}
             >
               <div className="name-card__top">
-                <Logo height={20} />
+                <Logo height={24} />
                 <span className="name-card__lock">
                   <LockIcon /> Owner only
                 </span>

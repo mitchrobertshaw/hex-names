@@ -263,7 +263,7 @@ img {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px; /* 0.45 x the wordmark's size, as brand/README.md says */
   color: var(--text);
   text-decoration: none;
 }

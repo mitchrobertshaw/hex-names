@@ -1,7 +1,7 @@
 # HexNS brand
 
-The HexNS mark is **Bead**: a hexagon strung on a network line between two nodes, with a node at
-its heart. Your name on the network, between PulseChain and Ethereum.
+The HexNS mark is **Route**: one network line runs round a hexagon and turns in to end at a node
+in the centre, your name. A name that always leads home to your wallet.
 
 Every file is a single filled shape (no strokes), so it scales cleanly from a 16px favicon to a
 billboard, in a browser or in any design tool.
@@ -25,19 +25,24 @@ is in `web/src/components/Logo.tsx`.
 
 | | |
 | --- | --- |
-| Gradient, left to right | `#FFC400` → `#FF6A1F` → `#E5007A` |
+| Gradient, top left to bottom right | `#FFC400` → `#FF6A1F` → `#E5007A` |
 | Dark | `#1D1424` (icons), `#130B18` (site background) |
 | Light | `#FFF9F4` (site background) |
 
 ## Using it
 
-- Leave space around the mark at least the width of one of its side nodes.
-- Smallest sizes: 16px tall for the mark on its own, 16px for the square favicon.
+- Beside the HexNS wordmark (Space Grotesk Bold), make the mark 0.9 times the wordmark's font size
+  tall, with a gap of 0.45 times the font size: an 18px mark beside 20px text, as on the website.
+  On its own, it can be as large as you like.
+- Leave space around the mark at least the size of its centre node.
+- Smallest sizes: 16px tall for the mark, 16px for the square favicon.
 - Use the files as they are: no other colours, outlines, shadows or stretching.
 - On photos or busy backgrounds, use the white mark.
 
 ## How it's drawn
 
-On a 64-unit grid: a flat-topped hexagon with corners 15.5 from its centre, drawn with a 5.8-unit
-line and rounded outer corners; a line through its side corners out to two nodes of radius 5.4 at
-x = 8 and x = 56; a node of radius 5.2 at the centre. The gradient runs from (4, 22) to (60, 42).
+On a 64-unit grid: a hexagon with a corner at the top, its corners 23.5 from the centre (32, 32).
+One 5.8-unit line with round ends and corners starts at the top corner, runs clockwise round five
+sides to the upper-left corner, then turns in to the centre, where a node of radius 7.4 sits. The
+side from the upper-left corner back to the top is left open. The gradient runs from (10, 6) to
+(54, 58).
