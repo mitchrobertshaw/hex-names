@@ -31,17 +31,33 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   [`../script/reserved-names.csv`](../script/reserved-names.csv), so nobody can buy their name
   first; the tests check both. A name and photo on the homepage reads as that person backing
   HexNS, so it's worth asking them first.
-- **The 3D HEX logo** behind the top of the page is drawn by [`src/three/scene.ts`](src/three/scene.ts),
-  from the logo on [hex.com/downloads](https://hex.com/downloads) (hex.com licenses it under fair
-  use). How see-through it is, in light and dark, is `--scene-logo-opacity` in `src/styles.css`. It
-  loads after the rest of the page, pauses when scrolled away, stays still for visitors who turn
-  off motion, and is simply left out on devices without WebGL.
+- **The 3D honeycomb** behind the top of the page is drawn by
+  [`src/three/honeycomb.ts`](src/three/honeycomb.ts): hexagonal pillars rising and falling in a
+  slow wave, in the HEX colours. Pillars near the pointer rise and light up, and a click or tap
+  sends a ripple across them. It loads after the rest of the page, pauses when scrolled away,
+  stays still for visitors who turn off motion, and is simply left out on devices without WebGL.
+- **The headline** is one of five in [`src/hero/headlines.tsx`](src/hero/headlines.tsx). While
+  one is being chosen, a small panel at the bottom of the page switches between them, and the
+  choice goes in the address (`?headline=B`) so it can be shared. Once one is picked, set it as
+  `DEFAULT_HEADLINE` and turn the panel off with `SHOW_HEADLINE_PICKER` in
+  [`src/site.ts`](src/site.ts).
+- **The chat** ("Goodbye 0x…", in [`Messages.tsx`](src/components/Messages.tsx)) and **the name
+  card** ("Yours. Not ours.", in [`Ownership.tsx`](src/components/Ownership.tsx)) are small
+  demos. A name typed into the chat shows on the card too.
+- **The checkout preview** opens from a search result ([`Checkout.tsx`](src/components/Checkout.tsx)):
+  how long, which chain and token, the price breakdown and a live quote. Prices and discounts are
+  in [`src/lib/names.ts`](src/lib/names.ts), and the tests check them against
+  `script/HexDeployer.sol` and the bot's order fee. Tokens and the swap routes are in
+  [`src/lib/tokens.ts`](src/lib/tokens.ts); live quotes ask PulseX and Uniswap through public
+  RPCs ([`src/lib/quotes.ts`](src/lib/quotes.ts)). Until the contracts are live, `LAUNCHED` in
+  `src/site.ts` stays `false` and the button says it opens at launch.
 - **Light and dark**: the moon and sun button in the top bar switches between them and remembers
   the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts
   are deployed with, so the search marks exactly those names as reserved.
 - **Words on the page** are in [`src/components`](src/components): the top of the page in
-  `Hero.tsx`, the sections below it in `Sections.tsx`.
+  `Hero.tsx`, the chat in `Messages.tsx`, the name card in `Ownership.tsx`, and the other sections
+  in `Sections.tsx`.
 - **Colours and layout** are in [`src/styles.css`](src/styles.css), with light and dark versions at
   the top.
 

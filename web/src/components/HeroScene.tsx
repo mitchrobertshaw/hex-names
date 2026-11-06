@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * The 3D HEX logo behind the top of the page. three.js loads after the page; without WebGL the
+ * The 3D honeycomb behind the top of the page. Its code loads after the page; without WebGL the
  * canvas stays empty and the page looks as it would without it.
  */
 export function HeroScene() {
@@ -12,10 +12,10 @@ export function HeroScene() {
     if (!canvas) return;
     let unmount: (() => void) | undefined;
     let cancelled = false;
-    import("../three/scene")
-      .then(({ mountHexScene }) => {
+    import("../three/honeycomb")
+      .then(({ mount }) => {
         if (cancelled) return;
-        unmount = mountHexScene(canvas);
+        unmount = mount(canvas);
         canvas.classList.add("is-ready");
       })
       .catch(() => {

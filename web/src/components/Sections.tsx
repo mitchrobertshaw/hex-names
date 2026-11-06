@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { YEARLY_PRICE } from "../lib/names";
+import { PRICES, YEARLY_PRICE } from "../lib/names";
 import { GITHUB_URL, LAUNCHED } from "../site";
 import { ArrowIcon, ChainsIcon, CheckIcon, CodeIcon, CoinsIcon, GitHubIcon, ShieldIcon } from "./icons";
 
@@ -71,54 +71,6 @@ export function BothChains() {
             <CheckIcon size={18} /> Chain agnostic? You&rsquo;re covered either way, just in case
           </li>
         </ul>
-      </div>
-    </section>
-  );
-}
-
-export function SendToNames() {
-  return (
-    <section className="section section--tint" aria-labelledby="send-title">
-      <div className="container split">
-        <div>
-          <p className="kicker">Why a name</p>
-          <h2 id="send-title">Send to names, not numbers</h2>
-          <p className="section__intro">
-            No more copying 42-character addresses and checking them three times. Send PLS, HEX, ETH and every other
-            token to <b>yourname.hex</b> and it lands in your wallet.
-          </p>
-          <ul className="ticks">
-            <li>
-              <CheckIcon size={18} /> Easy to say, easy to share, hard to get wrong
-            </li>
-            <li>
-              <CheckIcon size={18} /> Points to your wallet the moment you buy it
-            </li>
-            <li>
-              <CheckIcon size={18} /> Sell your name and it points to the new owner instead
-            </li>
-          </ul>
-        </div>
-        <div className="send-card" aria-hidden="true">
-          <div className="send-card__top">
-            <span>Send</span>
-            <span className="token">
-              <span className="token__dot" />
-              HEX
-            </span>
-          </div>
-          <p className="send-card__amount">10,000</p>
-          <div className="send-card__field">
-            <span className="send-card__label">To</span>
-            <span className="send-card__to">
-              you<span className="pill__tld">.hex</span>
-            </span>
-          </div>
-          <p className="send-card__resolved">
-            <CheckIcon size={16} /> 0x7a3F…91c2
-          </p>
-          <span className="send-card__button">Send</span>
-        </div>
       </div>
     </section>
   );
@@ -208,6 +160,33 @@ export function Pricing() {
             <span className="price__unit">a year</span>
           </p>
           <p className="price__for">for names of 5 characters or more, on both chains</p>
+          <table className="price-table">
+            <caption className="visually-hidden">Yearly price by name length, covering both chains</caption>
+            <thead>
+              <tr>
+                <th scope="col">Name length</th>
+                <th scope="col">A year</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">5 characters or more</th>
+                <td>${PRICES.fivePlus}</td>
+              </tr>
+              <tr>
+                <th scope="row">4 characters</th>
+                <td>${PRICES.four}</td>
+              </tr>
+              <tr>
+                <th scope="row">3 characters</th>
+                <td>${PRICES.three}</td>
+              </tr>
+              <tr>
+                <th scope="row">1 or 2 characters</th>
+                <td>Not for sale</td>
+              </tr>
+            </tbody>
+          </table>
           <ul className="ticks">
             <li>
               <CheckIcon size={18} /> Covers PulseChain and Ethereum: no paying twice
@@ -216,13 +195,10 @@ export function Pricing() {
               <CheckIcon size={18} /> Pay in PLS, HEX or any token, from either chain
             </li>
             <li>
-              <CheckIcon size={18} /> Names of 3 or 4 characters are premium, priced at launch
+              <CheckIcon size={18} /> Save 12.5% on 2 years, and up to 43.75% on 6 or more
             </li>
             <li>
               <CheckIcon size={18} /> 28 days&rsquo; grace to renew if you forget
-            </li>
-            <li>
-              <CheckIcon size={18} /> Names of 1 or 2 characters aren&rsquo;t for sale
             </li>
           </ul>
         </div>

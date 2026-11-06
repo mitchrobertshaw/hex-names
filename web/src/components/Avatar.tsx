@@ -26,7 +26,7 @@ function pictureOf(handle: string): string | undefined {
  * A person's X profile picture, saved in src/assets/avatars by `npm run avatars`, or, for names
  * that aren't people or if the picture is missing, the name's first letter on a warm gradient.
  */
-export function Avatar({ label, x, size = 34 }: { label: string; x?: string; size?: number }) {
+export function Avatar({ label, x, size = 42 }: { label: string; x?: string; size?: number }) {
   const [failed, setFailed] = useState(false);
   const picture = x ? pictureOf(x) : undefined;
   if (picture && !failed) {
@@ -44,7 +44,7 @@ export function Avatar({ label, x, size = 34 }: { label: string; x?: string; siz
     );
   }
   return (
-    <span className="avatar avatar--letter" style={{ width: size, height: size, background: gradientFor(label) }}>
+    <span className="avatar avatar--letter" style={{ background: gradientFor(label) }}>
       {[...label][0]?.toUpperCase()}
     </span>
   );

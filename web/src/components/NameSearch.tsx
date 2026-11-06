@@ -1,7 +1,9 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { checkName, type NameCheck, YEARLY_PRICE } from "../lib/names";
+import { checkName, type NameCheck } from "../lib/names";
+import { onSearchFor } from "../lib/playName";
 import { LAUNCHED } from "../site";
+import { Checkout } from "./Checkout";
 import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from "./icons";
 
 type Tone = "ok" | "info" | "neutral" | "bad" | "warn";
@@ -18,7 +20,9 @@ function Card({ tone, icon, title, children }: { tone: Tone; icon: ReactNode; ti
   );
 }
 
-function Result({ check }: { check: NameCheck }) {
+type OpenCheckout = (name: string, length: number) => void;
+
+function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheckout }) {
   switch (check.kind) {
     case "empty":
       return null;
@@ -29,8 +33,12 @@ function Result({ check }: { check: NameCheck }) {
             ${check.yearlyPrice} a year for both chains, paid in PLS, HEX or any token.{" "}
             {LAUNCHED ? null : "Registration opens at launch."}
           </p>
-          <button type="button" className="button button--primary button--small" disabled={!LAUNCHED}>
-            {LAUNCHED ? "Register" : "Opens at launch"}
+          <button
+            type="button"
+            className="button button--primary button--small"
+            onClick={() => onCheckout(check.name, check.length)}
+          >
+            {LAUNCHED ? "Register" : "See price"}
           </button>
         </Card>
       );
@@ -38,8 +46,15 @@ function Result({ check }: { check: NameCheck }) {
       return (
         <Card tone="info" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
           <p>
-            Names of {check.length} characters cost more than ${YEARLY_PRICE}. Their prices are announced at launch.
+            Names of {check.length} characters are rarer, so they cost ${check.yearlyPrice} a year for both chains.
           </p>
+          <button
+            type="button"
+            className="button button--primary button--small"
+            onClick={() => onCheckout(check.name, check.length)}
+          >
+            {LAUNCHED ? "Register" : "See price"}
+          </button>
         </Card>
       );
     case "reserved":
@@ -70,7 +85,7 @@ function Result({ check }: { check: NameCheck }) {
           <Card tone="warn" icon={<AlertIcon />} title={<><b>{check.name}</b> is a .eth name</>}>
             <p>.hex names never end in .eth. Here&rsquo;s the .hex one:</p>
           </Card>
-          <Result check={check.hex} />
+          <Result check={check.hex} onCheckout={onCheckout} />
         </>
       );
   }
@@ -80,6 +95,19 @@ function Result({ check }: { check: NameCheck }) {
 export function NameSearch() {
   const [query, setQuery] = useState("");
   const check = useMemo(() => checkName(query), [query]);
+  const [checkout, setCheckout] = useState<{ name: string; length: number } | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  // "See if it's free" further down the page fills the box in.
+  useEffect(
+    () =>
+      onSearchFor((name) => {
+        setQuery(name);
+        // With a mouse, ready to edit; on a phone, no keyboard popping up over the result.
+        if (window.matchMedia("(pointer: fine)").matches) input.current?.focus({ preventScroll: true });
+      }),
+    [],
+  );
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -96,6 +124,7 @@ export function NameSearch() {
           <SearchIcon />
         </span>
         <input
+          ref={input}
           id="name-search"
           type="search"
           placeholder="Find your name"
@@ -113,8 +142,9 @@ export function NameSearch() {
         </button>
       </form>
       <div className="search__results" aria-live="polite">
-        <Result check={check} />
+        <Result check={check} onCheckout={(name, length) => setCheckout({ name, length })} />
       </div>
+      {checkout ? <Checkout name={checkout.name} length={checkout.length} onClose={() => setCheckout(null)} /> : null}
     </div>
   );
 }

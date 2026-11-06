@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import botConfig from "../../../bot/src/config.ts?raw";
 import deployer from "../../../script/HexDeployer.sol?raw";
 import page from "../../index.html?raw";
 
-import { checkName, nameLength, YEARLY_PRICE } from "./names";
+import { checkName, DISCOUNTS, ETHEREUM_ORDER_FEE, nameLength, PRICES, priceFor, YEARLY_PRICE } from "./names";
 import { parseReservedNames, reservedFor } from "./reserved";
 
 const reserved = parseReservedNames(
@@ -15,16 +16,16 @@ const check = (input: string) => checkName(input, reserved);
 
 describe("checkName", () => {
   it("prices names of 5 or more characters at $10 a year", () => {
-    expect(check("alice")).toEqual({ kind: "available", name: "alice.hex", yearlyPrice: 10 });
+    expect(check("alice")).toEqual({ kind: "available", name: "alice.hex", length: 5, yearlyPrice: 10 });
   });
 
   it("lower-cases, trims and accepts a typed .hex ending", () => {
     expect(check("  Alice.HEX ")).toMatchObject({ kind: "available", name: "alice.hex" });
   });
 
-  it("marks 3 and 4 characters as premium and refuses 1 and 2", () => {
-    expect(check("abc")).toMatchObject({ kind: "premium", length: 3 });
-    expect(check("abcd")).toMatchObject({ kind: "premium", length: 4 });
+  it("prices 3 and 4 characters as premium and refuses 1 and 2", () => {
+    expect(check("abc")).toMatchObject({ kind: "premium", length: 3, yearlyPrice: 640 });
+    expect(check("abcd")).toMatchObject({ kind: "premium", length: 4, yearlyPrice: 160 });
     expect(check("ab")).toEqual({ kind: "too-short", name: "ab.hex" });
     expect(check("a")).toMatchObject({ kind: "too-short" });
   });
@@ -48,7 +49,7 @@ describe("checkName", () => {
     expect(check("alice.eth")).toEqual({
       kind: "eth",
       name: "alice.eth",
-      hex: { kind: "available", name: "alice.hex", yearlyPrice: 10 },
+      hex: { kind: "available", name: "alice.hex", length: 5, yearlyPrice: 10 },
     });
     expect(check("alice.hex.eth")).toMatchObject({ kind: "eth", hex: { name: "alice.hex" } });
   });
@@ -69,10 +70,40 @@ describe("checkName", () => {
   });
 });
 
-describe("the price", () => {
-  it("matches what the contracts are deployed with", () => {
-    const match = deployer.match(/YEARLY_PRICE_5_PLUS\s*=\s*(\d+)/);
-    expect(Number(match?.[1]), "script/HexDeployer.sol and YEARLY_PRICE disagree").toBe(YEARLY_PRICE);
+describe("priceFor", () => {
+  it("applies the multi-year discount to the whole price", () => {
+    expect(priceFor(5, 1)).toEqual({ full: 10, total: 10, discount: 0 });
+    expect(priceFor(5, 2)).toEqual({ full: 20, total: 17.5, discount: 0.125 });
+    expect(priceFor(5, 3).total).toBeCloseTo(20.625);
+    expect(priceFor(3, 1).total).toBe(640);
+  });
+
+  it("follows the contracts even where 6 years costs less than 5", () => {
+    expect(priceFor(5, 5).total).toBeCloseTo(34.375);
+    expect(priceFor(5, 6).total).toBeCloseTo(33.75);
+  });
+});
+
+describe("the prices", () => {
+  const number = (pattern: RegExp) => Number(deployer.match(pattern)?.[1]);
+
+  it("match what the contracts are deployed with", () => {
+    expect(number(/YEARLY_PRICE_5_PLUS\s*=\s*(\d+)/), "5+ characters").toBe(PRICES.fivePlus);
+    expect(number(/YEARLY_PRICE_4\s*=\s*(\d+)/), "4 characters").toBe(PRICES.four);
+    expect(number(/YEARLY_PRICE_3\s*=\s*(\d+)/), "3 characters").toBe(PRICES.three);
+    expect(YEARLY_PRICE).toBe(PRICES.fivePlus);
+  });
+
+  it("use the contracts' multi-year discounts", () => {
+    // e.g. "duration: uint64(2 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 8 * 7"
+    const steps = [...deployer.matchAll(/uint64\((\d+) \* SEC_PER_YEAR\), numer: DISCOUNT_DENOMINATOR \/ (\d+) \* (\d+)/g)];
+    expect(steps.map(([, years, over, times]) => ({ years: Number(years), factor: Number(times) / Number(over) }))).toEqual(
+      DISCOUNTS.map((d) => ({ years: d.years, factor: d.factor })),
+    );
+  });
+
+  it("add the bot's Ethereum order fee", () => {
+    expect(Number(botConfig.match(/MIN_FEE_USDC"\) \?\? "([\d.]+)"/)?.[1])).toBe(ETHEREUM_ORDER_FEE);
   });
 
   it("is the one in the page description", () => {
