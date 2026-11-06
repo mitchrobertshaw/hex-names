@@ -32,8 +32,9 @@ const easeInOut = (x: number) => x * x * (3 - 2 * x);
 
 /**
  * "Goodbye 0x…": a chat in which a friend asks where to send some HEX, played first with an
- * address, then with a name. Switching scrambles the address down into the name. Visitors can try
- * it with their own name, which the name card further down picks up too.
+ * address, then, by itself, with a name: the address scrambles down into the name. The toggle
+ * replays either. Visitors can try it with their own name, which the name card further down
+ * picks up too.
  */
 export function Messages() {
   const reduced = useMemo(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, []);
@@ -49,6 +50,8 @@ export function Messages() {
   const target = useRef(`${name}.hex`);
   target.current = `${name}.hex`;
   const playedMode = useRef<Mode | null>(null);
+  const touched = useRef(false); // the visitor picked a version or typed a name
+  const advanced = useRef(false); // the chat has moved on to the name by itself
 
   // Start when the chat comes into view.
   useEffect(() => {
@@ -70,17 +73,15 @@ export function Messages() {
     let cancelled = false;
     let frame = 0;
     const timers = new Set<number>();
-    const wait = (ms: number) =>
+    const pause = (ms: number) =>
       new Promise<void>((resolve) => {
-        const id = window.setTimeout(
-          () => {
-            timers.delete(id);
-            resolve();
-          },
-          reduced ? 0 : ms,
-        );
+        const id = window.setTimeout(() => {
+          timers.delete(id);
+          resolve();
+        }, ms);
         timers.add(id);
       });
+    const wait = (ms: number) => pause(reduced ? 0 : ms); // typing and replies: instant with less motion
     const morph = (from: string, to: () => string) =>
       new Promise<void>((resolve) => {
         if (reduced) return resolve();
@@ -137,7 +138,16 @@ export function Messages() {
       }
       if (mode === "address") {
         await wait(500);
-        if (!cancelled) setInvite(true);
+        if (cancelled) return;
+        setInvite(true);
+        // Then the fix, without waiting for a click: the address turns into a name. Once, and
+        // not if the visitor has chosen for themselves. A real pause even with less motion,
+        // since it's a change of words rather than movement.
+        if (touched.current || advanced.current) return;
+        await pause(reduced ? 5000 : 2400); // with less motion the whole exchange appears at once: time to read it
+        if (cancelled || touched.current) return;
+        advanced.current = true;
+        setMode("name");
       }
     })();
 
@@ -150,6 +160,7 @@ export function Messages() {
   }, [mode, started, reduced]);
 
   function choose(next: Mode) {
+    touched.current = true;
     setStarted(true);
     setMode(next);
   }
