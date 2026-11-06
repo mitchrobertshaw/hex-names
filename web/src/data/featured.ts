@@ -1,6 +1,6 @@
 // The names floating at the top of the homepage: HEX KOLs, with their X profile pictures.
 //
-// After adding someone, run `npm run avatars` to save their picture in public/avatars.
+// After adding someone, run `npm run avatars` to save their picture in src/assets/avatars.
 // Every person here must also be in script/reserved-names.csv, so the homepage never advertises
 // someone's name that a stranger could buy first. featured.test.ts checks both.
 

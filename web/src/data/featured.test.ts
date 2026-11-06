@@ -12,10 +12,10 @@ describe("featured names", () => {
   });
 
   it("have a picture saved for every person", () => {
-    const saved = Object.keys(import.meta.glob("../../public/avatars/*.jpg"));
+    const saved = Object.keys(import.meta.glob("../assets/avatars/*.jpg"));
     for (const f of featuredNames.filter((f) => f.x)) {
       expect(saved, `run "npm run avatars" to save @${f.x}'s picture`).toContain(
-        `../../public/avatars/${f.x!.toLowerCase()}.jpg`,
+        `../assets/avatars/${f.x!.toLowerCase()}.jpg`,
       );
     }
   });

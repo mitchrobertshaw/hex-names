@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:single": "tsc --noEmit && vite build --mode single",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -31,6 +32,7 @@
     "@vitejs/plugin-react": "6.2.1",
     "typescript": "7.0.2",
     "vite": "8.3.6",
+    "vite-plugin-singlefile": "2.3.4",
     "vitest": "5.1.0"
   }
 }

@@ -1,5 +1,5 @@
-// Saves the X profile picture of every person in src/data/featured.ts to public/avatars/, so the
-// site serves the pictures itself: no third-party requests from visitors, nothing to rate-limit.
+// Saves the X profile picture of every person in src/data/featured.ts to src/assets/avatars/, so
+// the site serves the pictures itself: no third-party requests from visitors, nothing to rate-limit.
 //
 // Run it after adding someone to the featured names:  npm run avatars
 // Pictures already saved are kept; to download them all again:  npm run avatars -- --refresh
@@ -11,7 +11,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 const refresh = process.argv.includes("--refresh");
 const source = await readFile(new URL("../src/data/featured.ts", import.meta.url), "utf8");
 const handles = [...source.matchAll(/\bx:\s*"([A-Za-z0-9_]{1,15})"/g)].map((match) => match[1]);
-const dir = new URL("../public/avatars/", import.meta.url);
+const dir = new URL("../src/assets/avatars/", import.meta.url);
 await mkdir(dir, { recursive: true });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

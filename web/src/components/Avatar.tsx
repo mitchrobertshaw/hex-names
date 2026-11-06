@@ -15,17 +15,25 @@ function gradientFor(label: string): string {
   return GRADIENTS[hash % GRADIENTS.length];
 }
 
+// The saved X profile pictures, bundled with the site (and packed into the one-file copy).
+const PICTURES = import.meta.glob<string>("../assets/avatars/*.jpg", { eager: true, query: "?url", import: "default" });
+
+function pictureOf(handle: string): string | undefined {
+  return PICTURES[`../assets/avatars/${handle.toLowerCase()}.jpg`];
+}
+
 /**
- * A person's X profile picture, saved in public/avatars by `npm run avatars`, or, for names that
- * aren't people or if the picture is missing, the name's first letter on a warm gradient.
+ * A person's X profile picture, saved in src/assets/avatars by `npm run avatars`, or, for names
+ * that aren't people or if the picture is missing, the name's first letter on a warm gradient.
  */
 export function Avatar({ label, x, size = 34 }: { label: string; x?: string; size?: number }) {
   const [failed, setFailed] = useState(false);
-  if (x && !failed) {
+  const picture = x ? pictureOf(x) : undefined;
+  if (picture && !failed) {
     return (
       <img
         className="avatar"
-        src={`/avatars/${x.toLowerCase()}.jpg`}
+        src={picture}
         alt=""
         width={size}
         height={size}

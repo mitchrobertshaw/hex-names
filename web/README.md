@@ -27,7 +27,7 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 
 - **The floating names** are HEX KOLs, listed in [`src/data/featured.ts`](src/data/featured.ts)
   with their X handles. After adding someone, run `npm run avatars` to save their profile picture
-  into `public/avatars` (or ask Claude to). Every person shown must also be in
+  into `src/assets/avatars` (or ask Claude to). Every person shown must also be in
   [`../script/reserved-names.csv`](../script/reserved-names.csv), so nobody can buy their name
   first; the tests check both. A name and photo on the homepage reads as that person backing
   HexNS, so it's worth asking them first.
@@ -59,3 +59,7 @@ npm run dev
 
 `npm test` runs the tests, which GitHub also runs on every push, and `npm run build` makes the
 site in `dist/`.
+
+`npm run build:single` makes the whole site as one file, `dist-single/index.html`, with everything
+inside it: scripts, styles, fonts, pictures and the 3D scene. It opens straight from a computer by
+double-clicking, so it's handy for sharing a preview.
