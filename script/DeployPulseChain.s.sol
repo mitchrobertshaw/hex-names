@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {PulseChainAddresses as P} from "./Addresses.sol";
 import {DeployScript} from "./DeployScript.sol";
+import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 import {IAMB} from "../src/interfaces/IAMB.sol";
 
 /// @notice Step 1 of 3: deploys .hex on PulseChain, where names live and are sold.
@@ -14,6 +15,7 @@ import {IAMB} from "../src/interfaces/IAMB.sol";
 ///                              later; can never take, move or unregister a name.
 ///        BENEFICIARY           optional. Receives every payment. Defaults to ADMIN.
 ///        DEPLOYER_PRIVATE_KEY  optional. Without it, run without --broadcast for a dry run.
+///      Names in script/reserved-names.csv are set aside before anyone can buy names.
 ///      Use the same deployer key for steps 2 and 3: it is the only key that can link the two
 ///      chains together, once.
 contract DeployPulseChain is DeployScript {
@@ -29,6 +31,15 @@ contract DeployPulseChain is DeployScript {
         _requireCode(P.WPLS, "WPLS");
         _requireCode(P.PULSEX_V1_ROUTER, "PulseX V1");
         _requireCode(P.PULSEX_V2_ROUTER, "PulseX V2");
+
+        ReservedName[] memory reserved =
+            ReservedNames.read(string.concat(vm.projectRoot(), "/script/reserved-names.csv"));
+        uint256 given;
+        for (uint256 i = 0; i < reserved.length; ++i) {
+            if (reserved[i].owner == address(0)) continue;
+            _requireCanHoldTokens(reserved[i].owner, string.concat("The wallet for ", reserved[i].label, ".hex"));
+            ++given;
+        }
 
         address[] memory routers = new address[](2);
         routers[0] = P.PULSEX_V1_ROUTER;
@@ -46,7 +57,8 @@ contract DeployPulseChain is DeployScript {
                 wpls: IERC20(P.WPLS),
                 routers: routers,
                 mirrorGas: MIRROR_GAS,
-                settleGas: SETTLE_GAS
+                settleGas: SETTLE_GAS,
+                reserved: reserved
             })
         );
         vm.stopBroadcast();
@@ -65,6 +77,8 @@ contract DeployPulseChain is DeployScript {
         console.log("Resolver factory         ", address(hub.core.verifiableFactory));
         console.log("Resolver implementation  ", address(hub.core.resolverImplementation));
         console.log("Label store              ", address(hub.core.labelStore));
+        console.log("Reserved names given     ", given);
+        console.log("Reserved names held      ", reserved.length - given);
         console.log("Next: step 2 (Ethereum) with the first two addresses.");
     }
 }

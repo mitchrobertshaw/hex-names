@@ -9,7 +9,7 @@ import {GatewayProvider} from "@ens/contracts/ccipRead/GatewayProvider.sol";
 import {IGatewayProvider} from "@ens/contracts/ccipRead/IGatewayProvider.sol";
 import {VerifiableFactory} from "@ensdomains/verifiable-factory/VerifiableFactory.sol";
 
-import {ETHRegistrar} from "@ensv2/registrar/ETHRegistrar.sol";
+import {ETHRegistrar, REGISTRATION_ROLE_BITMAP} from "@ensv2/registrar/ETHRegistrar.sol";
 import {IRentPriceOracle} from "@ensv2/registrar/interfaces/IRentPriceOracle.sol";
 import {StandardRentPriceOracle, DiscountPoint, PaymentRatio} from "@ensv2/registrar/StandardRentPriceOracle.sol";
 import {PermissionedRegistry} from "@ensv2/registry/PermissionedRegistry.sol";
@@ -31,6 +31,7 @@ import {IHexMirrorSync} from "../src/interfaces/IHexBridge.sol";
 import {AnyTokenCheckout} from "../src/pulsechain/AnyTokenCheckout.sol";
 import {HexMirrorSync} from "../src/pulsechain/HexMirrorSync.sol";
 import {HexOrderFiller} from "../src/pulsechain/HexOrderFiller.sol";
+import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 
 /// @title HexDeployer
 /// @notice Deploys .hex: ENSv2 with a `hex` ending, the real registry on PulseChain and a copy on
@@ -60,6 +61,11 @@ abstract contract HexDeployer {
     uint64 internal constant PREMIUM_PERIOD = 21 days;
     /// @dev Multi-year discounts: 12.5% from 2 years, 31.25% from 3, 43.75% from 6.
     uint128 internal constant DISCOUNT_DENOMINATOR = 1e38;
+
+    /// @dev How long reserved names last from deployment. A held name can't be bought for that
+    ///      long unless the admin hands it over; a given name is paid up for that long. The admin
+    ///      can extend either.
+    uint64 internal constant RESERVATION_PERIOD = 5 * 365 days;
 
     uint64 internal constant MAX_EXPIRY = type(uint64).max;
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;
@@ -100,6 +106,7 @@ abstract contract HexDeployer {
         address[] routers; // PulseX routers for the checkout
         uint256 mirrorGas; // gas each Ethereum copy message asks for
         uint256 settleGas; // gas each Ethereum settlement message asks for
+        ReservedName[] reserved; // set aside before anyone can buy names (see `_reserve`)
     }
 
     /// @notice Ethereum: a copy of every name, and orders for buying from Ethereum.
@@ -127,13 +134,17 @@ abstract contract HexDeployer {
     /// @dev Deploys the PulseChain side. The two bridge contracts still need `link`ing to their
     ///      Ethereum partners afterwards, by `cfg.deployer`.
     function _deployHub(HubConfig memory cfg) internal returns (Hub memory hub) {
-        // The .hex registry: the deployer may grant the registrar and renewer roles and set the
-        // parent, nothing more. In particular nobody gets the roles to unregister, transfer, or
-        // change the resolver of someone else's name.
+        // The .hex registry: the deployer may grant the registrar, renewer and reserved-name roles
+        // and set the parent, nothing more. In particular nobody gets the roles to unregister,
+        // transfer, or change the resolver of someone else's name.
         uint256 hexRegistryRoles = RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
-            | RegistryRolesLib.ROLE_SET_PARENT | RegistryRolesLib.ROLE_SET_PARENT_ADMIN;
+            | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN | RegistryRolesLib.ROLE_SET_PARENT
+            | RegistryRolesLib.ROLE_SET_PARENT_ADMIN;
         hub.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles);
         PermissionedRegistry hexRegistry = hub.core.hexRegistry;
+
+        // Before the registrar exists, so nobody can buy a reserved name first.
+        _reserve(hexRegistry, cfg.deployer, cfg.reserved);
 
         hub.oracle = new StandardRentPriceOracle(
             cfg.admin,
@@ -174,8 +185,13 @@ abstract contract HexDeployer {
         );
 
         // Hand over: the admin may add registrars and renewers later (neither can take a name),
-        // and may add new endings to the root. Then the deployer gives up everything.
-        hexRegistry.grantRootRoles(RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN, cfg.admin);
+        // may hand held reserved names to their owners, and may add new endings to the root.
+        // Then the deployer gives up everything.
+        hexRegistry.grantRootRoles(
+            RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
+                | RegistryRolesLib.ROLE_REGISTER_RESERVED,
+            cfg.admin
+        );
         hub.core.rootRegistry
             .grantRootRoles(RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_REGISTRAR_ADMIN, cfg.admin);
         _renounce(hub.core, cfg.deployer, hexRegistryRoles);
@@ -254,6 +270,29 @@ abstract contract HexDeployer {
         );
         core.verifiableFactory = new VerifiableFactory();
         core.resolverImplementation = new PermissionedResolver(admin);
+    }
+
+    /// @dev Sets aside `names` in the .hex registry. A name with an owner is registered to it with
+    ///      the roles a buyer gets. A name without one is held (ENSv2's RESERVED status): the
+    ///      registrar won't sell it, and only the admin can hand it to an owner, keeping the same
+    ///      expiry. Both last `RESERVATION_PERIOD`. The deployer is a registrar only while doing this.
+    function _reserve(PermissionedRegistry registry, address deployer, ReservedName[] memory names) internal {
+        if (names.length == 0) return;
+        registry.grantRootRoles(RegistryRolesLib.ROLE_REGISTRAR, deployer);
+        uint64 expiry = uint64(block.timestamp) + RESERVATION_PERIOD;
+        for (uint256 i = 0; i < names.length; ++i) {
+            ReservedNames.requireValidLabel(names[i].label);
+            address owner = names[i].owner;
+            registry.register(
+                names[i].label,
+                owner,
+                IRegistry(address(0)),
+                address(0),
+                owner == address(0) ? 0 : REGISTRATION_ROLE_BITMAP,
+                expiry
+            );
+        }
+        registry.revokeRootRoles(RegistryRolesLib.ROLE_REGISTRAR, deployer);
     }
 
     /// @dev The deployer gives up every role it held on the two registries.
