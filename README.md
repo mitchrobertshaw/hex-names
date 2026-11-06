@@ -105,6 +105,43 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
   so nobody can snipe a name the moment it lapses.
 - **Payment.** Paid in USDC or DAI bridged from Ethereum, to the beneficiary set at deployment.
 
+## Reserved names
+
+Some names are set aside when .hex is deployed, before anyone can buy names. They're listed in
+[`script/reserved-names.csv`](script/reserved-names.csv), one per row: the name, optionally a
+wallet, and a note.
+
+- **With a wallet**, the name belongs to that wallet from the start, as if they had bought it. Only
+  use a wallet you're sure is theirs, such as the one their own `.eth` or `.pls` name points to.
+- **Without a wallet**, the name is held. Nobody can buy it and it points nowhere, until its owner
+  proves who they are and the admin hands it to their wallet.
+
+Either way it lasts 5 years from deployment. After that a given name is renewed like any other, and
+a held name nobody claimed goes on sale. The admin can extend either. Given names reach the Ethereum
+copy on the bot's first run, as long as its `START_BLOCK_PULSECHAIN` is the block step 1 was
+deployed in.
+
+**Adding names.** Edit the file on GitHub before deploying (open it, then the pencil icon). One name
+per row, without `.hex`: a–z, 0–9 and hyphens, at least 3 characters. Leave the wallet empty to hold
+a name, and keep commas out of the note. The tests and the deploy check every row and stop at the
+first one that's wrong.
+
+**Handing over a held name.** Once you're sure who it belongs to (for example, they sign a message
+with the wallet their `.eth` or `.pls` name points to), the admin calls `register` on the .hex
+registry with:
+
+| Field | Value |
+|---|---|
+| `label` | the name, e.g. `pulsechain` |
+| `owner` | their wallet |
+| `registry` | `0x0000000000000000000000000000000000000000` |
+| `resolver` | `0x0000000000000000000000000000000000000000` (the default: it points to its owner) |
+| `roleBitmap` | `97409655027181761882228017414928043058140282880` (the rights a buyer gets) |
+| `expiry` | `0` (keeps the reservation's expiry) |
+
+This works only on held names: the admin can't take a name someone owns. A page that does it for
+you can come with the website.
+
 ## Who can do what
 
 **Nobody can** take, unregister, or redirect someone's name on PulseChain. That includes the admin
@@ -112,9 +149,12 @@ and the deployer. The registry has no role that can, and the tests check it. Nob
 `.hex` registry or its default resolver on either chain: `.hex` is registered in each root with no
 roles at all.
 
-**The admin** (PulseChain only) can change prices and the accepted stablecoins, add registrars and
-renewers, and add other endings to the root. A new registrar can only register names nobody owns.
-Use a multisig such as a Safe, or give these powers up once things are settled.
+**The admin** (PulseChain only) can raise or lower all prices together, change the accepted
+stablecoins, add registrars and renewers, hand held reserved names to their owners, and add other
+endings to the root. It can't change the price of one length, the multi-year discounts or the
+premium for expired names: those are fixed when the registrar is deployed. A new registrar can only
+register names nobody owns. Use a multisig such as a Safe, or give these powers up once things are
+settled.
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
 releasing money held by Ethereum orders. If they were compromised they could write a false Ethereum
@@ -164,9 +204,10 @@ The compiled contracts were scanned and contain none of the missing opcodes.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 76 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 92 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
   - prices and roles, and that nobody can take a name;
+  - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;
   - the whole Ethereum order flow, and every way it can be refunded;
   - that a buyer can never get both the name and a refund, and that a filler can't claim the wrong
@@ -202,6 +243,7 @@ Three steps, run from the GitHub website (a phone works too).
    **broadcast** unticked), then for real. Each run's summary shows the addresses the next step
    needs.
    1. **Deploy on PulseChain.** Enter the admin wallet, and optionally who receives payments.
+      This also sets aside the [reserved names](#reserved-names), so check that list first.
    2. **Deploy on Ethereum and link it.** Enter the admin and the two `PULSECHAIN_...` addresses from
       step 1.
    3. **Link PulseChain.** Enter all four addresses.

@@ -74,7 +74,11 @@ contract DeploymentTest is HexTestBase {
 
     function test_roles_pulseChainAdminCannotUnregisterOrMoveNames() public view {
         uint256 adminRoles = hub.core.hexRegistry.roles(ROOT, admin);
-        assertEq(adminRoles, RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN);
+        assertEq(
+            adminRoles,
+            RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
+                | RegistryRolesLib.ROLE_REGISTER_RESERVED
+        );
         uint256 dangerous = RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_UNREGISTER_ADMIN
             | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_RESOLVER_ADMIN
             | RegistryRolesLib.ROLE_SET_SUBREGISTRY | RegistryRolesLib.ROLE_SET_SUBREGISTRY_ADMIN

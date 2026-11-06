@@ -11,6 +11,7 @@ import {IRegistry} from "@ensv2/registry/interfaces/IRegistry.sol";
 import {LibLabel} from "@ensv2/utils/LibLabel.sol";
 
 import {HexDeployer} from "../../script/HexDeployer.sol";
+import {ReservedName} from "../../script/ReservedNames.sol";
 import {SwapPayments} from "../../src/common/SwapPayments.sol";
 import {HexOrderFiller} from "../../src/pulsechain/HexOrderFiller.sol";
 import {MockAMB} from "../mocks/MockAMB.sol";
@@ -88,7 +89,8 @@ abstract contract HexTestBase is Test, HexDeployer {
                 wpls: wpls,
                 routers: plsRouters,
                 mirrorGas: MIRROR_GAS,
-                settleGas: SETTLE_GAS
+                settleGas: SETTLE_GAS,
+                reserved: _reservedNames()
             })
         );
 
@@ -112,6 +114,9 @@ abstract contract HexTestBase is Test, HexDeployer {
         mirror.mirrorRegistrar.link(address(hub.mirrorSync));
         mirror.orderBook.link(address(hub.orderFiller));
     }
+
+    /// @dev Names to set aside at deployment. None, unless a test overrides this.
+    function _reservedNames() internal virtual returns (ReservedName[] memory names) {}
 
     // ------------------------------------------------------------------------------------------
     // Bridge

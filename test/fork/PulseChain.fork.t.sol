@@ -8,6 +8,7 @@ import {NameCoder} from "@ens/contracts/utils/NameCoder.sol";
 import {IRegistry} from "@ensv2/registry/interfaces/IRegistry.sol";
 
 import {HexDeployer} from "../../script/HexDeployer.sol";
+import {ReservedName} from "../../script/ReservedNames.sol";
 import {PulseChainAddresses as P} from "../../script/Addresses.sol";
 import {SwapPayments} from "../../src/common/SwapPayments.sol";
 import {IAMB} from "../../src/interfaces/IAMB.sol";
@@ -53,7 +54,8 @@ contract PulseChainForkTest is Test, HexDeployer {
                 wpls: IERC20(P.WPLS),
                 routers: routers,
                 mirrorGas: 1_000_000,
-                settleGas: 300_000
+                settleGas: 300_000,
+                reserved: new ReservedName[](0)
             })
         );
         hub.mirrorSync.link(ethMirrorRegistrar);
