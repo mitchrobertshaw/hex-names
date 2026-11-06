@@ -1,5 +1,6 @@
 import { LAUNCHED } from "../site";
 import { Logo } from "./Logo";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Nav() {
   return (
@@ -10,11 +11,15 @@ export function Nav() {
           <span className="brand__name">HexNS</span>
         </a>
         <nav className="nav__links" aria-label="Sections">
+          <a href="#chains">Both chains</a>
           <a href="#how">How it works</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
         </nav>
-        <span className="nav__status">{LAUNCHED ? "Live on PulseChain" : "Launching soon"}</span>
+        <div className="nav__actions">
+          <ThemeToggle />
+          <span className="nav__status">{LAUNCHED ? "Live" : "Launching soon"}</span>
+        </div>
       </div>
     </header>
   );

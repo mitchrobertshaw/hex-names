@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 
-import { checkName, type NameCheck } from "../lib/names";
+import { checkName, type NameCheck, YEARLY_PRICE } from "../lib/names";
 import { LAUNCHED } from "../site";
 import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from "./icons";
 
@@ -26,7 +26,7 @@ function Result({ check }: { check: NameCheck }) {
       return (
         <Card tone="ok" icon={<CheckIcon />} title={<><b>{check.name}</b> is available</>}>
           <p>
-            ${check.yearlyPrice} a year, paid in PLS, HEX or any token.{" "}
+            ${check.yearlyPrice} a year for both chains, paid in PLS, HEX or any token.{" "}
             {LAUNCHED ? null : "Registration opens at launch."}
           </p>
           <button type="button" className="button button--primary button--small" disabled={!LAUNCHED}>
@@ -37,7 +37,9 @@ function Result({ check }: { check: NameCheck }) {
     case "premium":
       return (
         <Card tone="info" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
-          <p>Names of {check.length} characters cost more than $5. Their prices are announced at launch.</p>
+          <p>
+            Names of {check.length} characters cost more than ${YEARLY_PRICE}. Their prices are announced at launch.
+          </p>
         </Card>
       );
     case "reserved":

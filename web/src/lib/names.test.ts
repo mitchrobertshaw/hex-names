@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { checkName, nameLength } from "./names";
+import deployer from "../../../script/HexDeployer.sol?raw";
+import page from "../../index.html?raw";
+
+import { checkName, nameLength, YEARLY_PRICE } from "./names";
 import { parseReservedNames, reservedFor } from "./reserved";
 
 const reserved = parseReservedNames(
@@ -11,8 +14,8 @@ const reserved = parseReservedNames(
 const check = (input: string) => checkName(input, reserved);
 
 describe("checkName", () => {
-  it("prices names of 5 or more characters at $5 a year", () => {
-    expect(check("alice")).toEqual({ kind: "available", name: "alice.hex", yearlyPrice: 5 });
+  it("prices names of 5 or more characters at $10 a year", () => {
+    expect(check("alice")).toEqual({ kind: "available", name: "alice.hex", yearlyPrice: 10 });
   });
 
   it("lower-cases, trims and accepts a typed .hex ending", () => {
@@ -45,7 +48,7 @@ describe("checkName", () => {
     expect(check("alice.eth")).toEqual({
       kind: "eth",
       name: "alice.eth",
-      hex: { kind: "available", name: "alice.hex", yearlyPrice: 5 },
+      hex: { kind: "available", name: "alice.hex", yearlyPrice: 10 },
     });
     expect(check("alice.hex.eth")).toMatchObject({ kind: "eth", hex: { name: "alice.hex" } });
   });
@@ -63,6 +66,17 @@ describe("checkName", () => {
   it("treats blank input as nothing typed", () => {
     expect(check("   ")).toEqual({ kind: "empty" });
     expect(check(".hex")).toEqual({ kind: "empty" });
+  });
+});
+
+describe("the price", () => {
+  it("matches what the contracts are deployed with", () => {
+    const match = deployer.match(/YEARLY_PRICE_5_PLUS\s*=\s*(\d+)/);
+    expect(Number(match?.[1]), "script/HexDeployer.sol and YEARLY_PRICE disagree").toBe(YEARLY_PRICE);
+  });
+
+  it("is the one in the page description", () => {
+    expect(page).toContain(`$${YEARLY_PRICE} a year`);
   });
 });
 

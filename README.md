@@ -94,7 +94,7 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 
 | Length | A year |
 |---|---|
-| 5 or more characters | $5 |
+| 5 or more characters | $10, for both chains |
 | 4 | $160 |
 | 3 | $640 |
 | 1–2 | not for sale |

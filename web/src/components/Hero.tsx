@@ -1,24 +1,31 @@
+import { YEARLY_PRICE } from "../lib/names";
 import { LAUNCHED } from "../site";
 import { FloatingNames } from "./FloatingNames";
+import { HeroScene } from "./HeroScene";
 import { NameSearch } from "./NameSearch";
 
 export function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
+      <HeroScene />
       <FloatingNames variant="scatter" />
       <div className="container hero__content">
         <p className="eyebrow">
           <span className="eyebrow__dot" aria-hidden="true" />
           <span>
             Made for Hexicans
-            <span className="eyebrow__more"> · {LAUNCHED ? "Live on PulseChain" : "Coming soon to PulseChain"}</span>
+            <span className="eyebrow__more">
+              {" "}
+              · {LAUNCHED ? "Live on PulseChain and Ethereum" : "Coming soon to PulseChain and Ethereum"}
+            </span>
           </span>
         </p>
         <h1 id="hero-title">
-          Swap your 0x… for <span className="grad-text">yourname.hex</span>
+          The <span className="grad-text">.hex</span> name service for PulseChain and Ethereum
         </h1>
         <p className="lede">
-          One name for your wallet on PulseChain and Ethereum. $5&nbsp;a&nbsp;year, paid in PLS, HEX or any token.
+          Swap your 0x… for yourname.hex: one name for your wallet on both chains. ${YEARLY_PRICE}&nbsp;a&nbsp;year
+          covers both, paid in PLS, HEX or any token.
         </p>
         <NameSearch />
       </div>

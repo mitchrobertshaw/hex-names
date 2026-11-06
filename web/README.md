@@ -25,12 +25,19 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 
 ## Changing things
 
-- **The floating names** are in [`src/data/featured.ts`](src/data/featured.ts). For a person (a HEX
-  KOL), add their X handle, then run `npm run avatars` to save their profile picture into
-  `public/avatars`. Every person shown must also be in
+- **The floating names** are HEX KOLs, listed in [`src/data/featured.ts`](src/data/featured.ts)
+  with their X handles. After adding someone, run `npm run avatars` to save their profile picture
+  into `public/avatars` (or ask Claude to). Every person shown must also be in
   [`../script/reserved-names.csv`](../script/reserved-names.csv), so nobody can buy their name
-  first; the tests check both. Ask each person before featuring them: a name and photo on the
-  homepage reads as them backing HexNS.
+  first; the tests check both. A name and photo on the homepage reads as that person backing
+  HexNS, so it's worth asking them first.
+- **The 3D HEX logo** behind the top of the page is drawn by [`src/three/scene.ts`](src/three/scene.ts),
+  from the logo on [hex.com/downloads](https://hex.com/downloads) (hex.com licenses it under fair
+  use). How see-through it is, in light and dark, is `--scene-logo-opacity` in `src/styles.css`. It
+  loads after the rest of the page, pauses when scrolled away, stays still for visitors who turn
+  off motion, and is simply left out on devices without WebGL.
+- **Light and dark**: the moon and sun button in the top bar switches between them and remembers
+  the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts
   are deployed with, so the search marks exactly those names as reserved.
 - **Words on the page** are in [`src/components`](src/components): the top of the page in

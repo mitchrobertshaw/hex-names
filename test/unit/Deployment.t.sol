@@ -24,7 +24,7 @@ contract DeploymentTest is HexTestBase {
         (uint256 base4,) = hub.registrar.getRegisterPrice("four", ONE_YEAR, plsUsdc);
         (uint256 base3,) = hub.registrar.getRegisterPrice("abc", ONE_YEAR, plsUsdc);
         // ENS rounds the per-second rate up, so a year costs a few millionths of a dollar more.
-        assertApproxEqAbs(base5, 5e6, 10, "5+ letters: $5 a year");
+        assertApproxEqAbs(base5, 10e6, 10, "5+ letters: $10 a year");
         assertApproxEqAbs(base4, 160e6, 10, "4 letters: $160 a year");
         assertApproxEqAbs(base3, 640e6, 10, "3 letters: $640 a year");
     }

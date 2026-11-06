@@ -1,12 +1,8 @@
-// The names floating at the top of the homepage.
+// The names floating at the top of the homepage: HEX KOLs, with their X profile pictures.
 //
-// People (HEX KOLs) have an X handle, and their X profile picture is shown next to their name.
 // After adding someone, run `npm run avatars` to save their picture in public/avatars.
 // Every person here must also be in script/reserved-names.csv, so the homepage never advertises
 // someone's name that a stranger could buy first. featured.test.ts checks both.
-//
-// Until the list of KOLs is in, plain HEX words fill the rest. They aren't people, so they don't
-// need reserving.
 
 export interface FeaturedName {
   label: string; // the name without .hex
@@ -15,14 +11,12 @@ export interface FeaturedName {
 }
 
 export const featuredNames: FeaturedName[] = [
+  { label: "richardheart", person: "Richard Heart", x: "RichardHeartWin" },
   { label: "yourfriendsommi", person: "Your Friend Sommi", x: "yourfriendSOMMI" },
-  { label: "hexican" },
-  { label: "tshares" },
-  { label: "fullterm" },
-  { label: "staker" },
-  { label: "bigpayday" },
-  { label: "hearts" },
-  { label: "ladder" },
-  { label: "endstake" },
-  { label: "5555days" },
+  { label: "cryptocoffee", person: "Crypto Coffee", x: "CryptoCoffee369" },
+  { label: "broots", person: "BRoots", x: "iambroots" },
+  { label: "hexologist", person: "Hexologist", x: "Hexologist31" },
+  { label: "dollarcostcrypto", person: "Dollar Cost Crypto", x: "dollarcostcrypt" },
+  { label: "matiallin", person: "Mati Allin", x: "MatiAllin" },
+  { label: "nineironcapital", person: "NineIronCapital", x: "NineIronCapital" },
 ];

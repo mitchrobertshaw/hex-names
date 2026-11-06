@@ -4,8 +4,8 @@ import { ens_normalize } from "@adraffy/ens-normalize";
 
 import { type Reservation, reservedFor, reservedNames } from "./reserved";
 
-/** Dollars a year for names of 5 or more characters. */
-export const YEARLY_PRICE = 5;
+/** Dollars a year for names of 5 or more characters, covering both chains. */
+export const YEARLY_PRICE = 10;
 
 export type NameCheck =
   | { kind: "empty" }

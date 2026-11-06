@@ -55,7 +55,7 @@ contract EthereumForkTest is Test, HexDeployer {
     }
 
     function test_fork_orderWithUSDC_settledByTheBridge() public {
-        uint256 amount = 5.25e6;
+        uint256 amount = 10.25e6; // the price plus the filler's fee
         deal(E.USDC, alice, amount);
         vm.startPrank(alice);
         IERC20(E.USDC).approve(address(mirror.orderBook), amount);
@@ -71,7 +71,7 @@ contract EthereumForkTest is Test, HexDeployer {
     }
 
     function test_fork_orderWithETH() public {
-        uint256 amount = 5.25e6;
+        uint256 amount = 10.25e6; // the price plus the filler's fee
         address[] memory path = _two(E.WETH, E.USDC);
         uint256 ethIn = mirror.orderBook.quote(amount, E.UNISWAP_V2_ROUTER, path) * 103 / 100;
         vm.deal(alice, ethIn);
@@ -88,7 +88,7 @@ contract EthereumForkTest is Test, HexDeployer {
     }
 
     function test_fork_orderWithHEX() public {
-        uint256 amount = 5.25e6;
+        uint256 amount = 10.25e6; // the price plus the filler's fee
         address[] memory path = new address[](3);
         path[0] = E.HEX;
         path[1] = E.WETH;

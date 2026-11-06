@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 
+import { YEARLY_PRICE } from "../lib/names";
 import { GITHUB_URL, LAUNCHED } from "../site";
-import { ChainsIcon, CheckIcon, CodeIcon, CoinsIcon, CrossIcon, GitHubIcon, ShieldIcon } from "./icons";
+import { ArrowIcon, ChainsIcon, CheckIcon, CodeIcon, CoinsIcon, GitHubIcon, ShieldIcon } from "./icons";
+
+const PRICE = `$${YEARLY_PRICE}`;
 
 function SectionHeading({ kicker, title, children }: { kicker: string; title: ReactNode; children?: ReactNode }) {
   return (
@@ -13,16 +16,76 @@ function SectionHeading({ kicker, title, children }: { kicker: string; title: Re
   );
 }
 
+function Resolves({ chain }: { chain: string }) {
+  return (
+    <p className="resolves">
+      <span className="resolves__name">
+        you<span className="pill__tld">.hex</span>
+      </span>
+      <span className="resolves__arrow" aria-hidden="true">
+        →
+      </span>
+      <span className="resolves__address">0x7a3F…91c2</span>
+      <span className="visually-hidden"> on {chain}</span>
+    </p>
+  );
+}
+
+export function BothChains() {
+  return (
+    <section className="section" id="chains" aria-labelledby="chains-title">
+      <div className="container">
+        <SectionHeading kicker="PulseChain and Ethereum" title={<span id="chains-title">One name, covered on both chains</span>}>
+          Live on PulseChain, still on Ethereum, or somewhere in between? Your .hex name works on both, so you&rsquo;re
+          covered wherever you end up. {PRICE} a year covers both chains.
+        </SectionHeading>
+        <div className="chains">
+          <article className="card chain chain--pulsechain">
+            <p className="chain__badge">Where your name lives</p>
+            <h3>PulseChain</h3>
+            <p>Buy, renew, sell and manage your name here. Changes show up straight away.</p>
+            <Resolves chain="PulseChain" />
+          </article>
+          <div className="chains__link" aria-hidden="true">
+            <ArrowIcon />
+            <span>Copied automatically</span>
+          </div>
+          <article className="card chain chain--ethereum">
+            <p className="chain__badge">Copied automatically</p>
+            <h3>Ethereum</h3>
+            <p>Every name is copied here about 15 minutes after a change, so Ethereum wallets and apps find it too.</p>
+            <Resolves chain="Ethereum" />
+          </article>
+        </div>
+        <ul className="ticks ticks--grid">
+          <li>
+            <CheckIcon size={18} /> Buy from either chain, with whatever you hold there
+          </li>
+          <li>
+            <CheckIcon size={18} /> Points to your wallet on both chains
+          </li>
+          <li>
+            <CheckIcon size={18} /> Renew once and both chains stay yours
+          </li>
+          <li>
+            <CheckIcon size={18} /> Chain agnostic? You&rsquo;re covered either way, just in case
+          </li>
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 export function SendToNames() {
   return (
-    <section className="section" aria-labelledby="send-title">
+    <section className="section section--tint" aria-labelledby="send-title">
       <div className="container split">
         <div>
           <p className="kicker">Why a name</p>
           <h2 id="send-title">Send to names, not numbers</h2>
           <p className="section__intro">
-            No more copying 42-character addresses and checking them three times. Send PLS, HEX and every other
-            token to <b>yourname.hex</b> and it lands in your wallet, on PulseChain and on Ethereum.
+            No more copying 42-character addresses and checking them three times. Send PLS, HEX, ETH and every other
+            token to <b>yourname.hex</b> and it lands in your wallet.
           </p>
           <ul className="ticks">
             <li>
@@ -52,7 +115,7 @@ export function SendToNames() {
             </span>
           </div>
           <p className="send-card__resolved">
-            <CheckIcon size={16} /> 0x7a3F…91c2 on PulseChain
+            <CheckIcon size={16} /> 0x7a3F…91c2
           </p>
           <span className="send-card__button">Send</span>
         </div>
@@ -64,13 +127,13 @@ export function SendToNames() {
 const FEATURES = [
   {
     icon: <ChainsIcon />,
-    title: "One name, both chains",
-    text: "Your name lives on PulseChain and is copied to Ethereum automatically. Renew once on PulseChain and both stay yours.",
+    title: "One price, both chains",
+    text: `${PRICE} a year covers your name on PulseChain and Ethereum. No paying twice, no keeping two names in step.`,
   },
   {
     icon: <CoinsIcon />,
     title: "Pay with your bag",
-    text: "PLS, HEX, PLSX, ETH, USDC or any token with a pool. It's swapped at checkout, so the price stays $5 a year.",
+    text: `PLS, HEX, PLSX, ETH, USDC or any token with a pool. It's swapped at checkout, so the price stays ${PRICE} a year.`,
   },
   {
     icon: <ShieldIcon />,
@@ -86,7 +149,7 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section className="section section--tint" aria-labelledby="features-title">
+    <section className="section" aria-labelledby="features-title">
       <div className="container">
         <SectionHeading kicker="What you get" title={<span id="features-title">A name that works for Hexicans</span>} />
         <div className="features">
@@ -104,14 +167,14 @@ export function Features() {
 }
 
 const STEPS = [
-  { title: "Search", text: "Find a name you like. Names of 5 characters or more are $5 a year." },
+  { title: "Search", text: `Find a name you like. Names of 5 characters or more are ${PRICE} a year, for both chains.` },
   { title: "Buy it in one go", text: "Pay from PulseChain or Ethereum with whatever you hold. No bridging, no swapping first." },
   { title: "Use it everywhere", text: "Share yourname.hex instead of your address. It points to your wallet on both chains." },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="section" id="how" aria-labelledby="how-title">
+    <section className="section section--tint" id="how" aria-labelledby="how-title">
       <div className="container">
         <SectionHeading kicker="How it works" title={<span id="how-title">Three steps to your name</span>} />
         <ol className="steps">
@@ -128,60 +191,29 @@ export function HowItWorks() {
   );
 }
 
-export function EthWarning() {
-  return (
-    <section className="section section--tight" aria-labelledby="eth-title">
-      <div className="container">
-        <div className="card warning">
-          <div>
-            <p className="kicker kicker--warn">Read this once</p>
-            <h2 id="eth-title">A .hex name never ends in .eth</h2>
-            <p>
-              <b>alice.hex</b> and <b>alice.hex.eth</b> are different names. HexNS doesn&rsquo;t control hex.eth, so
-              whoever owns it decides where alice.hex.eth points. When you send to someone&rsquo;s .hex name, type it
-              exactly as <b>name.hex</b>.
-            </p>
-          </div>
-          <ul className="compare">
-            <li className="compare__row compare__row--ok">
-              <span className="compare__icon">
-                <CheckIcon size={18} />
-              </span>
-              <span className="compare__name">alice.hex</span>
-              <span className="compare__note">Alice&rsquo;s wallet</span>
-            </li>
-            <li className="compare__row compare__row--bad">
-              <span className="compare__icon">
-                <CrossIcon size={18} />
-              </span>
-              <span className="compare__name">alice.hex.eth</span>
-              <span className="compare__note">Not HexNS. Someone else decides</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function Pricing() {
   return (
-    <section className="section section--tint" id="pricing" aria-labelledby="pricing-title">
+    <section className="section" id="pricing" aria-labelledby="pricing-title">
       <div className="container pricing">
         <div>
           <p className="kicker">Pricing</p>
-          <h2 id="pricing-title">One simple price</h2>
-          <p className="section__intro">The same price on both chains, whatever you pay with.</p>
+          <h2 id="pricing-title">One price for both chains</h2>
+          <p className="section__intro">
+            One name on PulseChain and Ethereum, for one yearly price, whatever you pay with.
+          </p>
         </div>
         <div className="card price-card">
           <p className="price">
-            <span className="grad-text">$5</span>
+            <span className="grad-text">{PRICE}</span>
             <span className="price__unit">a year</span>
           </p>
-          <p className="price__for">for names of 5 characters or more</p>
+          <p className="price__for">for names of 5 characters or more, on both chains</p>
           <ul className="ticks">
             <li>
-              <CheckIcon size={18} /> Pay in PLS, HEX or any token, from PulseChain or Ethereum
+              <CheckIcon size={18} /> Covers PulseChain and Ethereum: no paying twice
+            </li>
+            <li>
+              <CheckIcon size={18} /> Pay in PLS, HEX or any token, from either chain
             </li>
             <li>
               <CheckIcon size={18} /> Names of 3 or 4 characters are premium, priced at launch
@@ -206,7 +238,11 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Which chains does it work on?",
-    a: "PulseChain, where names live and are bought, and Ethereum, where every name is copied automatically. The Ethereum copy catches up about 15 minutes after a purchase or a sale.",
+    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after a purchase or a sale. If you use both chains, or might one day, you're covered either way.",
+  },
+  {
+    q: `Why ${PRICE} a year?`,
+    a: "It covers your name on both chains: on PulseChain, where it lives, and its copy on Ethereum, which costs gas to keep up to date.",
   },
   {
     q: "Which wallets will support it?",
@@ -225,6 +261,10 @@ const FAQS: { q: string; a: ReactNode }[] = [
     a: "No. Nobody can take, move or redirect a name someone owns, including the HexNS team.",
   },
   {
+    q: "Is alice.hex the same as alice.hex.eth?",
+    a: "No. .hex names never end in .eth. alice.hex.eth is a different name that HexNS doesn't control, so always type a .hex name exactly as name.hex.",
+  },
+  {
     q: "Is it safe?",
     a: "HexNS is built on the code of ENS v2, which has been audited. HexNS's own contracts will be independently reviewed before launch.",
   },
@@ -236,7 +276,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
 
 export function Faq() {
   return (
-    <section className="section" id="faq" aria-labelledby="faq-title">
+    <section className="section section--tint" id="faq" aria-labelledby="faq-title">
       <div className="container faq">
         <SectionHeading kicker="FAQ" title={<span id="faq-title">Questions, answered</span>} />
         <div className="faq__list">
@@ -260,7 +300,7 @@ export function Cta() {
           <h2 id="cta-title">{LAUNCHED ? "Get your name today" : "Hexicans, get ready to claim your name"}</h2>
           <p>
             {LAUNCHED
-              ? "Search for it, pay with whatever you hold, and it's yours."
+              ? "Search for it, pay with whatever you hold, and it's yours on both chains."
               : "HexNS is launching soon. Follow the build on GitHub, and search above to see if your name is free."}
           </p>
           <div className="cta__actions">
