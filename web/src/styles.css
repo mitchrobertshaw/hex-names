@@ -249,9 +249,7 @@ img {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--bg); /* solid, so nothing shows through it, even the dark band */
   border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
