@@ -36,11 +36,10 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   slow wave, in the HEX colours. Pillars near the pointer rise and light up, and a click or tap
   sends a ripple across them. It loads after the rest of the page, pauses when scrolled away,
   stays still for visitors who turn off motion, and is simply left out on devices without WebGL.
-- **The headline** is one of five in [`src/hero/headlines.tsx`](src/hero/headlines.tsx). While
-  one is being chosen, a small panel at the bottom of the page switches between them, and the
-  choice goes in the address (`?headline=B`) so it can be shared. Once one is picked, set it as
-  `DEFAULT_HEADLINE` and turn the panel off with `SHOW_HEADLINE_PICKER` in
-  [`src/site.ts`](src/site.ts).
+- **The chain logos** are PulseChain's and Ethereum's own, in [`src/assets/chains`](src/assets/chains):
+  PulseChain's is the PLS mark from PulseX's token list (the same as pulsechain.com's icon), and
+  Ethereum's is `eth-diamond-purple.svg` from [ethereum.org/assets](https://ethereum.org/assets/).
+  They only show which chains a name works on; the footer says HexNS isn't affiliated with either.
 - **The chat** ("Goodbye 0x…", in [`Messages.tsx`](src/components/Messages.tsx)) and **the name
   card** ("Yours. Not ours.", in [`Ownership.tsx`](src/components/Ownership.tsx)) are small
   demos. A name typed into the chat shows on the card too.

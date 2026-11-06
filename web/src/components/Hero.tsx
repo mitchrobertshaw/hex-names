@@ -1,12 +1,10 @@
-import { HEADLINES } from "../hero/headlines";
 import { YEARLY_PRICE } from "../lib/names";
 import { LAUNCHED } from "../site";
 import { FloatingNames } from "./FloatingNames";
 import { HeroScene } from "./HeroScene";
 import { NameSearch } from "./NameSearch";
 
-export function Hero({ headline }: { headline: string }) {
-  const h1 = HEADLINES.find((h) => h.id === headline) ?? HEADLINES[0];
+export function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
       <HeroScene />
@@ -22,7 +20,9 @@ export function Hero({ headline }: { headline: string }) {
             </span>
           </span>
         </p>
-        <h1 id="hero-title">{h1.content}</h1>
+        <h1 id="hero-title">
+          Your <span className="grad-text">.hex</span> name on PulseChain and Ethereum
+        </h1>
         <p className="lede">
           Swap your 0x… for yourname.hex: one name for your wallet on both chains. ${YEARLY_PRICE}&nbsp;a&nbsp;year
           covers both, paid in PLS, HEX or any token.
