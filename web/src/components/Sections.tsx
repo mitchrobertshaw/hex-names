@@ -299,7 +299,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "What can I pay with?",
-    a: "On PulseChain: PLS, HEX, PLSX or any token with a PulseX pool. On Ethereum: ETH, USDC or any token with a Uniswap pool. It's swapped into a dollar stablecoin at checkout, so the price stays in dollars.",
+    a: "On PulseChain: PLS, HEX, PLSX, USDC from Ethereum or any token with a PulseX pool. On Ethereum: ETH, USDC or any token with a Uniswap pool. It's swapped into USDC at checkout, so the price stays in dollars. On PulseChain that's USDC bridged from Ethereum (\u201cUSD Coin from Ethereum\u201d in your wallet), as there's no native USDC there yet.",
   },
   {
     q: "What happens if I forget to renew?",

@@ -11,7 +11,7 @@ const STEPS: Record<ChainKey, { title: string; text: string }[]> = {
   pulsechain: [
     { title: "Reserve it", text: "Your wallet sends a sealed claim on the name, so nobody watching can see which name it is." },
     { title: "Wait a minute", text: "A short pause that stops anyone copying your purchase." },
-    { title: "Pay", text: "In one transaction it's swapped, paid for and yours: on PulseChain straight away, on Ethereum about 15 minutes later." },
+    { title: "Pay", text: "In one transaction it's swapped if needed, paid for and yours: on PulseChain straight away, on Ethereum about 15 minutes later." },
   ],
   ethereum: [
     { title: "Place your order", text: "One transaction. The name stays sealed until it's registered, so nobody can grab it first." },
@@ -43,7 +43,7 @@ export function Checkout({ name, length, onClose }: { name: string; length: numb
   useEffect(() => {
     const usdc = BigInt(Math.ceil(total * 1e6));
     if (!token.path) {
-      setQuote({ status: "ok", text: `= ${formatToken(usdc, 6)} USDC` });
+      setQuote({ status: "ok", text: `= ${formatToken(usdc, 6)} ${token.label ?? token.symbol}` });
       return;
     }
     const controller = new AbortController();
@@ -147,11 +147,11 @@ export function Checkout({ name, length, onClose }: { name: string; length: numb
                 aria-checked={t.symbol === token.symbol}
                 onClick={() => setSymbol(t.symbol)}
               >
-                {t.symbol}
+                {t.label ?? t.symbol}
               </button>
             ))}
           </div>
-          <p className="checkout__hint">Or any token with a {chain.dex} pool.</p>
+          <p className="checkout__hint">{token.note ?? `Or any token with a ${chain.dex} pool.`}</p>
         </div>
 
         <dl className="breakdown">

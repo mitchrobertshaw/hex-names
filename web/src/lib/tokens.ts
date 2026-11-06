@@ -6,6 +6,10 @@ export type ChainKey = "pulsechain" | "ethereum";
 
 export interface PayToken {
   symbol: string;
+  /** What the page calls it, when the symbol alone could mean another token. */
+  label?: string;
+  /** Shown when it's picked. */
+  note?: string;
   decimals: number;
   /** The swap from this token to USDC, or null for USDC itself. */
   path: string[] | null;
@@ -27,7 +31,9 @@ export interface PayChain {
 
 const PULSECHAIN = {
   WPLS: "0xA1077a294dDE1B09bB078844df40758a5D0f9a27",
-  USDC: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07", // USDC bridged from Ethereum
+  // USDC bridged from Ethereum ("USD Coin from Ethereum"): there's no native USDC on PulseChain yet.
+  // Not the copy of USDC made when PulseChain forked from Ethereum, which wallets also call USDC.
+  USDC: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07",
   HEX: "0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39",
   PLSX: "0x95B303987A60C71504D99Aa1b13B4DA07b0790ab",
   PULSEX_V1: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02",
@@ -54,7 +60,13 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
       { symbol: "PLS", decimals: 18, path: [PULSECHAIN.WPLS, PULSECHAIN.USDC] },
       { symbol: "HEX", decimals: 8, path: [PULSECHAIN.HEX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
       { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
-      { symbol: "USDC", decimals: 6, path: null },
+      {
+        symbol: "USDC",
+        label: "USDC from Ethereum",
+        note: "USDC bridged from Ethereum, which your wallet calls \u201cUSD Coin from Ethereum\u201d. There\u2019s no native USDC on PulseChain yet, and the USDC copied when PulseChain launched is a different token.",
+        decimals: 6,
+        path: null,
+      },
     ],
   },
   ethereum: {
