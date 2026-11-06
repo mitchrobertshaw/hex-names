@@ -36,6 +36,9 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   slow wave, in the HEX colours. Pillars near the pointer rise and light up, and a click or tap
   sends a ripple across them. It loads after the rest of the page, pauses when scrolled away,
   stays still for visitors who turn off motion, and is simply left out on devices without WebGL.
+- **The HexNS mark**, "Bead", is in [`src/components/Logo.tsx`](src/components/Logo.tsx); the
+  browser and phone icons made from it are in [`public`](public), and every version of it, with
+  how to use it, is in [`../brand`](../brand).
 - **The chain logos** are PulseChain's and Ethereum's own, in [`src/assets/chains`](src/assets/chains):
   PulseChain's is the PLS mark from PulseX's token list (the same as pulsechain.com's icon), and
   Ethereum's is `eth-diamond-purple.svg` from [ethereum.org/assets](https://ethereum.org/assets/).

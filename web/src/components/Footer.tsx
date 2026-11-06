@@ -7,7 +7,7 @@ export function Footer() {
       <div className="container footer__inner">
         <div className="footer__brand">
           <a className="brand" href="#top" aria-label="HexNS: back to the top">
-            <Logo size={28} />
+            <Logo height={20} />
             <span className="brand__name">HexNS</span>
           </a>
           <p>Hex Name Service: names for Hexicans, on PulseChain and Ethereum.</p>
