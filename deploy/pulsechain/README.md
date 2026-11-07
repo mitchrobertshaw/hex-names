@@ -57,11 +57,12 @@ On GitHub: **Actions**, then **deploy**, then **Run workflow**.
 | Send it for real | unticked for the dry run, then ticked |
 | Mainnet only, when sending for real | type `mainnet` |
 | Admin wallet | the admin's address ([which wallet](../README.md#what-youll-need)) |
-| Who receives payments | optional: the wallet every payment for names goes to. Left empty, it's the admin |
+| Who receives payments | already filled in with your wallet, `0x1027…02C6`. Every payment for a name goes straight to it, and it can never be changed after step 1 |
 
 Before it sends anything, it checks:
 
 - that the admin, and the wallet of every reserved name given to someone, can hold a name;
+- that neither the admin nor the wallet receiving payments is the deployer, whose key sits in GitHub;
 - that the bridge, USDC, DAI, WPLS and PulseX are where they should be.
 
 Then it deploys about 30 transactions' worth of contracts, and sets the reserved names aside. That
@@ -72,6 +73,7 @@ takes 5 to 10 minutes.
 | Line | Where it goes |
 |---|---|
 | `PULSECHAIN_MIRROR_SYNC`, `PULSECHAIN_ORDER_FILLER` | into the step 2 and step 3 forms |
+| `Payments go to` | nowhere: check it's your wallet, `0x102785E63DCD7C2ba1146E96da7fE429155602C6`. The dry run shows it before anything is sent |
 | the **For the bot** block | into the bot's settings on Railway ([the bot guide](../bot/README.md)) |
 | `PULSECHAIN_HEX_REGISTRY`, `PULSECHAIN_REGISTRAR`, `AnyTokenCheckout`, `PULSECHAIN_USDC`, `START_BLOCK_PULSECHAIN` | into `web/src/deployment.ts` ([the website guide](../website/README.md)) |
 | `UniversalResolver` | for wallets that add .hex: where they look names up |

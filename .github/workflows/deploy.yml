@@ -45,9 +45,10 @@ on:
         required: false
         type: string
       beneficiary:
-        description: "Who receives payments (step 1). Leave empty to use the admin"
+        description: "Who receives every payment for names (step 1). Fixed for good once deployed"
         required: false
         type: string
+        default: "0x102785E63DCD7C2ba1146E96da7fE429155602C6"
       pulsechain_mirror_sync:
         description: "PULSECHAIN_MIRROR_SYNC from step 1 (steps 2 and 3)"
         required: false
@@ -165,7 +166,7 @@ jobs:
             echo "$NETWORK"
             if [ "$BROADCAST" = "true" ]; then echo "Sent for real."; else echo "Dry run: nothing was sent."; fi
             echo '```'
-            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
+            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|Payments go to|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
             # What it costs, and whether every transaction went through.
             grep -E "^(Estimated (total gas used|amount required)|ONCHAIN EXECUTION)" output.txt || true
             echo '```'

@@ -37,6 +37,22 @@ events with the amount paid. Referrers are paid from those records: during the l
 first 58 days after `launchDate` in [`src/deployment.ts`](src/deployment.ts), they earn 10% of what the
 buyers they bring pay. The owner's panel in the app says until when.
 
+**Paying referrers.** `app.hexns.domains/referrals` (not in the menu) is for the wallet that receives
+.hex's payments, the registrar's `BENEFICIARY`: it shows the report only when that wallet is
+connected. Everything on it can still be read from the chain by anyone. For the days you choose,
+kept to the launch offer, it works out 10% of what each referrer's buyers paid, owed to whoever owns
+the referring name now ([`src/app/ReferralsPage.tsx`](src/app/ReferralsPage.tsx), adding up in
+[`src/lib/payouts.ts`](src/lib/payouts.ts)). It reads the registrar's `NameRegistered` and
+`NameRenewed` events from the deployment's start block, in the browser. Self-referrals (the buyer
+also owns the referring name) and tags that aren't a name anyone owns are set aside.
+
+**Pay all** pays every referrer from the connected wallet in one transaction, in USDC on PulseChain,
+through [Disperse](https://disperse.app) (`0xD152f549545093347A162Dce210e7293f1452150`, with the same
+code on PulseChain and PulseChain Testnet v4): an approval of the exact total, then one
+`disperseToken`. Each run also looks for a payout already sent, one transaction that paid every
+referrer exactly what they're owed, and says so instead of offering to pay again. The spreadsheet it
+downloads has each wallet and the exact USDC.
+
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
 and the bot: buying on PulseChain with USDC, ordering from Sepolia with ETH (filled by the bot),
 renewing, sending, My names, and a referral tag landing on-chain.

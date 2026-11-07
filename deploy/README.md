@@ -66,6 +66,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 |---|---|---|---|
 | **Deployer**: pays for deploying, and has no powers once step 3 is done | a new one | another new one | GitHub, as a repository secret |
 | **Admin**: can change prices and payment tokens, and hand held names to their owners. It can't take anyone's name | any wallet of yours | a hardware wallet (Ledger, Trezor) or a Safe | nowhere: you only type its address |
+| **Payments**: receives every payment for a name, for good | your wallet, `0x1027…02C6` | your wallet, `0x1027…02C6` | nowhere: step 1's form already has its address |
 | **Bot**: the bot's own wallet, with its float | a new one | another new one | Railway, as a sealed variable |
 
 **Coins** (gas is the fee a chain charges for each transaction, paid in its own coin):
@@ -144,7 +145,10 @@ When everything above has worked, and someone other than the author has reviewed
 3. **Add the repository secret** `DEPLOYER_PRIVATE_KEY_MAINNET` with the mainnet deployer's private
    key, the same way as in Part 1.
 4. **Run the three steps** with **Mainnet: PulseChain + Ethereum**. To send for real on mainnet, also
-   type `mainnet` in the **confirm** box. This guards against a slip of the mouse.
+   type `mainnet` in the **confirm** box. This guards against a slip of the mouse. In step 1's dry
+   run, check the summary says **Payments go to** your wallet,
+   `0x102785E63DCD7C2ba1146E96da7fE429155602C6`: every payment for a name goes straight there, and
+   it can never be changed afterwards. The form fills it in for you.
 5. **Start the bot** in Railway's `production` environment, with the mainnet settings
    ([the bot guide](bot/README.md#mainnet)).
 6. **Fill in `mainnet`** in `web/src/deployment.ts`, with `launchDate` set to launch day (the
@@ -168,6 +172,7 @@ stopped run deployed is simply never used.
 | USDC isn't on PulseChain Testnet v4 yet | Bridge some USDC from Sepolia first (Part 1, step 2). |
 | Add the DEPLOYER_PRIVATE_KEY_TESTNET (or _MAINNET) repository secret | Add the key (Part 1, step 4). |
 | type mainnet in the confirm box | It's a real mainnet run: type `mainnet` in the confirm box. |
+| ADMIN (or BENEFICIARY) can't be the deployer | The admin, or the wallet receiving payments, is the deployer wallet. Use another wallet: the deployer's key sits in GitHub. |
 | ADMIN is a contract that cannot hold ERC-1155 tokens | The admin is a "smart account" or another contract. Use a plain wallet, a hardware wallet or a Safe. |
 | The wallet for name.hex is a contract that cannot hold ERC-1155 tokens | That reserved name's wallet can't hold the name. Leave its wallet empty, so the name is held instead. |
 | step 1 used a different deployer key | Run every step of a network with the same deployer key. |

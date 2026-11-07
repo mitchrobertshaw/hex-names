@@ -13,7 +13,8 @@ import {IAMB} from "../../src/interfaces/IAMB.sol";
 /// @dev Environment:
 ///        ADMIN                 required. May change prices and payment tokens and add registrars
 ///                              later; can never take, move or unregister a name.
-///        BENEFICIARY           optional. Receives every payment. Defaults to ADMIN.
+///        BENEFICIARY           optional. Receives every payment for a name, directly, for good: the
+///                              registrar can never change it. Defaults to ADMIN.
 ///        DEPLOYER_PRIVATE_KEY  optional. Without it, run without --broadcast for a dry run.
 ///      Names in script/reserved-names.csv are set aside before anyone can buy names.
 ///      Use the same deployer key for steps 2 and 3: it is the only key that can link the two
@@ -46,6 +47,9 @@ contract DeployPulseChain is DeployScript {
 
         uint256 startBlock = block.number;
         address deployer = _startBroadcast();
+        // The deployer's key sits in GitHub, so it must never hold powers or receive money.
+        require(admin != deployer, "ADMIN can't be the deployer: its key sits in GitHub. Use another wallet");
+        require(beneficiary != deployer, "BENEFICIARY can't be the deployer: its key sits in GitHub. Use another wallet");
         hub = _deployHub(
             HubConfig({
                 deployer: deployer,
@@ -72,6 +76,7 @@ contract DeployPulseChain is DeployScript {
         console.log("PULSECHAIN_HEX_REGISTRY  ", address(hub.core.hexRegistry));
         console.log("PULSECHAIN_USDC          ", net.usdc);
         console.log("START_BLOCK_PULSECHAIN   ", startBlock);
+        console.log("Payments go to           ", hub.registrar.BENEFICIARY());
         console.log("AnyTokenCheckout         ", address(hub.checkout));
         console.log("UniversalResolver        ", address(hub.core.universalResolver));
         console.log("Root registry            ", address(hub.core.rootRegistry));

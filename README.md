@@ -103,7 +103,8 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
   so nobody can snipe a name the moment it lapses.
-- **Payment.** Paid in USDC or DAI bridged from Ethereum, to the beneficiary set at deployment.
+- **Payment.** Paid in USDC or DAI bridged from Ethereum, straight to the beneficiary set at
+  deployment, which can never change (the deploy workflow fills in the project owner's wallet).
 
 ## Reserved names
 
@@ -291,10 +292,11 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 ## Not done yet
 
-- Paying referrers. Purchases and renewals made through a referral link already record the
-  referrer on-chain ([`web/README.md`](web/README.md#the-app)). During the launch offer, the first
-  58 days after launch, referrers earn 10% of what the buyers they bring pay. A report of what each
-  referrer is owed, to pay them from, is next.
+- Paying referrers automatically. Purchases and renewals made through a referral link record the
+  referrer on-chain ([`web/README.md`](web/README.md#the-app)), and during the launch offer, the
+  first 58 days after launch, referrers earn 10% of what the buyers they bring pay. The app's report
+  at app.hexns.domains/referrals, for the payments wallet only, pays them all in one transaction when
+  you press Pay all. It doesn't pay by itself.
 - Phone wallets by QR code (WalletConnect) in the app at app.hexns.domains. Browser wallets work.
 - Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
   For now, names are managed on PulseChain, and anyone can renew any name there.

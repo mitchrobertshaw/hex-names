@@ -111,3 +111,23 @@ until when.
    [`web/public/_redirects`](../../web/public/_redirects).
 
 After launch you can delete the `hexns-testnet` project, or keep it for trying changes.
+
+## Paying referrers
+
+During the launch offer, referrers earn 10% of what the buyers they bring pay. You pay them from the
+wallet that receives the payments for names, `0x1027…02C6`, so the money comes straight from where
+the payments land.
+
+1. Open `app.hexns.domains/referrals` (it isn't in the menu) and connect that wallet. The page shows
+   nothing to any other wallet.
+2. Choose the days, and click **Work it out**. It reads PulseChain and lists each referrer, the
+   wallet to pay (whoever owns the referring name now) and the USDC owed.
+3. Click **Pay all**. Your wallet asks twice: to allow the exact total, then to send it. One
+   transaction pays everyone, in USDC on PulseChain. Keep some PLS in the wallet for the network fee.
+
+To pay in parts, say once a month, the page starts each time from the day after the last payout you
+made from that browser. If you run the same days again from anywhere, it finds the payout on the
+chain and says it's already paid. **Download the spreadsheet (CSV)** keeps a copy with exact amounts.
+
+Set aside, and not paid: self-referrals (someone using another name of their own as the referrer),
+and links naming a .hex name nobody owns.
