@@ -11,8 +11,11 @@ optimizer_runs = 1000
 # PulseChain does not support the opcodes from Ethereum's March 2024 upgrade (TSTORE, MCOPY),
 # so everything is compiled for the previous target. The same bytecode then runs on both chains.
 evm_version = "shanghai"
-# The deploy script and the tests read the reserved names list.
-fs_permissions = [{ access = "read", path = "./script/reserved-names.csv" }]
+# The deploy script and the tests read the reserved names list; a test checks the website's stats.
+fs_permissions = [
+  { access = "read", path = "./script/reserved-names.csv" },
+  { access = "read", path = "./web/src/lib/stats.ts" },
+]
 
 [fuzz]
 runs = 512

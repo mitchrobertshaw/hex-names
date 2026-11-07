@@ -94,7 +94,7 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 
 | Length | A year |
 |---|---|
-| 5 or more characters | $5 |
+| 5 or more characters | $10, for both chains |
 | 4 | $160 |
 | 3 | $640 |
 | 1–2 | not for sale |
@@ -288,7 +288,10 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 ## Not done yet
 
-- A website to buy and manage names (like the .pdai page).
+- Paying referrers. Purchases and renewals made through a referral link already record the
+  referrer on-chain ([`web/README.md`](web/README.md#the-app)); a script to total each referrer's
+  10% and pay it is next.
+- Phone wallets by QR code (WalletConnect) in the app at app.hexns.domains. Browser wallets work.
 - Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
   For now, names are managed on PulseChain, and anyone can renew any name there.
 - Wallet support: wallets look up ENS out of the box but need adding `.hex`, for example as a

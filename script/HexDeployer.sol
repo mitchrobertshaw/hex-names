@@ -38,7 +38,8 @@ import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 ///         Ethereum, joined by the official PulseChain bridge. Used by the deploy scripts and by
 ///         the tests, so the tests run against exactly what gets deployed.
 /// @dev Settings follow ENSv2's own deployment (contracts-v2 script/deploy-constants.ts) except
-///      the price of 5+ letter names: $5 a year, as for .pdai, instead of ENS's $8.
+///      the price of 5+ letter names: $10 a year, covering the name on both chains, instead of
+///      ENS's $8.
 abstract contract HexDeployer {
     // --- Registrar settings (ENSv2 defaults) ---
     uint64 internal constant GRACE_PERIOD = 28 days;
@@ -53,7 +54,7 @@ abstract contract HexDeployer {
     /// @dev Dollars a year by length. Names of 1 or 2 characters are not for sale.
     uint256 internal constant YEARLY_PRICE_3 = 640;
     uint256 internal constant YEARLY_PRICE_4 = 160;
-    uint256 internal constant YEARLY_PRICE_5_PLUS = 5;
+    uint256 internal constant YEARLY_PRICE_5_PLUS = 10; // one price for PulseChain and Ethereum
     /// @dev A name that just expired starts at $100 million and halves daily for 21 days, so
     ///      nobody can snipe it the moment it lapses.
     uint256 internal constant PREMIUM_PRICE_INITIAL = PRICE_SCALE * 100_000_000;
