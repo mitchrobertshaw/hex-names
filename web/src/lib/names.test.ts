@@ -2,9 +2,21 @@ import { describe, expect, it } from "vitest";
 
 import botConfig from "../../../bot/src/config.ts?raw";
 import deployer from "../../../script/HexDeployer.sol?raw";
+import lengthCap from "../../../src/pulsechain/HexNameLengthCap.sol?raw";
 import page from "../../index.html?raw";
 
-import { checkName, DISCOUNTS, ETHEREUM_ORDER_FEE, nameLength, PRICES, priceFor, YEARLY_PRICE } from "./names";
+import {
+  checkName,
+  DISCOUNTS,
+  ETHEREUM_ORDER_FEE,
+  MAX_NAME_BYTES,
+  nameLength,
+  PRICES,
+  priceFor,
+  shortName,
+  tooLongText,
+  YEARLY_PRICE,
+} from "./names";
 import { parseReservedNames, reservedFor } from "./reserved";
 
 const reserved = parseReservedNames(
@@ -64,6 +76,22 @@ describe("checkName", () => {
     expect(check("ali​ce")).toMatchObject({ kind: "available", name: "alice.hex" }); // zero-width space
   });
 
+  it("says a name over 63 bytes is too long, as the contracts do", () => {
+    const longest = "a".repeat(63);
+    const tooLong = "a".repeat(64);
+    expect(check(longest)).toMatchObject({ kind: "available", length: 63 });
+    expect(check(tooLong)).toEqual({ kind: "too-long", name: `${tooLong}.hex`, length: 64, bytes: 64 });
+    // Emoji are 4 bytes each: 15 fit, 16 don't, though that's only 16 characters.
+    expect(check("🔥".repeat(15)).kind).toBe("available");
+    expect(check("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
+    expect(tooLongText({ length: 64, bytes: 64 })).toBe("Names can be up to 63 characters. This one has 64.");
+    expect(tooLongText({ length: 16, bytes: 64 })).toBe(
+      "Names can be up to 63 characters, and emoji and accented letters count as two to four each.",
+    );
+    expect(shortName(`${tooLong}.hex`)).toBe(`${"a".repeat(20)}….hex`);
+    expect(shortName("alice.hex")).toBe("alice.hex");
+  });
+
   it("treats blank input as nothing typed", () => {
     expect(check("   ")).toEqual({ kind: "empty" });
     expect(check(".hex")).toEqual({ kind: "empty" });
@@ -100,6 +128,10 @@ describe("the prices", () => {
     expect(steps.map(([, years, over, times]) => ({ years: Number(years), factor: Number(times) / Number(over) }))).toEqual(
       DISCOUNTS.map((d) => ({ years: d.years, factor: d.factor })),
     );
+  });
+
+  it("cap names at the length the contracts do", () => {
+    expect(lengthCap).toMatch(new RegExp(`MAX_LENGTH = ${MAX_NAME_BYTES};`));
   });
 
   it("add the bot's Ethereum order fee", () => {

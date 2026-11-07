@@ -216,6 +216,22 @@ contract OrdersTest is HexTestBase {
         assertEq(ethUsdc.balanceOf(alice), amount);
     }
 
+    function test_refund_nameTooLong() public {
+        string memory label = "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd"; // 64: over the cap
+        assertEq(bytes(label).length, 64);
+        HexOrderFiller.Reveal memory r = _reveal(label, alice, ONE_YEAR);
+        assertFalse(hub.orderFiller.canRegister(r));
+        uint256 amount = 10e6;
+        ethUsdc.mint(alice, amount);
+        vm.startPrank(alice);
+        ethUsdc.approve(address(mirror.orderBook), amount);
+        uint256 orderId = mirror.orderBook.placeOrder(_commitmentOf(r), amount, SEALED);
+        vm.stopPrank();
+        hub.orderFiller.reportUnfillable(orderId, _deadline(orderId), r);
+        _relayToEthereum();
+        assertEq(ethUsdc.balanceOf(alice), amount);
+    }
+
     function test_refund_cannotReportAFillableOrder() public {
         HexOrderFiller.Reveal memory r = _reveal("alice", alice, ONE_YEAR);
         (uint256 orderId,) = _placeOrder(alice, r);

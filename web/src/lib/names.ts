@@ -36,11 +36,19 @@ export function priceFor(length: number, years: number): { full: number; total: 
   return { full, total: full * factor, discount: 1 - factor };
 }
 
+/**
+ * The longest name that can be registered, in bytes, as the contracts count them
+ * (src/pulsechain/HexNameLengthCap.sol): the most one part of a web address can hold. Letters,
+ * digits and hyphens are one byte each; emoji and accented letters take two to four.
+ */
+export const MAX_NAME_BYTES = 63;
+
 export type NameCheck =
   | { kind: "empty" }
   | { kind: "invalid"; reason: string }
   | { kind: "eth"; name: string; hex: NameCheck } // typed a .eth name; `hex` checks the .hex one
   | { kind: "too-short"; name: string }
+  | { kind: "too-long"; name: string; length: number; bytes: number }
   | { kind: "premium"; name: string; length: number; yearlyPrice: number }
   | { kind: "reserved"; name: string; reservedFor: string; given: boolean }
   | { kind: "available"; name: string; length: number; yearlyPrice: number };
@@ -48,6 +56,25 @@ export type NameCheck =
 /** The number of characters in a normalized name, as the price oracle counts them. */
 export function nameLength(label: string): number {
   return [...label].length;
+}
+
+/** The number of bytes in a name, as the length cap counts them. */
+export function nameBytes(label: string): number {
+  return new TextEncoder().encode(label).length;
+}
+
+/** Why a name is too long, said plainly. */
+export function tooLongText(check: { length: number; bytes: number }): string {
+  return check.bytes === check.length
+    ? `Names can be up to ${MAX_NAME_BYTES} characters. This one has ${check.length}.`
+    : `Names can be up to ${MAX_NAME_BYTES} characters, and emoji and accented letters count as two to four each.`;
+}
+
+/** A long name cut down for a heading: "averyveryverylongname….hex". */
+export function shortName(name: string, keep = 24): string {
+  const label = name.replace(/\.hex$/, "");
+  const characters = [...label];
+  return characters.length > keep ? `${characters.slice(0, keep - 4).join("")}….hex` : name;
 }
 
 export function checkName(input: string, reserved: Map<string, Reservation> = reservedNames): NameCheck {
@@ -76,6 +103,8 @@ export function checkName(input: string, reserved: Map<string, Reservation> = re
   const length = nameLength(label);
   const yearlyPrice = yearlyPriceFor(length);
   if (yearlyPrice === null) return { kind: "too-short", name };
+  const bytes = nameBytes(label);
+  if (bytes > MAX_NAME_BYTES) return { kind: "too-long", name, length, bytes };
   const reservation = reserved.get(label);
   if (reservation) {
     return { kind: "reserved", name, reservedFor: reservedFor(reservation.note), given: reservation.given };

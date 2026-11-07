@@ -94,11 +94,16 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 
 | Length | A year |
 |---|---|
-| 5 or more characters | $10, for both chains |
+| 5 to 63 characters | $10, for both chains |
 | 4 | $160 |
 | 3 | $640 |
 | 1–2 | not for sale |
+| 64 or more | too long |
 
+- **Up to 63 characters**, the most one part of a web address can hold, so every `.hex` name can
+  also work as one. Letters, digits and hyphens count as one each; emoji and accented letters take
+  two to four (63 bytes in all). `HexNameLengthCap` sits in front of the prices and turns longer
+  names away. Renewals aren't capped.
 - **Multi-year discounts** (ENS's): 12.5% off from 2 years, 31.25% from 3, 43.75% from 6.
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
@@ -123,7 +128,7 @@ copy on the bot's first run, as long as its `START_BLOCK_PULSECHAIN` is the bloc
 deployed in.
 
 **Adding names.** Edit the file on GitHub before deploying (open it, then the pencil icon). One name
-per row, without `.hex`: a–z, 0–9 and hyphens, at least 3 characters. Leave the wallet empty to hold
+per row, without `.hex`: a–z, 0–9 and hyphens, 3 to 63 characters. Leave the wallet empty to hold
 a name, and keep commas out of the note. The tests and the deploy check every row and stop at the
 first one that's wrong.
 
@@ -177,6 +182,7 @@ nothing can change.
 |---|---|
 | ENSv2 `PermissionedRegistry` ×2 | the root registry, and the `.hex` registry where names live |
 | ENSv2 `ETHRegistrar` + `StandardRentPriceOracle` | the `.hex` registrar and its prices |
+| [`HexNameLengthCap`](src/pulsechain/HexNameLengthCap.sol) | between the registrar and its prices: new names can be up to 63 characters |
 | ENSv2 `UniversalResolverV2`, `PermissionedResolver`, `VerifiableFactory`, `LabelStore`, `ContractNamer` | lookups, owners' own resolvers, and supporting contracts |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
 | [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai |
@@ -206,9 +212,9 @@ The compiled contracts were scanned and contain none of the missing opcodes.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 92 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 100 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
-  - prices and roles, and that nobody can take a name;
+  - prices and roles, the 63-character cap, and that nobody can take a name;
   - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;
   - the whole Ethereum order flow, and every way it can be refunded;
