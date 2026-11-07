@@ -1,15 +1,12 @@
 import { appUrl } from "../site";
-import { Logo } from "./Logo";
+import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function Nav() {
   return (
     <header className="nav">
       <div className="container nav__inner">
-        <a className="brand" href="#top" aria-label="HexNS, Hex Name Service: back to the top">
-          <Logo height={30} />
-          <span className="brand__name">HexNS</span>
-        </a>
+        <Brand href="#top" label="HexNS, HEX Name Service: back to the top" />
         <nav className="nav__links" aria-label="Sections">
           <a href="#chains">Both chains</a>
           <a href="#how">How it works</a>

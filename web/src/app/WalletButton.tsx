@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
+import { CHAINS, PAY } from "./network";
 import { linkProps } from "./router";
-import { connect, disconnect, short, useWallet } from "./wallet";
+import { connect, disconnect, short, switchTo, useWallet } from "./wallet";
 
 /** The wallets this browser has, to pick one; or how to get one. */
 export function WalletChoices({ onDone }: { onDone?: () => void }) {
@@ -78,7 +79,9 @@ export function WalletButton() {
             {short(wallet.connected.account)}
           </>
         ) : (
-          "Connect wallet"
+          <>
+            Connect<span className="wallet-button__more"> wallet</span>
+          </>
         )}
       </button>
       {open ? (
@@ -87,8 +90,28 @@ export function WalletButton() {
             <>
               <p className="wallet-menu__who">
                 {wallet.connected.option.name}
-                <span>{short(wallet.connected.account)}</span>
+                <span>
+                  {short(wallet.connected.account)} · on{" "}
+                  {wallet.connected.chainId === CHAINS.pulsechain.id
+                    ? PAY.pulsechain.name
+                    : wallet.connected.chainId === CHAINS.ethereum.id
+                      ? PAY.ethereum.name
+                      : "another network"}
+                </span>
               </p>
+              {wallet.connected.chainId !== CHAINS.pulsechain.id ? (
+                <button
+                  type="button"
+                  className="wallet-menu__item"
+                  role="menuitem"
+                  onClick={() => {
+                    void switchTo("pulsechain").catch(() => undefined);
+                    setOpen(false);
+                  }}
+                >
+                  Switch to {PAY.pulsechain.name}
+                </button>
+              ) : null}
               <a
                 className="wallet-menu__item"
                 role="menuitem"

@@ -386,6 +386,17 @@ body {
   position: relative;
 }
 
+/* Narrow phones: "Connect", and a little less room between the brand and the buttons. */
+@media (max-width: 420px) {
+  .wallet-button__more {
+    display: none;
+  }
+
+  .nav__inner {
+    gap: 12px;
+  }
+}
+
 .wallet-button__dot {
   width: 8px;
   height: 8px;

@@ -117,6 +117,9 @@ export async function connect(id: string, quietly = false): Promise<void> {
     };
     set({ connected: { option, account: getAddress(accounts[0]), chainId }, connecting: false });
     remember(id);
+    // Names live on PulseChain: on connecting, offer to move there (adding it if the wallet doesn't
+    // have it). Paying from Ethereum switches back when it's needed.
+    if (!quietly && chainId !== CHAINS.pulsechain.id) await switchTo("pulsechain").catch(() => undefined);
   } catch (error) {
     set({ connecting: false, error: quietly ? null : messageOf(error) });
   }
