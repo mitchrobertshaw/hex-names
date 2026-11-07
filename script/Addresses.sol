@@ -24,3 +24,31 @@ library EthereumAddresses {
     address internal constant HEX = 0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39;
     address internal constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 }
+
+/// @notice PulseChain Testnet v4 (chain id 943), joined to Sepolia by PulseChain's official testnet
+///         bridge (bridge.v4.testnet.pulsechain.com). All checked on-chain on 2026-11-07.
+library PulseChainTestnetAddresses {
+    /// @dev The testnet bridge's message contract, home side (5 validator signatures, as on mainnet).
+    address internal constant AMB = 0xf902DE27606cd3A7F66695c77487769Ff96211fE;
+    /// @dev The testnet bridge's token contract. It makes the "... from Sepolia" copy of a token the
+    ///      first time someone bridges it, so USDC and DAI are looked up here at deploy time.
+    address internal constant TOKEN_BRIDGE = 0x6B08a50865aDeCe6e3869D9AfbB316d0a0436B6c;
+    address internal constant WPLS = 0x70499adEBB11Efd915E3b69E700c331778628707;
+    /// @dev HEX on the testnet (8 decimals), the same address as on mainnet.
+    address internal constant HEX = 0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39;
+    address internal constant PULSEX_V1_ROUTER = 0xDaE9dd3d1A52CfCe9d5F2fAC7fDe164D500E50f7;
+    address internal constant PULSEX_V2_ROUTER = 0x636f6407B90661b73b1C0F7e24F4C79f624d0738;
+}
+
+/// @notice Sepolia (chain id 11155111), Ethereum's testnet. All checked on-chain on 2026-11-07.
+library SepoliaAddresses {
+    /// @dev The testnet bridge's message contract, foreign side.
+    address internal constant AMB = 0x67e190aaF39b9E05b162A78ab94189446077C694;
+    /// @dev Circle's test USDC (faucet.circle.com, or swap a little Sepolia ETH on Uniswap). Its
+    ///      copy on PulseChain Testnet v4, "USDC from Sepolia", is the testnet's USDC.
+    address internal constant USDC = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+    /// @dev Aave's test DAI. Its copy on PulseChain Testnet v4 is the testnet's DAI.
+    address internal constant DAI = 0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357;
+    address internal constant WETH = 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14;
+    address internal constant UNISWAP_V2_ROUTER = 0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3;
+}

@@ -4,12 +4,22 @@ name: deploy
 #   1. Deploy on PulseChain                -> gives PULSECHAIN_MIRROR_SYNC and PULSECHAIN_ORDER_FILLER
 #   2. Deploy on Ethereum and link it      -> needs those two; gives ETHEREUM_MIRROR_REGISTRAR and ETHEREUM_ORDER_BOOK
 #   3. Link PulseChain                     -> needs all four
+# Pick the network: the testnets (PulseChain Testnet v4 + Sepolia) to rehearse, then mainnet.
 # Leave "broadcast" unticked for a dry run, which simulates the step and sends nothing.
-# Use the same DEPLOYER_PRIVATE_KEY for all three steps: only it can link the chains, once.
+# Use the same deployer key for all three steps of a network: only it can link the chains, once.
+# Each network has its own GitHub environment and key: "testnet" and "deploy" (mainnet).
+# The full guide: deploy/README.md.
 
 on:
   workflow_dispatch:
     inputs:
+      network:
+        description: "Network"
+        required: true
+        type: choice
+        options:
+          - "Testnet: PulseChain Testnet v4 + Sepolia"
+          - "Mainnet: PulseChain + Ethereum"
       step:
         description: "Step"
         required: true
@@ -53,17 +63,20 @@ permissions:
 
 jobs:
   deploy:
-    name: ${{ inputs.step }}
+    name: ${{ inputs.step }} (${{ startsWith(inputs.network, 'Testnet') && 'testnet' || 'mainnet' }})
     runs-on: ubuntu-latest
-    # Settings > Environments > deploy holds the key, and can require your approval before each run.
-    environment: deploy
+    # Settings > Environments holds each network's key: "testnet", and "deploy" for mainnet, which
+    # can require your approval before each run.
+    environment: ${{ startsWith(inputs.network, 'Testnet') && 'testnet' || 'deploy' }}
     steps:
       - uses: actions/checkout@v5
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v1.5.1
+          # 1.9.0 knows Sepolia's new gas costs (creating a contract there costs about 7 times what
+          # it does on Ethereum). Older versions give step 2 too little gas on Sepolia.
+          version: v1.9.0
 
       - name: Cache ENSv2 and its libraries
         uses: actions/cache@v4
@@ -80,10 +93,19 @@ jobs:
       - name: Run the step
         env:
           STEP: ${{ inputs.step }}
+          NETWORK: ${{ inputs.network }}
           BROADCAST: ${{ inputs.broadcast }}
           DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
-          PULSECHAIN_RPC_URL: ${{ vars.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com' }}
-          ETHEREUM_RPC_URL: ${{ vars.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com' }}
+          # Optional repository variables (Settings > Secrets and variables > Actions > Variables)
+          # point a network at your own RPC providers.
+          PULSECHAIN_RPC_URL: >-
+            ${{ startsWith(inputs.network, 'Testnet')
+              && (vars.PULSECHAIN_TESTNET_RPC_URL || 'https://rpc.v4.testnet.pulsechain.com')
+              || (vars.PULSECHAIN_RPC_URL || 'https://rpc.pulsechain.com') }}
+          ETHEREUM_RPC_URL: >-
+            ${{ startsWith(inputs.network, 'Testnet')
+              && (vars.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com')
+              || (vars.ETHEREUM_RPC_URL || 'https://ethereum-rpc.publicnode.com') }}
           ADMIN: ${{ inputs.admin }}
           BENEFICIARY: ${{ inputs.beneficiary }}
           PULSECHAIN_MIRROR_SYNC: ${{ inputs.pulsechain_mirror_sync }}
@@ -96,15 +118,24 @@ jobs:
             if [ -z "${!v}" ]; then unset "$v"; fi
           done
           case "$STEP" in
-            1.*) target="script/DeployPulseChain.s.sol:DeployPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
-            2.*) target="script/DeployEthereum.s.sol:DeployEthereum"; rpc="$ETHEREUM_RPC_URL" ;;
-            3.*) target="script/LinkPulseChain.s.sol:LinkPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
+            1.*) target="script/pulsechain/DeployPulseChain.s.sol:DeployPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
+            2.*) target="script/ethereum/DeployEthereum.s.sol:DeployEthereum"; rpc="$ETHEREUM_RPC_URL" ;;
+            3.*) target="script/pulsechain/LinkPulseChain.s.sol:LinkPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
             *) echo "::error::Unknown step: $STEP"; exit 1 ;;
           esac
           args=(script "$target" --rpc-url "$rpc" --slow)
+          # On the testnets, set the fees. PulseChain Testnet v4's validators skip tips below
+          # 0.001 gwei, and Foundry would offer 1 wei there. Sepolia includes tiny tips, and Foundry
+          # would offer about 1 gwei, so step 2 would cost about 0.15 Sepolia ETH instead of 0.002.
+          if [[ "$NETWORK" == Testnet* ]]; then
+            case "$STEP" in
+              2.*) args+=(--with-gas-price 0.05gwei --priority-gas-price 0.01gwei) ;;
+              *) args+=(--with-gas-price 2gwei --priority-gas-price 1gwei) ;;
+            esac
+          fi
           if [ "$BROADCAST" = "true" ]; then
             if [ -z "$DEPLOYER_PRIVATE_KEY" ]; then
-              echo "::error::Add the DEPLOYER_PRIVATE_KEY secret to the deploy environment before broadcasting."
+              echo "::error::Add the DEPLOYER_PRIVATE_KEY secret to this network's environment (testnet or deploy) before broadcasting."
               exit 1
             fi
             args+=(--broadcast)
@@ -115,9 +146,12 @@ jobs:
           status=${PIPESTATUS[0]}
           {
             echo "## $STEP"
+            echo "$NETWORK"
             if [ "$BROADCAST" = "true" ]; then echo "Sent for real."; else echo "Dry run: nothing was sent."; fi
             echo '```'
-            grep -E "^\s+(PULSECHAIN_|ETHEREUM_|Registrar|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Resolver|Label|Deployer|Linked)" output.txt || true
+            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
+            # What it costs, and whether every transaction went through.
+            grep -E "^(Estimated (total gas used|amount required)|ONCHAIN EXECUTION)" output.txt || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
@@ -126,7 +160,7 @@ jobs:
         if: ${{ inputs.broadcast }}
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-${{ github.run_number }}
+          name: deployment-${{ startsWith(inputs.network, 'Testnet') && 'testnet' || 'mainnet' }}-${{ github.run_number }}
           path: |
             broadcast/
             output.txt

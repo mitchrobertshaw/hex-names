@@ -23,7 +23,7 @@ if (!state) {
 }
 const ctx = createContext(config, state);
 
-ctx.log(`hex-names bot ${ctx.account.address}`);
+ctx.log(`hex-names bot ${ctx.account.address} on ${config.network === "testnet" ? "the testnets (PulseChain Testnet v4 + Sepolia)" : "mainnet (PulseChain + Ethereum)"}`);
 ctx.log(`  pays out to ${ctx.payee} on Ethereum`);
 ctx.log(`  order encryption public key (publish this for websites): ${ctx.encryption.publicKey}`);
 ctx.log(`  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}`);

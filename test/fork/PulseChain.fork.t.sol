@@ -49,6 +49,7 @@ contract PulseChainForkTest is Test, HexDeployer {
                 admin: admin,
                 beneficiary: beneficiary,
                 amb: IAMB(P.AMB),
+                ethereumChainId: ETHEREUM_CHAIN_ID,
                 usdc: IERC20(P.USDC),
                 dai: IERC20(P.DAI),
                 wpls: IERC20(P.WPLS),

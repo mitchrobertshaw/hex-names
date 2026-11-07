@@ -43,6 +43,7 @@ contract EthereumForkTest is Test, HexDeployer {
                 deployer: address(this),
                 admin: admin,
                 amb: IAMB(E.AMB),
+                pulsechainChainId: PULSECHAIN_CHAIN_ID,
                 usdc: IERC20(E.USDC),
                 weth: IERC20(E.WETH),
                 routers: routers,

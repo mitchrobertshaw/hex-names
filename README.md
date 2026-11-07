@@ -216,8 +216,8 @@ workflow **test**).
   - forged and out-of-order bridge messages.
 - **Fork tests** (`test/fork/`): 8 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
-- **Bot tests** (`bot/test/`): 15 tests, including hashes checked against the deployed contracts and
-  a real bridge message.
+- **Bot tests** (`bot/test/`): 20 tests, including hashes checked against the deployed contracts, a
+  real bridge message, and each network's settings.
 
 With [Foundry](https://getfoundry.sh) and git:
 
@@ -231,37 +231,36 @@ forge test
 
 ## Deploying without installing anything
 
-Three steps, run from the GitHub website (a phone works too).
+**The guide is in [`deploy/`](deploy/README.md)**, with a page for each chain. In short: three
+steps, run from the GitHub website (a phone works too), first on the testnets (PulseChain Testnet v4
+and Sepolia), then on mainnet.
 
-1. **Make a new wallet just for deploying.** Send it about 50,000 PLS on PulseChain and 0.01 ETH
-   on Ethereum. On 5 November 2026 deploying cost about 28,500 PLS and 0.0023 ETH. Don't use your
-   main wallet. Once the three steps are done this key has no power, and you can empty it.
-2. **Add its key as a secret.** In the repo: Settings > Environments > New environment, name it
-   `deploy`, and add a secret `DEPLOYER_PRIVATE_KEY`. On the same page you can require your own
-   approval before each run.
-3. **Run the three steps** from Actions > deploy > Run workflow. Do each as a dry run first (leave
-   **broadcast** unticked), then for real. Each run's summary shows the addresses the next step
-   needs.
-   1. **Deploy on PulseChain.** Enter the admin wallet, and optionally who receives payments.
-      This also sets aside the [reserved names](#reserved-names), so check that list first.
-   2. **Deploy on Ethereum and link it.** Enter the admin and the two `PULSECHAIN_...` addresses from
-      step 1.
-   3. **Link PulseChain.** Enter all four addresses.
+1. **Deploy on PulseChain** ([`script/pulsechain/`](script/pulsechain)): the `.hex` registry,
+   registrar and checkout, the bridge contracts, and the [reserved names](#reserved-names).
+2. **Deploy on Ethereum and link it** ([`script/ethereum/`](script/ethereum)): the Ethereum copy of
+   `.hex`, and the order book for buying from Ethereum.
+3. **Link PulseChain** ([`script/pulsechain/`](script/pulsechain)): after this, nothing can change
+   the links.
 
-The admin must be a plain wallet or a Safe, since it is given the (powerless) `hex` token. Each step
-checks the other chain's contracts before linking to them, and refuses if something doesn't match.
+Each runs from Actions > deploy > Run workflow, as a dry run first. A new wallet, just for
+deploying, pays for them: about 10 tPLS and 0.01 Sepolia ETH from faucets on the testnets, and about
+50,000 PLS and 0.02 ETH on mainnet. Its key goes in a GitHub environment secret, and it has no
+powers left once the three steps are done. The admin must be a plain wallet or a Safe, since it is
+given the (powerless) `hex` token. Each step checks the other chain's contracts before linking to
+them, and refuses if something doesn't match.
 
 ## Running the bot
 
 The bot in [`bot/`](bot) fills Ethereum orders, claims bridge messages on Ethereum, and copies name
 changes to Ethereum. It needs to run all the time, on a small server (a $5 VPS, Railway, Fly.io) or
-a computer that stays on.
+a computer that stays on. Step by step: [run the bot](deploy/README.md#4-run-the-bot).
 
 1. Give it a wallet with PLS for gas and a float of USDC on PulseChain (say $100–$500), plus a
    little ETH on Ethereum for claims (a few cents each at today's gas prices).
 2. `npm ci`, then `npm run keygen` for the key that unseals orders. Publish the public key for
    websites to use.
 3. Copy `bot/.env.example` to `bot/.env`, fill it in from the deploy summaries, then `npm start`.
+   Set `NETWORK=testnet` to run it on the testnets.
 
 The money from orders arrives in USDC on Ethereum, while the float is spent on PulseChain. Move it
 back across now and then, through the official bridge or LibertySwap.
