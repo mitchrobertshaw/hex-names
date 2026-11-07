@@ -37,6 +37,14 @@ events with the amount paid. Referrers are paid from those records: during the l
 first 58 days after `launchDate` in [`src/deployment.ts`](src/deployment.ts), they earn 10% of what the
 buyers they bring pay. The owner's panel in the app says until when.
 
+**Paying referrers.** `app.hexns.domains/referrals` (not in the menu) works out what each referrer is
+owed for the days you choose, kept to the launch offer: 10% of what their buyers paid, to whoever
+owns the referring name now ([`src/app/ReferralsPage.tsx`](src/app/ReferralsPage.tsx), adding up in
+[`src/lib/payouts.ts`](src/lib/payouts.ts)). It reads the registrar's `NameRegistered` and
+`NameRenewed` events from the deployment's start block, in the browser. Self-referrals (the buyer
+also owns the referring name) and tags that aren't a name anyone owns are set aside. It sends
+nothing: the spreadsheet it downloads has each wallet and the exact USDC to send.
+
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
 and the bot: buying on PulseChain with USDC, ordering from Sepolia with ETH (filled by the bot),
 renewing, sending, My names, and a referral tag landing on-chain.

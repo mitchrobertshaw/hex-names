@@ -12,6 +12,7 @@ import {
   referrerFrom,
 } from "../lib/referral";
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
+import { usdcText } from "./ReferralsPage";
 import { hrefOf, modeOf, parse, type Place } from "./router";
 
 const purchase: Purchase = {
@@ -130,10 +131,26 @@ describe("the app's pages", () => {
     expect(hrefOf({ page: "names" }, place)).toBe("/app/names");
   });
 
+  it("include the referral payout report at /referrals, which isn't a name", () => {
+    expect(parse(at("https://app.hexns.domains/referrals"))).toEqual({ page: "referrals" });
+    expect(parse(at("https://app.hexns.domains/referrals.hex"))).toEqual({ page: "name", label: "referrals" });
+    expect(parse(at("https://hexns-testnet.netlify.app/app/referrals"))).toEqual({ page: "referrals" });
+    expect(hrefOf({ page: "referrals" }, at("https://hexns-testnet.netlify.app/app/"))).toBe("/app/referrals");
+  });
+
   it("go after a # anywhere else, such as a copy opened from a file", () => {
     const place = at("file:///Users/me/hexns-app.html#/b%C3%BCcher.hex");
     expect(modeOf(place)).toEqual({ base: "", hash: true });
     expect(parse(place)).toEqual({ page: "name", label: "bücher" });
     expect(hrefOf({ page: "search" }, place)).toBe("#/");
+  });
+});
+
+describe("the payout report page", () => {
+  it("shows USDC to send without needless zeros", () => {
+    expect(usdcText(3_250_000n)).toBe("3.25");
+    expect(usdcText(1_000_000n)).toBe("1.00");
+    expect(usdcText(7n)).toBe("0.000007");
+    expect(usdcText(1_234_567_891_230n)).toBe("1,234,567.89123");
   });
 });

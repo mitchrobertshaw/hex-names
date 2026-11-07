@@ -1,0 +1,177 @@
+// The referral payout report: what each referrer is owed for the referred purchases and renewals in
+// a period, from the registrar's records on PulseChain. This part only adds up: the app's referrals
+// page reads the chain (src/app/payouts.ts) and hands the records here.
+//
+// Who's paid: whoever owns the referrer's name now. Set aside, and not paid: self-referrals (the
+// buyer also owns the referring name), and tags that aren't a name anyone owns.
+
+import { REFERRAL_PERCENT } from "./referral";
+
+type Address = `0x${string}`;
+type Hex = `0x${string}`;
+
+/** One referred purchase or renewal, from the registrar's NameRegistered or NameRenewed event. */
+export interface ReferredPayment {
+  kind: "purchase" | "renewal";
+  /** The name bought or renewed, without .hex. */
+  label: string;
+  /** Who owns that name: the buyer, for a purchase; its owner now, for a renewal. */
+  owner: Address | null;
+  /** The referral tag: keccak256 of the referrer's name. */
+  referrer: Hex;
+  /** What was paid, in the token's smallest units (base and premium, for a purchase). */
+  amount: bigint;
+  token: Address;
+  block: bigint;
+  tx: Hex;
+}
+
+/** A referrer, from the registry: its name, if the tag is one, and who owns it now. */
+export interface Referrer {
+  label: string | null;
+  owner: Address | null;
+}
+
+export interface Token {
+  symbol: string;
+  decimals: number;
+}
+
+/** Why a referrer's row is, or isn't, paid. */
+export type PayoutStatus = "pay" | "self-referral" | "no-owner";
+
+export interface PayoutRow {
+  status: PayoutStatus;
+  /** The referrer's name, such as "mick.hex", or its tag when it isn't a name. */
+  referrer: string;
+  tag: Hex;
+  /** Who to pay: the owner of the referrer's name now. */
+  payTo: Address | null;
+  purchases: number;
+  renewals: number;
+  /** What the buyers they brought paid, in USDC's units: millionths of a dollar. */
+  paid: bigint;
+  /** REFERRAL_PERCENT of `paid`, rounded down, in the same units. */
+  owed: bigint;
+}
+
+export interface PayoutReport {
+  /** The referrers to pay, most owed first. */
+  pay: PayoutRow[];
+  /** Not paid: the buyer owns the referring name too. */
+  selfReferrals: PayoutRow[];
+  /** Not paid: the tag isn't a name, or nobody owns that name now. */
+  noOwner: PayoutRow[];
+  /** Payments in a token whose decimals couldn't be read. None are expected. */
+  otherTokens: ReferredPayment[];
+  /** What's owed in all, and what the buyers behind it paid. */
+  total: { paid: bigint; owed: bigint };
+}
+
+const same = (a: string | null, b: string | null) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
+/** A dollar coin amount in USDC's units (6 decimals), rounded down. */
+export function toMicroDollars(amount: bigint, decimals: number): bigint {
+  return decimals >= 6 ? amount / 10n ** BigInt(decimals - 6) : amount * 10n ** BigInt(6 - decimals);
+}
+
+export function payoutReport(
+  payments: ReferredPayment[],
+  referrers: Map<Hex, Referrer>,
+  tokens: Map<Address, Token>,
+  percent = REFERRAL_PERCENT,
+): PayoutReport {
+  const rows = new Map<string, PayoutRow>();
+  const otherTokens: ReferredPayment[] = [];
+  for (const payment of payments) {
+    const tag = payment.referrer.toLowerCase() as Hex;
+    // The registrar prices names in dollars, in each payment token's own units (USDC and DAI).
+    const token = tokens.get(payment.token.toLowerCase() as Address);
+    if (!token) {
+      otherTokens.push(payment);
+      continue;
+    }
+    const referrer = referrers.get(tag) ?? { label: null, owner: null };
+    const status: PayoutStatus = !referrer.label || !referrer.owner
+      ? "no-owner"
+      : same(referrer.owner, payment.owner)
+        ? "self-referral"
+        : "pay";
+    const key = `${status}:${tag}`;
+    let row = rows.get(key);
+    if (!row) {
+      row = {
+        status,
+        referrer: referrer.label ? `${referrer.label}.hex` : tag,
+        tag,
+        payTo: status === "pay" ? referrer.owner : null,
+        purchases: 0,
+        renewals: 0,
+        paid: 0n,
+        owed: 0n,
+      };
+      rows.set(key, row);
+    }
+    if (payment.kind === "purchase") row.purchases += 1;
+    else row.renewals += 1;
+    row.paid += toMicroDollars(payment.amount, token.decimals);
+  }
+  for (const row of rows.values()) row.owed = (row.paid * BigInt(percent)) / 100n;
+
+  const sorted = (status: PayoutStatus) =>
+    [...rows.values()]
+      .filter((row) => row.status === status)
+      .sort((a, b) => (a.owed === b.owed ? a.referrer.localeCompare(b.referrer) : a.owed > b.owed ? -1 : 1));
+  const pay = sorted("pay");
+  return {
+    pay,
+    selfReferrals: sorted("self-referral"),
+    noOwner: sorted("no-owner"),
+    otherTokens,
+    total: { paid: pay.reduce((sum, row) => sum + row.paid, 0n), owed: pay.reduce((sum, row) => sum + row.owed, 0n) },
+  };
+}
+
+/** Millionths of a dollar as dollars, to 6 places: what to send in USDC. */
+export function microDollarsText(amount: bigint): string {
+  const whole = amount / 1_000_000n;
+  const fraction = (amount % 1_000_000n).toString().padStart(6, "0");
+  return `${whole}.${fraction}`;
+}
+
+/** The same, to the cent (rounded down), for reading: "$12.34". */
+export function dollarsText(amount: bigint): string {
+  const cents = amount / 10_000n;
+  return `$${(cents / 100n).toLocaleString("en-US")}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+
+const STATUS_TEXT: Record<PayoutStatus, string> = {
+  pay: "pay",
+  "self-referral": "not paid: self-referral",
+  "no-owner": "not paid: no one owns this name",
+};
+
+/** The report as a spreadsheet: every referrer, paid or not, with what to send in USDC. */
+export function payoutCsv(report: PayoutReport): string {
+  const cell = (value: string | number) => {
+    const text = String(value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const lines = [["referrer", "pay_to", "purchases", "renewals", "buyers_paid_usd", "owed_usdc", "status"].join(",")];
+  for (const row of [...report.pay, ...report.selfReferrals, ...report.noOwner]) {
+    lines.push(
+      [
+        row.referrer,
+        row.payTo ?? "",
+        row.purchases,
+        row.renewals,
+        microDollarsText(row.paid),
+        row.status === "pay" ? microDollarsText(row.owed) : "0.000000",
+        STATUS_TEXT[row.status],
+      ]
+        .map(cell)
+        .join(","),
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}

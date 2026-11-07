@@ -20,7 +20,17 @@ export const registryAbi = parseAbi([
   "struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }",
   "function getState(uint256 anyId) view returns (State)",
   "function getOwner(uint256 anyId) view returns (address)",
+  "function LABEL_STORE() view returns (address)",
   "function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)",
+]);
+
+/** ENSv2's LabelStore: each name's label, by its id (keccak256 of the label, as referral tags are). */
+export const labelStoreAbi = parseAbi(["function getLabel(uint256 anyId) view returns (string)"]);
+
+/** The registrar's records of each purchase and renewal, with what was paid and the referral tag. */
+export const registrarEvents = parseAbi([
+  "event NameRegistered(uint256 indexed tokenId, string label, address owner, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 indexed referrer, uint256 base, uint256 premium)",
+  "event NameRenewed(uint256 indexed tokenId, string label, uint64 duration, uint64 newExpiry, address paymentToken, bytes32 indexed referrer, uint256 amount)",
 ]);
 
 /** AnyTokenCheckout: buys and renews with any token or PLS. Written out in full: the registration
@@ -108,6 +118,8 @@ export const orderBookAbi = parseAbi([
 ]);
 
 export const erc20Abi = parseAbi([
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
   "function balanceOf(address account) view returns (uint256)",

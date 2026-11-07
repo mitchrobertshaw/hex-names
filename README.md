@@ -292,10 +292,10 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 ## Not done yet
 
-- Paying referrers. Purchases and renewals made through a referral link already record the
-  referrer on-chain ([`web/README.md`](web/README.md#the-app)). During the launch offer, the first
-  58 days after launch, referrers earn 10% of what the buyers they bring pay. A report of what each
-  referrer is owed, to pay them from, is next.
+- Paying referrers automatically. Purchases and renewals made through a referral link record the
+  referrer on-chain ([`web/README.md`](web/README.md#the-app)), and during the launch offer, the
+  first 58 days after launch, referrers earn 10% of what the buyers they bring pay. The app's report
+  at app.hexns.domains/referrals says who's owed what. Paying them is by hand, in USDC on PulseChain.
 - Phone wallets by QR code (WalletConnect) in the app at app.hexns.domains. Browser wallets work.
 - Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
   For now, names are managed on PulseChain, and anyone can renew any name there.

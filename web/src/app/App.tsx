@@ -2,6 +2,7 @@ import { Brand } from "../components/Brand";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { deployment, network } from "./network";
 import { MyNamesPage, NamePage, SearchPage } from "./pages";
+import { ReferralsPage } from "./ReferralsPage";
 import { linkProps, useRoute } from "./router";
 import { WalletButton } from "./WalletButton";
 
@@ -23,7 +24,7 @@ export function App() {
         <div className="container nav__inner">
           <Brand href={homeUrl()} label="HexNS, HEX Name Service: home" />
           <nav className="app-nav__links" aria-label="App">
-            <a {...linkProps({ page: "search" })} aria-current={route.page !== "names" ? "page" : undefined}>
+            <a {...linkProps({ page: "search" })} aria-current={route.page === "search" || route.page === "name" ? "page" : undefined}>
               Search
             </a>
             <a {...linkProps({ page: "names" })} aria-current={route.page === "names" ? "page" : undefined}>
@@ -53,6 +54,8 @@ export function App() {
           <NamePage label={route.label} />
         ) : route.page === "names" ? (
           <MyNamesPage />
+        ) : route.page === "referrals" ? (
+          <ReferralsPage />
         ) : (
           <SearchPage />
         )}

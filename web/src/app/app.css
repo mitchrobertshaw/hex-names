@@ -635,3 +635,151 @@ body {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* The referral payout report (/referrals). */
+.payouts {
+  display: grid;
+  gap: 16px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.payouts h1 {
+  margin: 0;
+}
+
+.payouts__lede,
+.payouts__offer {
+  margin: 0;
+  color: var(--muted);
+}
+
+.payouts__card {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.payouts__card p {
+  margin: 0;
+}
+
+.payouts__form {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: end;
+}
+
+.payouts__form label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.payouts__form input {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.payouts__note {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.payouts__title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.payouts__scroll {
+  overflow-x: auto;
+}
+
+.payouts__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.payouts__table th,
+.payouts__table td {
+  padding: 10px 12px 10px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.payouts__table thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.payouts__wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payouts__how,
+.payouts__summary {
+  font-size: 14px;
+}
+
+.payouts__list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.payouts__download {
+  justify-self: start;
+}
+
+/* On phones each referrer is a short block, with what's owed in view. */
+@media (max-width: 640px) {
+  .payouts__table thead {
+    display: none;
+  }
+
+  .payouts__table,
+  .payouts__table tbody,
+  .payouts__table tr,
+  .payouts__table th,
+  .payouts__table td {
+    display: block;
+    white-space: normal;
+  }
+
+  .payouts__table tr {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .payouts__table th,
+  .payouts__table td {
+    border: 0;
+    padding: 3px 0;
+  }
+
+  .payouts__table th {
+    font-size: 16px;
+  }
+
+  .payouts__table td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--muted);
+  }
+
+  .payouts__table td[data-label="Pay to"]::before {
+    content: none;
+  }
+}
