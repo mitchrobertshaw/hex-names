@@ -106,7 +106,8 @@ Then [start the bot](../bot/README.md).
 
 ## Mainnet
 
-- **The admin** should be a hardware wallet or a Safe: the same address in steps 1 and 2.
+- **The admin** is a wallet made just for it, with its own recovery phrase kept offline and used for
+  nothing else ([how](../README.md#part-2-mainnet)): the same address in steps 1 and 2.
 - **Not automated yet:** verifying the contracts on [scan.pulsechain.com](https://scan.pulsechain.com),
   which publishes their source code so anyone can check them. Sourcify, which the explorer reads,
   covers PulseChain.
