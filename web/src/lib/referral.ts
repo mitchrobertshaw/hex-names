@@ -1,5 +1,5 @@
 // Referral links: hexns.domains/?ref=alice or app.hexns.domains/?ref=alice, where alice is the
-// referrer's .hex name. The name is remembered for 44 days in the visitor's browser and goes with
+// referrer's .hex name. The name is remembered for 58 days in the visitor's browser and goes with
 // their purchase to the registrar as its referral tag: keccak256 of the name, as ENSv2 ids names.
 // Referrers are paid from the registrar's records, to whoever owns the name when they're paid.
 
@@ -7,7 +7,7 @@ import { ens_normalize } from "@adraffy/ens-normalize";
 
 const KEY = "hexns-ref";
 /** How long a visitor's browser remembers the referral link they came in on. */
-export const REMEMBER_DAYS = 44;
+export const REMEMBER_DAYS = 58;
 const REMEMBER_MS = REMEMBER_DAYS * 24 * 60 * 60 * 1000;
 
 /** The referrer's name from a ?ref= value, if it's a valid .hex name. */

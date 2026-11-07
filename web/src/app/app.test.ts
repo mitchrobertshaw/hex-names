@@ -53,7 +53,7 @@ describe("referrals", () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it("are remembered for 44 days after the visitor clicks the link", () => {
+  it("are remembered for 58 days after the visitor clicks the link", () => {
     const saved = new Map<string, string>();
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => saved.get(key) ?? null,
@@ -66,9 +66,9 @@ describe("referrals", () => {
     visit("?ref=mick");
     expect(captureReferral(clicked)).toBe("mick");
     visit(""); // later visits, without the link
-    expect(REMEMBER_DAYS).toBe(44);
-    expect(captureReferral(clicked + 44 * day)).toBe("mick");
-    expect(captureReferral(clicked + 44 * day + 1)).toBeNull();
+    expect(REMEMBER_DAYS).toBe(58);
+    expect(captureReferral(clicked + 58 * day)).toBe("mick");
+    expect(captureReferral(clicked + 58 * day + 1)).toBeNull();
   });
 
   it("tag a purchase with the referrer's name, never their own", () => {

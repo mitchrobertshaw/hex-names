@@ -30,7 +30,7 @@ and set `VITE_NETWORK=testnet` in Netlify's environment variables.
 
 **Referral links.** `hexns.domains/?ref=alice` or `app.hexns.domains/?ref=alice`, where `alice` is
 the referrer's .hex name ([`src/lib/referral.ts`](src/lib/referral.ts)). The visitor's browser
-remembers it for 44 days, and their purchase or renewal carries it to the registrar as its referral
+remembers it for 58 days, and their purchase or renewal carries it to the registrar as its referral
 tag, `keccak256("alice")`, recorded on-chain in the registrar's `NameRegistered` and `NameRenewed`
 events with the amount paid. Referrers are paid from those records.
 
