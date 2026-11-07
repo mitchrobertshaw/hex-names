@@ -39,6 +39,7 @@ export function Avatar({ label, x, size = 42 }: { label: string; x?: string; siz
         height={size}
         loading="lazy"
         decoding="async"
+        draggable={false}
         onError={() => setFailed(true)}
       />
     );

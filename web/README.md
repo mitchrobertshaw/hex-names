@@ -5,8 +5,9 @@ search that checks names against the same rules the contracts use. Built with Vi
 TypeScript.
 
 Until the contracts are live, the search says whether a name will be available at launch, premium,
-reserved or invalid, and buying shows "Opens at launch". Buying and managing names come once the
-contracts are deployed: switch `LAUNCHED` in [`src/site.ts`](src/site.ts) then.
+reserved or invalid, and buying shows "Opens at launch". Buying and managing names will be in the
+app, at app.hexns.domains (`APP_URL` in [`src/site.ts`](src/site.ts)). At launch, switch
+`LAUNCHED` there too: the top bar's "Launching soon" then becomes a "Launch app" button.
 
 ## Putting it on Netlify
 
@@ -30,7 +31,10 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   into `src/assets/avatars` (or ask Claude to). Every person shown must also be in
   [`../script/reserved-names.csv`](../script/reserved-names.csv), so nobody can buy their name
   first; the tests check both. A name and photo on the homepage reads as that person backing
-  HexNS, so it's worth asking them first.
+  HexNS, so it's worth asking them first. On wide screens the first six drift around the words
+  ([`FloatingNames.tsx`](src/components/FloatingNames.tsx)): drag one and it springs back to its
+  place when let go; click one and it hops and settles. On phones everyone scrolls past in a row,
+  and a tap makes a name hop.
 - **The background** at the top of the page is a light wash of the HEX colours that drifts
   slowly (`.hero::before` in [`src/styles.css`](src/styles.css), coloured by the `--hero-`
   variables for light and dark). It stays still for visitors who turn off motion.

@@ -555,14 +555,21 @@ img {
 }
 
 /* The live strip: what's happening on PulseChain right now (LiveStrip.tsx). */
+/* One pill for the whole line, the only box besides the search. */
 .live {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   row-gap: 4px;
-  margin: 8px auto 0;
-  padding: 0;
+  width: fit-content;
+  max-width: 100%;
+  margin: 14px auto 0;
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: var(--shadow-sm);
   list-style: none;
   color: var(--muted);
   font-size: 14px;
@@ -626,6 +633,8 @@ img {
 @media (max-width: 519px) {
   .live {
     column-gap: 14px;
+    padding: 8px 16px;
+    border-radius: 20px;
   }
 
   .live__badge {
@@ -799,23 +808,68 @@ img {
   pointer-events: none;
 }
 
-.floating--scatter .pill {
+/* On shorter laptop screens the names close in towards the middle, so none hides under the nav. */
+@media (max-height: 820px) {
+  .floating--scatter {
+    --squeeze: 0.87;
+  }
+}
+
+@media (max-height: 700px) {
+  .floating--scatter {
+    --squeeze: 0.8;
+  }
+}
+
+/* Held while dragging, so the name passes over the words rather than under them. */
+.floating--scatter.is-holding {
+  z-index: 3;
+}
+
+/* Its place; a drag moves it with `transform`, and it springs back (FloatingNames.tsx). */
+.floater {
   position: absolute;
-  top: calc(50% + var(--content-shift) + var(--y));
+  top: calc(50% + var(--content-shift) + var(--y) * var(--squeeze, 1));
   translate: 0 -50%;
   scale: var(--scale);
   pointer-events: auto;
-  animation: float var(--duration) ease-in-out var(--delay) infinite;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-@keyframes float {
+.floater.is-held {
+  cursor: grabbing;
+}
+
+.floater.is-held .avatar {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 12px 26px rgb(60 30 50 / 30%);
+}
+
+/* Each name drifts gently on its own path and pace. */
+.floating--scatter .pill {
+  animation: drift var(--duration) ease-in-out var(--delay) infinite;
+}
+
+@keyframes drift {
   0%,
   100% {
-    translate: 0 -50%;
+    translate: 0 0;
+  }
+
+  25% {
+    translate: 5px -8px;
   }
 
   50% {
-    translate: 0 calc(-50% - 12px);
+    translate: -2px -14px;
+  }
+
+  75% {
+    translate: -6px -5px;
   }
 }
 
@@ -833,8 +887,15 @@ img {
   animation: marquee 50s linear infinite;
 }
 
-.marquee .pill {
+.marquee__item {
+  display: inline-flex;
   margin-right: 32px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.marquee .pill {
   font-size: 16px;
 }
 
