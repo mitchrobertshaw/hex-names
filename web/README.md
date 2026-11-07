@@ -31,11 +31,23 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   [`../script/reserved-names.csv`](../script/reserved-names.csv), so nobody can buy their name
   first; the tests check both. A name and photo on the homepage reads as that person backing
   HexNS, so it's worth asking them first.
-- **The 3D honeycomb** behind the top of the page is drawn by
-  [`src/three/honeycomb.ts`](src/three/honeycomb.ts): hexagonal pillars rising and falling in a
-  slow wave, in the HEX colours. Pillars near the pointer rise and light up, and a click or tap
-  sends a ripple across them. It loads after the rest of the page, pauses when scrolled away,
-  stays still for visitors who turn off motion, and is simply left out on devices without WebGL.
+- **The background** at the top of the page is a light wash of the HEX colours that drifts
+  slowly (`.hero::before` in [`src/styles.css`](src/styles.css), coloured by the `--hero-`
+  variables for light and dark). It stays still for visitors who turn off motion.
+- **The `.hex` on each floating name** is in that person's colour, picked from their profile
+  picture: `tone` in [`src/data/featured.ts`](src/data/featured.ts), one shade for light and one
+  for dark, each easy to read on its background (the tests check).
+- **The live strip** under the search ("● LIVE · names registered · the latest names", in
+  [`LiveStrip.tsx`](src/components/LiveStrip.tsx)) comes straight from the `.hex` registry on
+  PulseChain, through the site's own function at `/api/stats`
+  ([`netlify/functions/stats.mts`](netlify/functions/stats.mts)). It switches itself on once the
+  registry's address and start block from step 1's summary are filled in to
+  [`src/deployment.ts`](src/deployment.ts), and stays hidden until then. The total shows from 100
+  names and the day's count from 10, so it never shows a small number. Only names made of plain
+  letters, digits and hyphens, with nothing rude or scammy in them, appear in it. The function
+  reads at most about once a minute and keeps its place in Netlify Blobs, which needs no setting
+  up. For a copy of the site on the testnet, set `VITE_NETWORK=testnet` in Netlify's environment
+  variables.
 - **The HexNS mark**, "Route", is in [`src/components/Logo.tsx`](src/components/Logo.tsx); the
   browser and phone icons made from it are in [`public`](public), and every version of it, with
   how to use it, is in [`../brand`](../brand).

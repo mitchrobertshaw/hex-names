@@ -241,6 +241,10 @@ export function Pricing() {
           <a className="button button--primary price-card__cta" href="#top">
             Find your name
           </a>
+          <p className="price-card__scarce">
+            Only {(36 ** 3).toLocaleString("en")} three-character names are made of letters and digits. Once one is
+            registered, it&rsquo;s taken for as long as its owner renews it.
+          </p>
           <details className="price-more">
             <summary>Shorter names and multi-year discounts</summary>
             <table className="price-table">
@@ -346,10 +350,10 @@ export function Cta() {
     <section className="section section--tight" aria-labelledby="cta-title">
       <div className="container">
         <div className="cta">
-          <h2 id="cta-title">{LAUNCHED ? "Get your name today" : "Hexicans, get ready to claim your name"}</h2>
+          <h2 id="cta-title">{LAUNCHED ? "Claim your name before someone else does" : "Hexicans, get ready to claim your name"}</h2>
           <p>
             {LAUNCHED
-              ? "Search for it, pay with whatever you hold, and it's yours on both chains."
+              ? "Every name exists once. Search for yours, pay with whatever you hold, and it's yours on both chains."
               : "HexNS is launching soon. Search for your name to see if it's free."}
           </p>
           <div className="cta__actions">

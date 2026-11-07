@@ -1,13 +1,12 @@
 import { YEARLY_PRICE } from "../lib/names";
 import { LAUNCHED } from "../site";
 import { FloatingNames } from "./FloatingNames";
-import { HeroScene } from "./HeroScene";
+import { LiveStrip } from "./LiveStrip";
 import { NameSearch } from "./NameSearch";
 
 export function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">
-      <HeroScene />
       <FloatingNames variant="scatter" />
       <div className="container hero__content">
         <p className="eyebrow">
@@ -28,6 +27,10 @@ export function Hero() {
           covers both, paid in PLS, HEX or any token.
         </p>
         <NameSearch />
+        <p className="hero__note">
+          <b>Every name exists once.</b> First come, first served.
+        </p>
+        <LiveStrip />
       </div>
       <FloatingNames variant="marquee" />
     </section>
