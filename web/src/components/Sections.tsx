@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { PRICES, YEARLY_PRICE } from "../lib/names";
 import { appUrl } from "../site";
+import { AddPulseChain } from "./AddPulseChain";
 import { ChainLogo } from "./ChainLogo";
 import { ArrowIcon, CheckIcon, CrossIcon } from "./icons";
 
@@ -36,7 +37,10 @@ export function BothChains() {
   return (
     <section className="section" id="chains" aria-labelledby="chains-title">
       <div className="container">
-        <SectionHeading kicker="PulseChain and Ethereum" title={<span id="chains-title">One name, covered on both chains</span>}>
+        <SectionHeading
+          kicker="PulseChain and Ethereum"
+          title={<span id="chains-title">One name, covered on both chains</span>}
+        >
           Live on PulseChain, still on Ethereum, or somewhere in between? Your .hex name works on both, so you&rsquo;re
           covered wherever you end up. {PRICE} a year covers both chains.
         </SectionHeading>
@@ -49,6 +53,7 @@ export function BothChains() {
             <h3>PulseChain</h3>
             <p>Buy, renew, sell and manage your name here. Changes show up straight away.</p>
             <Resolves chain="PulseChain" />
+            <AddPulseChain />
           </article>
           <div className="chains__link" aria-hidden="true">
             <ArrowIcon />
@@ -166,7 +171,8 @@ export function Features() {
               <span className="art-code__window">
                 <span className="art-code__comment">{"// wallets look up .hex like .eth"}</span>
                 <span>
-                  <span className="art-code__fn">lookup</span>(<span className="art-code__str">&quot;you.hex&quot;</span>)
+                  <span className="art-code__fn">lookup</span>(
+                  <span className="art-code__str">&quot;you.hex&quot;</span>)
                 </span>
                 <span className="art-code__out">→ 0x7a3F…91c2</span>
               </span>
@@ -186,9 +192,18 @@ export function Features() {
 }
 
 const STEPS = [
-  { title: "Search", text: `Find a name you like. Names of 5 characters or more are ${PRICE} a year, for both chains.` },
-  { title: "Buy it in one go", text: "Pay from PulseChain or Ethereum with whatever you hold. No bridging, no swapping first." },
-  { title: "Use it everywhere", text: "Share yourname.hex instead of your address. It points to your wallet on both chains." },
+  {
+    title: "Search",
+    text: `Find a name you like. Names of 5 characters or more are ${PRICE} a year, for both chains.`,
+  },
+  {
+    title: "Buy it in one go",
+    text: "Pay from PulseChain or Ethereum with whatever you hold. No bridging, no swapping first.",
+  },
+  {
+    title: "Use it everywhere",
+    text: "Share yourname.hex instead of your address. It points to your wallet on both chains.",
+  },
 ];
 
 export function HowItWorks() {
@@ -351,7 +366,9 @@ export function Cta() {
       <div className="container">
         <div className="cta">
           <h2 id="cta-title">Claim your name before someone else does</h2>
-          <p>Every name exists once. Search for yours, pay with whatever you hold, and it&rsquo;s yours on both chains.</p>
+          <p>
+            Every name exists once. Search for yours, pay with whatever you hold, and it&rsquo;s yours on both chains.
+          </p>
           <div className="cta__actions">
             <a className="button button--primary" href="#top">
               Search for a name

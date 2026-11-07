@@ -280,11 +280,33 @@ img {
   text-decoration: none;
 }
 
+.brand__text {
+  display: grid;
+  gap: 3px;
+  line-height: 1;
+}
+
 .brand__name {
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+/* "HEX Name Service", small beneath the wordmark, as in the lockup. */
+.brand__tagline {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* The smallest phones have no room for it beside the buttons. */
+@media (max-width: 359px) {
+  .brand__tagline {
+    display: none;
+  }
 }
 
 .nav__links {
@@ -775,7 +797,9 @@ img {
   bottom: 0;
   left: max(16px, calc(50% - 560px));
   right: max(16px, calc(50% - 560px));
-  z-index: 1;
+  /* Above the words, so every name can be grabbed. The names never cover any text, and the layer
+     itself lets clicks through everywhere else. */
+  z-index: 3;
   pointer-events: none;
 }
 
@@ -792,9 +816,9 @@ img {
   }
 }
 
-/* Held while dragging, so the name passes over the words rather than under them. */
+/* Held while dragging, so the name passes over everything. */
 .floating--scatter.is-holding {
-  z-index: 3;
+  z-index: 4;
 }
 
 /* Its place; a drag moves it with `transform`, and it springs back (FloatingNames.tsx). */
@@ -820,9 +844,18 @@ img {
     0 12px 26px rgb(60 30 50 / 30%);
 }
 
-/* Each name drifts gently on its own path and pace. */
+/* Each name drifts gently on its own path and pace, and leans in a little under the pointer. */
 .floating--scatter .pill {
+  transition:
+    scale 0.25s ease,
+    rotate 0.25s ease;
   animation: drift var(--duration) ease-in-out var(--delay) infinite;
+}
+
+.floater:hover .pill,
+.floater.is-held .pill {
+  scale: 1.07;
+  rotate: -2deg;
 }
 
 @keyframes drift {
@@ -868,6 +901,28 @@ img {
 
 .marquee .pill {
   font-size: 16px;
+}
+
+/* "Add PulseChain to your wallet", on the PulseChain card. */
+.add-chain {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 18px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.add-chain:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .marquee .avatar {

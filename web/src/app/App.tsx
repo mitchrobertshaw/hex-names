@@ -1,6 +1,5 @@
-import { Logo } from "../components/Logo";
+import { Brand } from "../components/Brand";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { GITHUB_URL } from "../site";
 import { deployment, network } from "./network";
 import { MyNamesPage, NamePage, SearchPage } from "./pages";
 import { linkProps, useRoute } from "./router";
@@ -22,10 +21,7 @@ export function App() {
       </a>
       <header className="nav">
         <div className="container nav__inner">
-          <a className="brand" href={homeUrl()} aria-label="HexNS home">
-            <Logo height={30} />
-            <span className="brand__name">HexNS</span>
-          </a>
+          <Brand href={homeUrl()} label="HexNS, HEX Name Service: home" />
           <nav className="app-nav__links" aria-label="App">
             <a {...linkProps({ page: "search" })} aria-current={route.page !== "names" ? "page" : undefined}>
               Search
@@ -64,7 +60,7 @@ export function App() {
 
       <footer className="app-footer container">
         <p>
-          <a href={homeUrl()}>HexNS</a> · <a href={GITHUB_URL}>GitHub</a> · .hex names never end in .eth.
+          <a href={homeUrl()}>HexNS</a> · .hex names never end in .eth.
         </p>
       </footer>
     </>

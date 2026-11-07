@@ -1,4 +1,3 @@
-import { YEARLY_PRICE } from "../lib/names";
 import { FloatingNames } from "./FloatingNames";
 import { LiveStrip } from "./LiveStrip";
 import { NameSearch } from "./NameSearch";
@@ -12,18 +11,15 @@ export function Hero() {
           <span className="eyebrow__dot" aria-hidden="true" />
           <span>
             Built on <b>ENSv2</b>
-            <span className="eyebrow__more">
-              {" "}
-              · Live on PulseChain and Ethereum
-            </span>
+            <span className="eyebrow__more"> · Live on PulseChain and Ethereum</span>
           </span>
         </p>
         <h1 id="hero-title">
           Your <span className="grad-text">.hex</span> name on PulseChain and Ethereum
         </h1>
         <p className="lede">
-          Swap your 0x… for yourname.hex: one name for your wallet on both chains. ${YEARLY_PRICE}&nbsp;a&nbsp;year
-          covers both, paid in PLS, HEX or any token.
+          Swap your 0x… for yourname.hex. One name for your wallet, on PulseChain and Ethereum. Pay with PLS, HEX or any
+          token you hold.
         </p>
         <NameSearch />
         <LiveStrip />

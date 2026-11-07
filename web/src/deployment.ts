@@ -6,6 +6,11 @@ export type Network = "mainnet" | "testnet";
 type Address = `0x${string}`;
 
 export interface Deployment {
+  /**
+   * The day .hex launched on this network, as "YYYY-MM-DD". The referral launch offer (referrers
+   * earn 10% of what the buyers they bring pay) runs for 58 days from it: src/lib/referral.ts.
+   */
+  launchDate?: string;
   pulsechain: {
     /** A PulseChain RPC that keeps the chain's whole history. */
     rpc: string;

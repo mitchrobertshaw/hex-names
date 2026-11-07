@@ -5,8 +5,6 @@ import { captureReferral } from "./lib/referral";
 /** Which deployment this build shows (src/deployment.ts): set VITE_NETWORK=testnet for a testnet copy. */
 export const NETWORK: "mainnet" | "testnet" = import.meta.env.VITE_NETWORK === "testnet" ? "testnet" : "mainnet";
 
-export const GITHUB_URL = "https://github.com/mitchrobertshaw/hex-names";
-
 /**
  * A page of the app, where names are bought and managed: app.hexns.domains on the live site. On a
  * preview link the app is the same files under /app; a copy opened from a file uses the live app.
