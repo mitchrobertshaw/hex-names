@@ -385,7 +385,8 @@ img {
   --nav-height: 64px;
   --content-shift: 0px;
   /* The bottom edge: half a hexagon. Each lower corner is cut away at 60 degrees, a hexagon's angle,
-     so the page shows through. Kept shallow, so it's a quiet edge rather than a feature. */
+     so the page shows through. Kept shallow, so it's a quiet edge rather than a feature. Nothing is
+     drawn in those corners: on wide screens they're empty, and on phones the names fade out there. */
   --cut: 32px;
   --cut-x: calc(var(--cut) * 0.577);
   position: relative;
@@ -396,7 +397,7 @@ img {
   min-height: calc(100vh - var(--nav-height));
   min-height: calc(100svh - var(--nav-height));
   overflow: hidden;
-  padding: 40px 0 calc(24px + var(--cut));
+  padding: 40px 0 24px;
   text-align: center;
   background: linear-gradient(var(--bg) 35%, var(--hero-base));
   clip-path: polygon(
