@@ -24,6 +24,28 @@ describe("featured names", () => {
     for (const f of featuredNames) expect(ens_normalize(f.label)).toBe(f.label);
   });
 
+  it("give every person's .hex their colour, easy to read in both themes", () => {
+    // WCAG contrast against the pill: 3:1 on white (the names are decoration), 4.5:1 on dark.
+    const luminance = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const contrast = (a: string, b: string) => {
+      const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    for (const f of featuredNames.filter((f) => f.x)) {
+      expect(f.tone, `${f.label}.hex needs a tone picked from @${f.x}'s picture`).toBeDefined();
+      expect(f.tone!.light).toMatch(/^#[0-9a-f]{6}$/);
+      expect(f.tone!.dark).toMatch(/^#[0-9a-f]{6}$/);
+      expect(contrast(f.tone!.light, "#ffffff"), `${f.label}.hex on the light theme`).toBeGreaterThanOrEqual(3);
+      expect(contrast(f.tone!.dark, "#1f1527"), `${f.label}.hex on the dark theme`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it("are not repeated", () => {
     const labels = featuredNames.map((f) => f.label);
     expect(new Set(labels).size).toBe(labels.length);

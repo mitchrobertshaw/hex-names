@@ -16,13 +16,16 @@ const SLOTS: { side: "left" | "right"; x: number; y: number; tilt: number; scale
   { side: "right", x: 0, y: -222, tilt: -2, scale: 1 },
   { side: "left", x: 1, y: 112, tilt: 3, scale: 1 },
   { side: "right", x: 1, y: 100, tilt: -3, scale: 1.04 },
-  { side: "left", x: 9, y: 300, tilt: -2, scale: 0.98 },
-  { side: "right", x: 11, y: 312, tilt: 2, scale: 0.96 },
+  // Below the live strip; left out on short screens, where there's no room (styles.css).
+  { side: "left", x: 3, y: 344, tilt: -2, scale: 0.98 },
+  { side: "right", x: 4, y: 352, tilt: 2, scale: 0.96 },
 ];
 
 function Pill({ name, style }: { name: FeaturedName; style?: CSSProperties }) {
+  // The .hex takes the colour of the person's profile picture.
+  const tone = name.tone ? ({ "--tld-light": name.tone.light, "--tld-dark": name.tone.dark } as CSSProperties) : {};
   return (
-    <span className="pill" style={style} title={name.person ? `Reserved for ${name.person}` : undefined}>
+    <span className="pill" style={{ ...style, ...tone }} title={name.person ? `Reserved for ${name.person}` : undefined}>
       <Avatar label={name.label} x={name.x} />
       <span className="pill__name">
         {name.label}
