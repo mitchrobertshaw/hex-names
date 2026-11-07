@@ -1,4 +1,4 @@
-import { APP_URL, LAUNCHED } from "../site";
+import { appUrl } from "../site";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -18,13 +18,9 @@ export function Nav() {
         </nav>
         <div className="nav__actions">
           <ThemeToggle />
-          {LAUNCHED ? (
-            <a className="button button--primary button--small" href={APP_URL}>
-              Launch app
-            </a>
-          ) : (
-            <span className="nav__status">Launching soon</span>
-          )}
+          <a className="button button--primary button--small" href={appUrl()}>
+            Launch app
+          </a>
         </div>
       </div>
     </header>

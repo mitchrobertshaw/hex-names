@@ -287,8 +287,10 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 ## Not done yet
 
-- Buying and managing names on the website. The landing page and name search are in [`web/`](web),
-  ready for Netlify; buying is switched on once the contracts are deployed.
+- Paying referrers. Purchases and renewals made through a referral link already record the
+  referrer on-chain ([`web/README.md`](web/README.md#the-app)); a script to total each referrer's
+  10% and pay it is next.
+- Phone wallets by QR code (WalletConnect) in the app at app.hexns.domains. Browser wallets work.
 - Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
   For now, names are managed on PulseChain, and anyone can renew any name there.
 - Wallet support: wallets look up ENS out of the box but need adding `.hex`, for example as a
