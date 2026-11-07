@@ -18,7 +18,7 @@ export function Hero() {
           Your <span className="grad-text">.hex</span> name on PulseChain and Ethereum
         </h1>
         <p className="lede">
-          Swap your 0x… for yourname.hex: one name for your wallet, on PulseChain and Ethereum. Pay with PLS, HEX or any
+          Swap your 0x… for yourname.hex. One name for your wallet, on PulseChain and Ethereum. Pay with PLS, HEX or any
           token you hold.
         </p>
         <NameSearch />
