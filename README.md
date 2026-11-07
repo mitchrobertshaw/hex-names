@@ -154,8 +154,9 @@ roles at all.
 stablecoins, add registrars and renewers, hand held reserved names to their owners, and add other
 endings to the root. It can't change the price of one length, the multi-year discounts or the
 premium for expired names: those are fixed when the registrar is deployed. A new registrar can only
-register names nobody owns. Use a multisig such as a Safe, or give these powers up once things are
-settled.
+register names nobody owns. Keep it in a wallet used for nothing else, with its recovery phrase
+offline, or give these powers up once things are settled. (A multisig such as a Safe would be
+stronger, but Safe's own app doesn't support PulseChain.)
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
 releasing money held by Ethereum orders. If they were compromised they could write a false Ethereum
@@ -249,7 +250,7 @@ deploying, pays for them: about 10 tPLS and 0.01 Sepolia ETH from faucets on the
 50,000 PLS and 0.02 ETH on mainnet. Its key goes in a GitHub repository secret, one per network
 (`DEPLOYER_PRIVATE_KEY_TESTNET`, `DEPLOYER_PRIVATE_KEY_MAINNET`), and it has no powers left once the
 three steps are done. A real mainnet run also needs `mainnet` typed into the workflow's confirm box.
-The admin must be a plain wallet, a hardware wallet or a Safe, since it is given the (powerless)
+The admin must be a plain wallet, never upgraded to a smart account, since it is given the (powerless)
 `hex` token. Each step checks the other chain's contracts before linking to them, and refuses if
 something doesn't match.
 

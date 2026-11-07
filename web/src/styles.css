@@ -715,11 +715,6 @@ img {
   --tone-soft: var(--ok-soft);
 }
 
-.result--info {
-  --tone: var(--accent);
-  --tone-soft: var(--accent-soft);
-}
-
 .result--neutral {
   --tone: var(--muted);
   --tone-soft: var(--surface-2);

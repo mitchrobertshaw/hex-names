@@ -5,7 +5,7 @@ import { onSearchFor } from "../lib/playName";
 import { appUrl } from "../site";
 import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from "./icons";
 
-type Tone = "ok" | "info" | "neutral" | "bad" | "warn";
+type Tone = "ok" | "neutral" | "bad" | "warn";
 
 function Card({ tone, icon, title, children }: { tone: Tone; icon: ReactNode; title: ReactNode; children: ReactNode }) {
   return (
@@ -42,8 +42,9 @@ function Result({ check }: { check: NameCheck }) {
         </Card>
       );
     case "premium":
+      // Green like any name that can be bought; the star marks it as premium.
       return (
-        <Card tone="info" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
+        <Card tone="ok" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
           <p>
             Names of {check.length} characters are rarer, so they cost ${check.yearlyPrice} a year for both chains.
           </p>

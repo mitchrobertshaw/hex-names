@@ -66,7 +66,7 @@ Then do [step 3 on PulseChain](../pulsechain/README.md#step-3-link-pulsechain).
 - **Have about 0.02 ETH.** Step 2 cost about 0.0023 ETH on 5 November 2026.
 - **The admin can't be a "smart account".** Some wallets, MetaMask among them, offer to upgrade an
   account into one (an EIP-7702 delegation). Many of these can't hold the `hex` token, so steps 1
-  and 2 refuse them. Use a plain wallet, a hardware wallet or a Safe.
+  and 2 refuse them. Use a plain wallet.
 - **Not automated yet:** verifying the contracts on [etherscan.io](https://etherscan.io).
 
 ## Ethereum's next upgrade

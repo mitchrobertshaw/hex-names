@@ -65,7 +65,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | Wallet | For the testnets | For mainnet | Its private key goes in |
 |---|---|---|---|
 | **Deployer**: pays for deploying, and has no powers once step 3 is done | a new one | another new one | GitHub, as a repository secret |
-| **Admin**: can change prices and payment tokens, and hand held names to their owners. It can't take anyone's name | any wallet of yours | a hardware wallet (Ledger, Trezor) or a Safe | nowhere: you only type its address |
+| **Admin**: can change prices and payment tokens, and hand held names to their owners. It can't take anyone's name | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
 | **Payments**: receives every payment for a name, for good | your wallet, `0x1027…02C6` | your wallet, `0x1027…02C6` | nowhere: step 1's form already has its address |
 | **Bot**: the bot's own wallet, with its float | a new one | another new one | Railway, as a sealed variable |
 
@@ -139,8 +139,13 @@ Ethereum about 15 minutes later. Send what's left in the deployer wallet back to
 
 When everything above has worked, and someone other than the author has reviewed the contracts:
 
-1. **New wallets**: a new deployer and a new bot, funded with real coins as above. The admin should
-   be a hardware wallet or a Safe, and the same address for steps 1 and 2.
+1. **New wallets**: a new deployer and a new bot, funded with real coins as above. The admin is a
+   wallet made just for it: in MetaMask, add a new wallet with its own recovery phrase (not another
+   account under your everyday one), write the phrase on paper and keep it offline, and use the
+   wallet for nothing else. Not the payments wallet, which connects to plenty of sites. If MetaMask
+   offers to turn it into a "smart account", say no. Use the same admin for steps 1 and 2. (A Safe,
+   a wallet that needs several keys to agree, would be stronger, but Safe's own app doesn't support
+   PulseChain.)
 2. **Check the reserved names** again.
 3. **Add the repository secret** `DEPLOYER_PRIVATE_KEY_MAINNET` with the mainnet deployer's private
    key, the same way as in Part 1.
@@ -173,7 +178,7 @@ stopped run deployed is simply never used.
 | Add the DEPLOYER_PRIVATE_KEY_TESTNET (or _MAINNET) repository secret | Add the key (Part 1, step 4). |
 | type mainnet in the confirm box | It's a real mainnet run: type `mainnet` in the confirm box. |
 | ADMIN (or BENEFICIARY) can't be the deployer | The admin, or the wallet receiving payments, is the deployer wallet. Use another wallet: the deployer's key sits in GitHub. |
-| ADMIN is a contract that cannot hold ERC-1155 tokens | The admin is a "smart account" or another contract. Use a plain wallet, a hardware wallet or a Safe. |
+| ADMIN is a contract that cannot hold ERC-1155 tokens | The admin is a "smart account" or another contract. Use a plain wallet, never upgraded to a smart account. |
 | The wallet for name.hex is a contract that cannot hold ERC-1155 tokens | That reserved name's wallet can't hold the name. Leave its wallet empty, so the name is held instead. |
 | step 1 used a different deployer key | Run every step of a network with the same deployer key. |
 | step 1 was deployed for a different Ethereum network | Choose the same network for all three steps. |
@@ -197,8 +202,7 @@ stopped run deployed is simply never used.
 | Float | The bot's working money for names ordered from Ethereum |
 | Address | A wallet's or contract's public number, starting `0x`. Safe to share |
 | Private key | The secret that controls a wallet. Never share it |
-| Hardware wallet | A small device (Ledger, Trezor) that keeps a wallet's key off your computer |
-| Safe | A wallet that needs approval from more than one key (safe.global) |
+| Recovery phrase (seed phrase) | The 12 or 24 words that restore a wallet. Whoever has them has the wallet |
 | Admin / deployer | The wallet that can change prices / the wallet that pays for the deploy |
 | Block, start block | The chain's numbered batches of transactions; where the bot starts reading |
 | RPC | The web address programs use to talk to a chain, for example `https://rpc.pulsechain.com` |
