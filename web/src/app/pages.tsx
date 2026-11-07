@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { useLiveStats } from "../components/LiveStrip";
+import { shortName, tooLongText } from "../lib/names";
 import { reservedNames } from "../lib/reserved";
 import { formatUsd } from "../lib/quotes";
 import { referralLink } from "../lib/referral";
@@ -68,11 +69,13 @@ export function SearchPage() {
             ? info.reason
             : info.kind === "too-short"
               ? "Names need at least 3 characters."
-              : info.kind === "reserved"
-                ? `${info.label}.hex is reserved for ${info.reservedFor}.`
-                : info.kind === "available"
-                  ? `${info.label}.hex: ${formatUsd(info.yearlyPrice)} a year, for both chains. Press Search to see it.`
-                  : null}
+              : info.kind === "too-long"
+                ? `${shortName(`${info.label}.hex`)} is too long. ${tooLongText(info)}`
+                : info.kind === "reserved"
+                  ? `${info.label}.hex is reserved for ${info.reservedFor}.`
+                  : info.kind === "available"
+                    ? `${info.label}.hex: ${formatUsd(info.yearlyPrice)} a year, for both chains. Press Search to see it.`
+                    : null}
         </p>
       ) : null}
 
@@ -114,7 +117,9 @@ function StatusChip({ info }: { info: NameInfo }) {
           : ["Registered", "info"]
         : info.kind === "reserved"
           ? ["Reserved", "neutral"]
-          : ["Not available", "bad"];
+          : info.kind === "too-long"
+            ? ["Too long", "bad"]
+            : ["Not available", "bad"];
   return <span className={`status status--${tone}`}>{text}</span>;
 }
 
@@ -201,6 +206,8 @@ export function NamePage({ label }: { label: string }) {
         </p>
       ) : info.kind === "too-short" ? (
         <p className="card name-page__note">Names need at least 3 characters.</p>
+      ) : info.kind === "too-long" ? (
+        <p className="card name-page__note">{tooLongText(info)}</p>
       ) : (
         <p className="card name-page__note">{info.reason}</p>
       )}

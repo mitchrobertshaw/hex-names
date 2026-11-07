@@ -12,6 +12,8 @@ import { labelId, SECONDS_PER_YEAR } from "./order";
 export type NameInfo =
   | { kind: "invalid"; reason: string }
   | { kind: "too-short"; label: string }
+  /** Over 63 bytes: the contracts turn it away. */
+  | { kind: "too-long"; label: string; length: number; bytes: number }
   | { kind: "available"; label: string; length: number; yearlyPrice: number; premium: number }
   | { kind: "reserved"; label: string; reservedFor: string }
   | {
@@ -38,6 +40,8 @@ export function localInfo(input: string): NameInfo {
       return localInfo(check.name.replace(/\.eth$/, "")); // the .hex name with the same label
     case "too-short":
       return { kind: "too-short", label: check.name.replace(/\.hex$/, "") };
+    case "too-long":
+      return { kind: "too-long", label: check.name.replace(/\.hex$/, ""), length: check.length, bytes: check.bytes };
     case "reserved":
       return { kind: "reserved", label: check.name.replace(/\.hex$/, ""), reservedFor: check.reservedFor };
     case "premium":
@@ -55,7 +59,7 @@ export function localInfo(input: string): NameInfo {
 /** The name's state on PulseChain, or the local rules before the contracts are deployed. */
 export async function lookUp(input: string): Promise<NameInfo> {
   const local = localInfo(input);
-  if (!deployment || local.kind === "invalid" || local.kind === "too-short") return local;
+  if (!deployment || local.kind === "invalid" || local.kind === "too-short" || local.kind === "too-long") return local;
   const label = local.label;
   const { registry, registrar, usdc } = deployment.pulsechain;
   const state = await clients.pulsechain.readContract({

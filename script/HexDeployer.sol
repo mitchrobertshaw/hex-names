@@ -30,6 +30,7 @@ import {IAMB} from "../src/interfaces/IAMB.sol";
 import {IHexMirrorSync} from "../src/interfaces/IHexBridge.sol";
 import {AnyTokenCheckout} from "../src/pulsechain/AnyTokenCheckout.sol";
 import {HexMirrorSync} from "../src/pulsechain/HexMirrorSync.sol";
+import {HexNameLengthCap} from "../src/pulsechain/HexNameLengthCap.sol";
 import {HexOrderFiller} from "../src/pulsechain/HexOrderFiller.sol";
 import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 
@@ -92,7 +93,8 @@ abstract contract HexDeployer {
     /// @notice PulseChain: where names live and are sold.
     struct Hub {
         Core core;
-        StandardRentPriceOracle oracle;
+        StandardRentPriceOracle oracle; // prices; the admin manages it
+        HexNameLengthCap lengthCap; // between the registrar and the oracle: new names at most 63 bytes
         ETHRegistrar registrar;
         HexMirrorSync mirrorSync;
         HexOrderFiller orderFiller;
@@ -162,11 +164,12 @@ abstract contract HexDeployer {
             PREMIUM_PERIOD,
             _paymentRatios(cfg.usdc, cfg.dai)
         );
+        hub.lengthCap = new HexNameLengthCap(IRentPriceOracle(address(hub.oracle)));
         hub.registrar = new ETHRegistrar(
             cfg.admin,
             hexRegistry,
             cfg.beneficiary,
-            IRentPriceOracle(address(hub.oracle)),
+            IRentPriceOracle(address(hub.lengthCap)),
             GRACE_PERIOD,
             MIN_COMMITMENT_AGE,
             MAX_COMMITMENT_AGE,

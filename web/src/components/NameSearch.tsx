@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-import { checkName, type NameCheck } from "../lib/names";
+import { checkName, type NameCheck, shortName, tooLongText } from "../lib/names";
 import { onSearchFor } from "../lib/playName";
 import { appUrl } from "../site";
 import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from "./icons";
@@ -65,6 +65,12 @@ function Result({ check }: { check: NameCheck }) {
       return (
         <Card tone="bad" icon={<CrossIcon />} title={<><b>{check.name}</b> is too short</>}>
           <p>Names need at least 3 characters.</p>
+        </Card>
+      );
+    case "too-long":
+      return (
+        <Card tone="bad" icon={<CrossIcon />} title={<><b>{shortName(check.name)}</b> is too long</>}>
+          <p>{tooLongText(check)}</p>
         </Card>
       );
     case "invalid":
