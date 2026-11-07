@@ -5,7 +5,16 @@ import nacl from "tweetnacl";
 import { bytesToHex, hexToBytes, zeroAddress } from "viem";
 
 import { prepareOrder } from "../src/buy.ts";
-import { type Reveal, commitmentOf, decodeReveal, encodeReveal, encryptionKeyPair, openReveal, sealReveal } from "../src/reveal.ts";
+import {
+  type Reveal,
+  commitmentOf,
+  decodeReveal,
+  encodeReveal,
+  encryptionKeyPair,
+  encryptionSecretKeyFrom,
+  openReveal,
+  sealReveal,
+} from "../src/reveal.ts";
 import { orderKey } from "../src/orders.ts";
 
 const reveal: Reveal = {
@@ -76,4 +85,15 @@ test("prepareOrder gives a commitment for a fresh secret and seals it for the bo
   assert.equal(a.reveal.duration, 2n * 365n * 86_400n);
   assert.equal(a.commitment, commitmentOf(a.reveal));
   assert.deepEqual(openReveal(a.sealed, bot.secretKey), a.reveal);
+});
+
+test("the key made from the bot's wallet key never changes, and opens what websites seal to it", () => {
+  const wallet = `0x${"11".repeat(32)}` as const;
+  const secret = encryptionSecretKeyFrom(wallet);
+  // keccak256("hex-names bot: order encryption key" ++ wallet key), and its NaCl public key. If these
+  // change, every website's copy of the bot's public key goes stale and its orders can't be opened.
+  assert.equal(secret, "0xb80414eca34a576723ab3e4a400409f2f7d4d72beb59147fcbaf581c9edbeafb");
+  const bot = encryptionKeyPair(secret);
+  assert.equal(bot.publicKey, "0x986e3a9caf41becb2d308a3df8978fac6a28dd891bc0c86f3bc1030d5a17bd11");
+  assert.deepEqual(openReveal(sealReveal(reveal, hexToBytes(bot.publicKey)), bot.secretKey), reveal);
 });

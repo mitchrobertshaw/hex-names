@@ -1,6 +1,7 @@
 // Where .hex is deployed, for the website and the app. Fill each network in from the deploy run
-// summaries (deploy/README.md) and the bot's `npm run keygen`. Until a network is filled in, the
-// homepage shows no live numbers and the app searches and prices names but can't buy them.
+// summaries and the public key the bot prints when it starts: deploy/website/README.md has a block
+// to paste for each. Until a network is filled in, the homepage shows no live numbers and the app
+// searches and prices names but can't buy them.
 
 export type Network = "mainnet" | "testnet";
 type Address = `0x${string}`;
@@ -28,7 +29,7 @@ export interface Deployment {
     usdc: Address;
   };
   bot: {
-    /** The public key from the bot's `npm run keygen`: orders are sealed to it. */
+    /** The public key the bot prints when it starts ("for the website"): orders are sealed to it. */
     publicKey: Address;
     /** The bot's least fee per order, in dollars (MIN_FEE_USDC). */
     minFee: number;

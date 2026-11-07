@@ -231,9 +231,10 @@ forge test
 
 ## Deploying without installing anything
 
-**The guide is in [`deploy/`](deploy/README.md)**, with a page for each chain. In short: three
-steps, run from the GitHub website (a phone works too), first on the testnets (PulseChain Testnet v4
-and Sepolia), then on mainnet.
+**The guide is in [`deploy/`](deploy/README.md)**: what GitHub, Railway and Netlify each do, what
+you do, and a page for each chain, the bot and the website. All of it happens in a browser. In
+short: three steps, run from the GitHub website (a phone works too), first on the testnets
+(PulseChain Testnet v4 and Sepolia), then on mainnet.
 
 1. **Deploy on PulseChain** ([`script/pulsechain/`](script/pulsechain)): the `.hex` registry,
    registrar and checkout, the bridge contracts, and the [reserved names](#reserved-names).
@@ -244,23 +245,26 @@ and Sepolia), then on mainnet.
 
 Each runs from Actions > deploy > Run workflow, as a dry run first. A new wallet, just for
 deploying, pays for them: about 10 tPLS and 0.01 Sepolia ETH from faucets on the testnets, and about
-50,000 PLS and 0.02 ETH on mainnet. Its key goes in a GitHub environment secret, and it has no
-powers left once the three steps are done. The admin must be a plain wallet or a Safe, since it is
-given the (powerless) `hex` token. Each step checks the other chain's contracts before linking to
-them, and refuses if something doesn't match.
+50,000 PLS and 0.02 ETH on mainnet. Its key goes in a GitHub repository secret, one per network
+(`DEPLOYER_PRIVATE_KEY_TESTNET`, `DEPLOYER_PRIVATE_KEY_MAINNET`), and it has no powers left once the
+three steps are done. A real mainnet run also needs `mainnet` typed into the workflow's confirm box.
+The admin must be a plain wallet, a hardware wallet or a Safe, since it is given the (powerless)
+`hex` token. Each step checks the other chain's contracts before linking to them, and refuses if
+something doesn't match.
 
 ## Running the bot
 
 The bot in [`bot/`](bot) fills Ethereum orders, claims bridge messages on Ethereum, and copies name
-changes to Ethereum. It needs to run all the time, on a small server (a $5 VPS, Railway, Fly.io) or
-a computer that stays on. Step by step: [run the bot](deploy/README.md#4-run-the-bot).
+changes to Ethereum. It needs to run all the time. It runs on [Railway](https://railway.com), set up
+in a browser, with a `testnet` environment for the rehearsal and `production` for mainnet. Step by
+step: [the bot, on Railway](deploy/bot/README.md).
 
 1. Give it a wallet with PLS for gas and a float of USDC on PulseChain (say $100–$500), plus a
    little ETH on Ethereum for claims (a few cents each at today's gas prices).
-2. `npm ci`, then `npm run keygen` for the key that unseals orders. Publish the public key for
-   websites to use.
-3. Copy `bot/.env.example` to `bot/.env`, fill it in from the deploy summaries, then `npm start`.
-   Set `NETWORK=testnet` to run it on the testnets.
+2. Paste its settings into Railway: `NETWORK`, its private key (sealed), and the **For the bot**
+   lines from the deploy run summaries. Its order encryption key is made from its wallet key, and it
+   prints the public key, for websites, when it starts.
+3. Give it a Railway volume, where it remembers its place between restarts.
 
 The money from orders arrives in USDC on Ethereum, while the float is spent on PulseChain. Move it
 back across now and then, through the official bridge or LibertySwap.
@@ -295,6 +299,10 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
   For now, names are managed on PulseChain, and anyone can renew any name there.
 - Wallet support: wallets look up ENS out of the box but need adding `.hex`, for example as a
   MetaMask Snap. What to have ready, and who to ask: [docs/WALLET_CHECKLIST.md](docs/WALLET_CHECKLIST.md).
+- Verifying the contracts on the block explorers (publishing their source code) from the deploy
+  workflow.
+- A button in the app to take back an Ethereum order the bot never filled. The order book allows it
+  6½ hours after ordering. While the bot runs, it refunds such orders by itself.
 - A review by someone other than the author.
 
 ## License
