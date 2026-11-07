@@ -2,10 +2,10 @@ import { useState } from "react";
 import { type Address, isAddress } from "viem";
 
 import { formatUsd } from "../lib/quotes";
-import { captureReferral, referralLink } from "../lib/referral";
+import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
 import { priceFor } from "../lib/names";
 import { renew, send, type Step } from "./flows";
-import { PAY } from "./network";
+import { deployment, PAY } from "./network";
 import { referralTag } from "./order";
 import { Steps } from "./Steps";
 
@@ -119,7 +119,7 @@ export function OwnerPanel({ label, onChanged }: { label: string; onChanged?: ()
         <h2 id="referral-title" className="manage__title">
           Your referral link
         </h2>
-        <p className="manage__text">Share it. When someone buys a name through it, you earn 10% of what they pay.</p>
+        <p className="manage__text">{referralOfferText(launchOffer(deployment?.launchDate))}</p>
         <div className="manage__row">
           <code className="manage__link">{link}</code>
           <CopyButton text={link} />

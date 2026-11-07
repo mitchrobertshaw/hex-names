@@ -2,7 +2,15 @@ import nacl from "tweetnacl";
 import { bytesToHex, decodeAbiParameters, hexToBytes, keccak256, toBytes, zeroAddress } from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { captureReferral, REMEMBER_DAYS, referralLink, referrerFrom } from "../lib/referral";
+import {
+  captureReferral,
+  LAUNCH_OFFER_DAYS,
+  launchOffer,
+  REMEMBER_DAYS,
+  referralLink,
+  referralOfferText,
+  referrerFrom,
+} from "../lib/referral";
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
 import { hrefOf, modeOf, parse, type Place } from "./router";
 
@@ -69,6 +77,29 @@ describe("referrals", () => {
     expect(REMEMBER_DAYS).toBe(58);
     expect(captureReferral(clicked + 58 * day)).toBe("mick");
     expect(captureReferral(clicked + 58 * day + 1)).toBeNull();
+  });
+
+  it("earn 10% for the first 58 days after launch", () => {
+    expect(LAUNCH_OFFER_DAYS).toBe(58);
+    expect(REMEMBER_DAYS).toBe(LAUNCH_OFFER_DAYS); // a link clicked at launch lasts the whole offer
+    const offer = launchOffer("2026-12-01", Date.UTC(2026, 11, 1));
+    // 1 December 2026 to 27 January 2027 is 58 days.
+    expect(offer?.lastDay.toISOString()).toBe("2027-01-27T00:00:00.000Z");
+    expect(offer?.open).toBe(true);
+    expect(launchOffer("2026-12-01", Date.UTC(2027, 0, 27, 23, 59))?.open).toBe(true);
+    expect(launchOffer("2026-12-01", Date.UTC(2027, 0, 28))?.open).toBe(false);
+    expect(launchOffer(undefined)).toBeNull();
+    expect(launchOffer("1 December")).toBeNull();
+
+    expect(referralOfferText(offer)).toBe(
+      "Share it. Until 27 January 2027, when someone buys a name through it, you earn 10% of what they pay.",
+    );
+    expect(referralOfferText(launchOffer("2026-12-01", Date.UTC(2027, 1, 1)))).toBe(
+      "The launch offer, 10% of what buyers paid through referral links, ended on 27 January 2027.",
+    );
+    expect(referralOfferText(null)).toBe(
+      "Share it. For the first 58 days after launch, when someone buys a name through it, you earn 10% of what they pay.",
+    );
   });
 
   it("tag a purchase with the referrer's name, never their own", () => {

@@ -32,7 +32,9 @@ and set `VITE_NETWORK=testnet` in Netlify's environment variables.
 the referrer's .hex name ([`src/lib/referral.ts`](src/lib/referral.ts)). The visitor's browser
 remembers it for 58 days, and their purchase or renewal carries it to the registrar as its referral
 tag, `keccak256("alice")`, recorded on-chain in the registrar's `NameRegistered` and `NameRenewed`
-events with the amount paid. Referrers are paid from those records.
+events with the amount paid. Referrers are paid from those records: during the launch offer, the
+first 58 days after `launchDate` in [`src/deployment.ts`](src/deployment.ts), they earn 10% of what the
+buyers they bring pay. The owner's panel in the app says until when.
 
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
 and the bot: buying on PulseChain with USDC, ordering from Sepolia with ETH (filled by the bot),
