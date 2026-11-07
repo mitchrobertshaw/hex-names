@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { PRICES, YEARLY_PRICE } from "../lib/names";
-import { LAUNCHED } from "../site";
+import { appUrl } from "../site";
 import { ChainLogo } from "./ChainLogo";
 import { ArrowIcon, CheckIcon, CrossIcon } from "./icons";
 
@@ -350,15 +350,14 @@ export function Cta() {
     <section className="section section--tight" aria-labelledby="cta-title">
       <div className="container">
         <div className="cta">
-          <h2 id="cta-title">{LAUNCHED ? "Claim your name before someone else does" : "Hexicans, get ready to claim your name"}</h2>
-          <p>
-            {LAUNCHED
-              ? "Every name exists once. Search for yours, pay with whatever you hold, and it's yours on both chains."
-              : "HexNS is launching soon. Search for your name to see if it's free."}
-          </p>
+          <h2 id="cta-title">Claim your name before someone else does</h2>
+          <p>Every name exists once. Search for yours, pay with whatever you hold, and it&rsquo;s yours on both chains.</p>
           <div className="cta__actions">
             <a className="button button--primary" href="#top">
               Search for a name
+            </a>
+            <a className="button button--ghost" href={appUrl()}>
+              Open the app
             </a>
           </div>
         </div>

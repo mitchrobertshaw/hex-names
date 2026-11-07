@@ -11,6 +11,8 @@ export interface PayToken {
   /** Shown when it's picked. */
   note?: string;
   decimals: number;
+  /** The chain's own coin (PLS or ETH), sent with the transaction rather than approved. */
+  native?: boolean;
   /** The swap from this token to USDC, or null for USDC itself. */
   path: string[] | null;
   router?: string;
@@ -57,7 +59,7 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
     fee: 0,
     network: "A fraction of a cent, in PLS",
     tokens: [
-      { symbol: "PLS", decimals: 18, path: [PULSECHAIN.WPLS, PULSECHAIN.USDC] },
+      { symbol: "PLS", decimals: 18, native: true, path: [PULSECHAIN.WPLS, PULSECHAIN.USDC] },
       { symbol: "HEX", decimals: 8, path: [PULSECHAIN.HEX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
       { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
       {
@@ -78,9 +80,52 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
     fee: ETHEREUM_ORDER_FEE,
     network: "Set by Ethereum; your wallet shows it before you confirm",
     tokens: [
-      { symbol: "ETH", decimals: 18, path: [ETHEREUM.WETH, ETHEREUM.USDC] },
+      { symbol: "ETH", decimals: 18, native: true, path: [ETHEREUM.WETH, ETHEREUM.USDC] },
       { symbol: "USDC", decimals: 6, path: null },
       { symbol: "HEX", decimals: 8, path: [ETHEREUM.HEX, ETHEREUM.WETH, ETHEREUM.USDC] },
+    ],
+  },
+};
+
+// The testnets (script/Addresses.sol): PulseChain Testnet v4, and Sepolia joined to it by the testnet
+// bridge. On PulseChain Testnet v4 names are paid for in USDC bridged from Sepolia; PulseX's testnet
+// has no pool for it, so that is the only way to pay there.
+const SEPOLIA = {
+  WETH: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+  USDC: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+  UNISWAP_V2: "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3",
+};
+
+export const TESTNET_PAY_CHAINS: Record<ChainKey, PayChain> = {
+  pulsechain: {
+    key: "pulsechain",
+    name: "PulseChain Testnet v4",
+    rpc: "https://rpc.v4.testnet.pulsechain.com",
+    router: "0x636f6407B90661b73b1C0F7e24F4C79f624d0738",
+    dex: "PulseX",
+    fee: 0,
+    network: "A fraction of a cent, in tPLS",
+    tokens: [
+      {
+        symbol: "USDC",
+        label: "USDC from Sepolia",
+        note: "Circle\u2019s test USDC, bridged from Sepolia by the testnet bridge.",
+        decimals: 6,
+        path: null,
+      },
+    ],
+  },
+  ethereum: {
+    key: "ethereum",
+    name: "Sepolia",
+    rpc: "https://ethereum-sepolia-rpc.publicnode.com",
+    router: SEPOLIA.UNISWAP_V2,
+    dex: "Uniswap",
+    fee: ETHEREUM_ORDER_FEE,
+    network: "Close to nothing, in Sepolia ETH",
+    tokens: [
+      { symbol: "ETH", decimals: 18, native: true, path: [SEPOLIA.WETH, SEPOLIA.USDC] },
+      { symbol: "USDC", decimals: 6, path: null },
     ],
   },
 };

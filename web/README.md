@@ -1,13 +1,42 @@
 # HexNS website
 
-The Hex Name Service website, for hexns.domains: a landing page made for Hexicans, with a name
-search that checks names against the same rules the contracts use. Built with Vite, React and
-TypeScript.
+The Hex Name Service website: the homepage at hexns.domains, made for Hexicans, and the app at
+app.hexns.domains, where names are bought and managed. Built with Vite, React and TypeScript.
 
-Until the contracts are live, the search says whether a name will be available at launch, premium,
-reserved or invalid, and buying shows "Opens at launch". Buying and managing names will be in the
-app, at app.hexns.domains (`APP_URL` in [`src/site.ts`](src/site.ts)). At launch, switch
-`LAUNCHED` there too: the top bar's "Launching soon" then becomes a "Launch app" button.
+## The app
+
+[`app/index.html`](app/index.html) and [`src/app`](src/app). One page with three views:
+
+- **Search** (`/`): find a name, and see the names just registered.
+- **A name** (`/alice.hex`): if it's free, choose how long, which chain to pay from and which
+  token, see exactly what it costs, and buy it. From PulseChain that's: reserve it, wait a minute
+  (the token is allowed meanwhile), pay ([`flows.ts`](src/app/flows.ts)). From Ethereum it's one
+  order, sealed so only the bot can read which name it is, which the bot fills on PulseChain within
+  about a minute and a half. If it's taken: who owns it and until when. If it's yours: renew it,
+  send it to another wallet, and your referral link.
+- **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
+
+Wallets: any browser wallet that announces itself (MetaMask, Rabby, Internet Money and others) or
+sits at `window.ethereum` ([`wallet.ts`](src/app/wallet.ts)). Phone wallets by QR code need
+WalletConnect, which needs a project ID from reown.com.
+
+**Switching it on.** Fill in [`src/deployment.ts`](src/deployment.ts) from the deploy run summaries
+and the bot's `npm run keygen`. Until then the app searches and prices names, connects wallets, and
+plays a purchase through as a walkthrough that sends nothing. For a testnet copy, fill in `testnet`
+and set `VITE_NETWORK=testnet` in Netlify's environment variables.
+
+**Where it lives.** On Netlify, add `app.hexns.domains` as a second domain of this same site:
+[`public/_redirects`](public/_redirects) serves the app there, and under `/app` on preview links.
+
+**Referral links.** `hexns.domains/?ref=alice` or `app.hexns.domains/?ref=alice`, where `alice` is
+the referrer's .hex name ([`src/lib/referral.ts`](src/lib/referral.ts)). The visitor's browser
+remembers it for 30 days, and their purchase or renewal carries it to the registrar as its referral
+tag, `keccak256("alice")`, recorded on-chain in the registrar's `NameRegistered` and `NameRenewed`
+events with the amount paid. Referrers are paid from those records.
+
+**Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
+and the bot: buying on PulseChain with USDC, ordering from Sepolia with ETH (filled by the bot),
+renewing, sending, My names, and a referral tag landing on-chain.
 
 ## Putting it on Netlify
 
@@ -62,13 +91,11 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 - **The chat** ("Goodbye 0x…", in [`Messages.tsx`](src/components/Messages.tsx)) and **the name
   card** ("Yours. Not ours.", in [`Ownership.tsx`](src/components/Ownership.tsx)) are small
   demos. A name typed into the chat shows on the card too.
-- **The checkout preview** opens from a search result ([`Checkout.tsx`](src/components/Checkout.tsx)):
-  how long, which chain and token, the price breakdown and a live quote. Prices and discounts are
-  in [`src/lib/names.ts`](src/lib/names.ts), and the tests check them against
-  `script/HexDeployer.sol` and the bot's order fee. Tokens and the swap routes are in
-  [`src/lib/tokens.ts`](src/lib/tokens.ts); live quotes ask PulseX and Uniswap through public
-  RPCs ([`src/lib/quotes.ts`](src/lib/quotes.ts)). Until the contracts are live, `LAUNCHED` in
-  `src/site.ts` stays `false` and the button says it opens at launch.
+- **The search** on the homepage checks a name as it's typed, and its Register button opens that
+  name in the app. Prices and discounts are in [`src/lib/names.ts`](src/lib/names.ts), and the
+  tests check them against `script/HexDeployer.sol` and the bot's order fee. Tokens and the swap
+  routes are in [`src/lib/tokens.ts`](src/lib/tokens.ts), for mainnet and the testnets; live
+  quotes ask PulseX and Uniswap through public RPCs ([`src/lib/quotes.ts`](src/lib/quotes.ts)).
 - **Light and dark**: the moon and sun button in the top bar switches between them and remembers
   the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts
@@ -92,8 +119,8 @@ npm run dev
 ```
 
 `npm test` runs the tests, which GitHub also runs on every push, and `npm run build` makes the
-site in `dist/`.
+site in `dist/`: the homepage, and the app in `dist/app/` (open `/app/` in `npm run dev`).
 
-`npm run build:single` makes the whole site as one file, `dist-single/index.html`, with everything
-inside it: scripts, styles, fonts, pictures and the 3D scene. It opens straight from a computer by
+`npm run build:single` makes the homepage as one file, `dist-single/index.html`, with everything
+inside it: scripts, styles, fonts and pictures. It opens straight from a computer by
 double-clicking, so it's handy for sharing a preview.

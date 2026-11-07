@@ -1,5 +1,4 @@
 import { YEARLY_PRICE } from "../lib/names";
-import { LAUNCHED } from "../site";
 import { FloatingNames } from "./FloatingNames";
 import { LiveStrip } from "./LiveStrip";
 import { NameSearch } from "./NameSearch";
@@ -15,7 +14,7 @@ export function Hero() {
             Built on <b>ENSv2</b>
             <span className="eyebrow__more">
               {" "}
-              · {LAUNCHED ? "Live on PulseChain and Ethereum" : "Coming soon to PulseChain and Ethereum"}
+              · Live on PulseChain and Ethereum
             </span>
           </span>
         </p>
@@ -27,9 +26,6 @@ export function Hero() {
           covers both, paid in PLS, HEX or any token.
         </p>
         <NameSearch />
-        <p className="hero__note">
-          <b>Every name exists once.</b> First come, first served.
-        </p>
         <LiveStrip />
       </div>
       <FloatingNames variant="marquee" />

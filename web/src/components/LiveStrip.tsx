@@ -4,7 +4,7 @@ import { type LiveStats, SHOW_DAY_FROM, SHOW_NAMES_FROM, timeAgo } from "../lib/
 import { NETWORK } from "../site";
 
 /** The live numbers from the stats function, refreshed every minute; null until there are some. */
-function useLiveStats(): LiveStats | null {
+export function useLiveStats(): LiveStats | null {
   const [stats, setStats] = useState<LiveStats | null>(null);
   useEffect(() => {
     let stopped = false;

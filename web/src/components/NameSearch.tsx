@@ -2,8 +2,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } 
 
 import { checkName, type NameCheck } from "../lib/names";
 import { onSearchFor } from "../lib/playName";
-import { LAUNCHED } from "../site";
-import { Checkout } from "./Checkout";
+import { appUrl } from "../site";
 import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from "./icons";
 
 type Tone = "ok" | "info" | "neutral" | "bad" | "warn";
@@ -20,9 +19,16 @@ function Card({ tone, icon, title, children }: { tone: Tone; icon: ReactNode; ti
   );
 }
 
-type OpenCheckout = (name: string, length: number) => void;
+/** Buying happens in the app, on the name's own page. */
+function RegisterLink({ name }: { name: string }) {
+  return (
+    <a className="button button--primary button--small" href={appUrl(`/${name}`)}>
+      Register
+    </a>
+  );
+}
 
-function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheckout }) {
+function Result({ check }: { check: NameCheck }) {
   switch (check.kind) {
     case "empty":
       return null;
@@ -30,16 +36,9 @@ function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheck
       return (
         <Card tone="ok" icon={<CheckIcon />} title={<><b>{check.name}</b> is available</>}>
           <p>
-            ${check.yearlyPrice} a year for both chains, paid in PLS, HEX or any token.{" "}
-            {LAUNCHED ? null : "Registration opens at launch."}
+            ${check.yearlyPrice} a year for both chains, paid in PLS, HEX or any token.
           </p>
-          <button
-            type="button"
-            className="button button--primary button--small"
-            onClick={() => onCheckout(check.name, check.length)}
-          >
-            {LAUNCHED ? "Register" : "See price"}
-          </button>
+          <RegisterLink name={check.name} />
         </Card>
       );
     case "premium":
@@ -48,13 +47,7 @@ function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheck
           <p>
             Names of {check.length} characters are rarer, so they cost ${check.yearlyPrice} a year for both chains.
           </p>
-          <button
-            type="button"
-            className="button button--primary button--small"
-            onClick={() => onCheckout(check.name, check.length)}
-          >
-            {LAUNCHED ? "Register" : "See price"}
-          </button>
+          <RegisterLink name={check.name} />
         </Card>
       );
     case "reserved":
@@ -85,7 +78,7 @@ function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheck
           <Card tone="warn" icon={<AlertIcon />} title={<><b>{check.name}</b> is a .eth name</>}>
             <p>.hex names never end in .eth. Here&rsquo;s the .hex one:</p>
           </Card>
-          <Result check={check.hex} onCheckout={onCheckout} />
+          <Result check={check.hex} />
         </>
       );
   }
@@ -95,7 +88,6 @@ function Result({ check, onCheckout }: { check: NameCheck; onCheckout: OpenCheck
 export function NameSearch() {
   const [query, setQuery] = useState("");
   const check = useMemo(() => checkName(query), [query]);
-  const [checkout, setCheckout] = useState<{ name: string; length: number } | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   // "See if it's free" further down the page fills the box in.
@@ -142,9 +134,8 @@ export function NameSearch() {
         </button>
       </form>
       <div className="search__results" aria-live="polite">
-        <Result check={check} onCheckout={(name, length) => setCheckout({ name, length })} />
+        <Result check={check} />
       </div>
-      {checkout ? <Checkout name={checkout.name} length={checkout.length} onClose={() => setCheckout(null)} /> : null}
     </div>
   );
 }

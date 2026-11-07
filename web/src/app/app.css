@@ -1,0 +1,626 @@
+/* The app at app.hexns.domains. Colours, type, buttons and the checkout's pieces come from
+   ../styles.css; this is the app's own layout. */
+
+body {
+  background: var(--bg);
+}
+
+.app-nav__links {
+  display: none;
+  gap: 24px;
+  margin-left: 40px;
+  margin-right: auto;
+  font-weight: 600;
+}
+
+.app-nav__links a {
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.app-nav__links a:hover,
+.app-nav__links a[aria-current="page"] {
+  color: var(--text);
+}
+
+.app-nav__links a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+}
+
+@media (min-width: 640px) {
+  .app-nav__links {
+    display: flex;
+  }
+}
+
+.app-banner {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+}
+
+.app-main {
+  max-width: 760px;
+  min-height: calc(100svh - 64px - 140px);
+  padding-block: 40px 64px;
+}
+
+.app-footer {
+  padding-block: 24px 40px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.app-footer a {
+  color: inherit;
+}
+
+/* ---------- Search ---------- */
+
+.app-search {
+  padding-top: 6vh;
+  text-align: center;
+}
+
+.app-search h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 1.4rem + 3vw, 3.6rem);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.app-search__lede {
+  margin: 14px 0 28px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.app-search__box {
+  margin-top: 0;
+}
+
+.app-search__hint {
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+
+.app-search__mine {
+  margin: 18px 0 0;
+  font-weight: 600;
+}
+
+.app-search__mine a {
+  color: var(--accent);
+}
+
+.recent {
+  max-width: 620px;
+  margin: 48px auto 0;
+  text-align: left;
+}
+
+.recent h2 {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recent ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recent li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.recent a {
+  color: var(--text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.recent a span {
+  color: var(--accent);
+}
+
+.recent__when {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------- A name ---------- */
+
+.name-page__back {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.name-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin: 14px 0 24px;
+}
+
+.name-page__head h1 {
+  margin: 0;
+  font-size: clamp(2rem, 1.2rem + 3vw, 3.2rem);
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.name-page__loading {
+  color: var(--muted);
+}
+
+.card.name-page__note {
+  padding: 20px 24px;
+  color: var(--text);
+}
+
+.status {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.status--ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.status--info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status--warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.status--neutral {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.status--bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.buy,
+.manage,
+.details {
+  padding: 28px;
+}
+
+.buy + .card,
+.details + .card,
+.manage + .card {
+  margin-top: 16px;
+}
+
+.buy__title,
+.manage__title {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+
+.buy__choices {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+
+.buy__cta {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.buy__connect {
+  margin-top: 20px;
+}
+
+.buy__preview-note {
+  text-align: center;
+}
+
+.buy__done {
+  display: flex;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--ok-soft);
+}
+
+.buy__done-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: var(--on-accent);
+}
+
+.buy__done p {
+  margin: 0 0 6px;
+  color: var(--text);
+}
+
+.buy__done-title {
+  font-weight: 700;
+}
+
+.buy__share code {
+  overflow-wrap: anywhere;
+}
+
+.buy__actions {
+  margin-top: 12px;
+}
+
+/* ---------- A purchase, step by step ---------- */
+
+.progress {
+  display: grid;
+  gap: 4px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress__item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.progress__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  color: var(--on-accent);
+}
+
+.is-active .progress__icon {
+  border-color: var(--accent);
+  border-right-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+
+.is-done .progress__icon {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.is-error .progress__icon {
+  border-color: var(--bad);
+  background: var(--bad);
+}
+
+@keyframes spin {
+  to {
+    rotate: 1turn;
+  }
+}
+
+.progress__body {
+  display: grid;
+  gap: 2px;
+}
+
+.progress__title {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.is-active .progress__title,
+.is-done .progress__title,
+.is-error .progress__title {
+  color: var(--text);
+}
+
+.progress__countdown {
+  margin-left: 8px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__detail {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.is-error .progress__detail {
+  color: var(--bad);
+}
+
+.progress__tx {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-active .progress__icon {
+    animation: none;
+  }
+}
+
+/* ---------- Wallets ---------- */
+
+.wallet-button {
+  position: relative;
+}
+
+.wallet-button__dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.wallet-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: 280px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.wallet-menu__who {
+  display: grid;
+  margin: 4px 8px 10px;
+  font-weight: 700;
+}
+
+.wallet-menu__who span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.wallet-menu__item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.wallet-menu__item:hover {
+  background: var(--surface-2);
+}
+
+.wallet-choices {
+  display: grid;
+  gap: 8px;
+}
+
+.wallet-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.wallet-choice:hover {
+  background: var(--surface-2);
+}
+
+.wallet-choice img,
+.wallet-choice__blank {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.wallet-choices--none p {
+  margin: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wallet-choices--none a,
+.wallet-choices--none b {
+  color: var(--text);
+}
+
+.wallet-choices__error {
+  margin: 4px 0 0;
+  color: var(--bad);
+  font-size: 14px;
+}
+
+/* ---------- Owning a name ---------- */
+
+.details dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.details dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.details dt {
+  color: var(--muted);
+}
+
+.details dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+}
+
+.details dd a {
+  color: var(--text);
+}
+
+.details__you {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.details__note {
+  margin: 16px 0 0;
+  color: var(--warn);
+}
+
+.manage__text {
+  margin: -8px 0 16px;
+  color: var(--muted);
+}
+
+.manage__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.manage__link {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.manage__input {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+/* ---------- My names ---------- */
+
+.my-names h1 {
+  margin: 0;
+  font-size: clamp(2rem, 1.4rem + 2vw, 2.8rem);
+  letter-spacing: -0.03em;
+}
+
+.my-names__who {
+  margin: 6px 0 24px;
+  color: var(--muted);
+}
+
+.my-names__connect,
+.my-names__empty {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  margin-top: 20px;
+  padding: 24px;
+}
+
+.my-names__connect p,
+.my-names__empty p {
+  margin: 0;
+  color: var(--text);
+}
+
+.my-names__list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-names__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+}
+
+.my-names__name {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.my-names__expiry {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.my-names__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
