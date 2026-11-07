@@ -13,7 +13,18 @@ export const registrarAbi = parseAbi([
   "function isAvailable(string label) view returns (bool)",
   "function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
   "function getRenewPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
+  "function BENEFICIARY() view returns (address)",
 ]);
+
+/**
+ * Disperse (disperse.app): pays many wallets from one approval, in one transaction. On Ethereum since
+ * 2018, and at the same address, with the same code, on PulseChain and PulseChain Testnet v4.
+ */
+export const DISPERSE = "0xD152f549545093347A162Dce210e7293f1452150" as const;
+export const disperseAbi = parseAbi(["function disperseToken(address token, address[] recipients, uint256[] values)"]);
+
+/** An ERC-20 transfer, to find payouts already sent. */
+export const transferEvent = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"]);
 
 /** ENSv2's PermissionedRegistry: who owns a name, and until when. Names are ERC-1155 tokens. */
 export const registryAbi = parseAbi([

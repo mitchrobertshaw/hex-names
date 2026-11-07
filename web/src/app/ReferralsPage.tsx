@@ -1,23 +1,51 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import type { Address, Hex } from "viem";
 
-import { dollarsText, payoutCsv, payoutReport, type PayoutReport, type PayoutRow } from "../lib/payouts";
+import {
+  dollarsText,
+  findPayout,
+  payoutCsv,
+  payoutReport,
+  type PayoutReport,
+  type PayoutRow,
+  payoutTransfers,
+  type Transfer,
+  usdcText,
+} from "../lib/payouts";
 import { LAUNCH_OFFER_DAYS, launchOffer, REFERRAL_PERCENT } from "../lib/referral";
+import { erc20Abi, registrarAbi } from "./abis";
+import { payReferrers, type Step } from "./flows";
 import { CopyButton } from "./ManagePanel";
-import { addressUrl, clients, deployment } from "./network";
-import { readReferredPayments, readReferrers, readTokens } from "./payouts";
-import { short } from "./wallet";
+import { addressUrl, clients, deployment, network, txUrl } from "./network";
+import { readPayoutTransfers, readReferredPayments, readReferrers, readTokens } from "./payouts";
+import { Steps } from "./Steps";
+import { short, useWallet } from "./wallet";
+import { WalletChoices } from "./WalletButton";
 
 const DAY = 86_400;
 const isoDay = (date: Date) => date.toISOString().slice(0, 10);
 const startOf = (day: string) => Date.parse(`${day}T00:00:00Z`) / 1000;
+const nextDay = (day: string) => isoDay(new Date((startOf(day) + DAY) * 1000));
 const dayText = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const blockDay = async (block: bigint) =>
+  isoDay(new Date(Number((await clients.pulsechain.getBlock({ blockNumber: block })).timestamp) * 1000));
 
-/** USDC to send, without trailing zeros past the cents: "3.25", "0.000007". */
-export function usdcText(micro: bigint): string {
-  const whole = micro / 1_000_000n;
-  const fraction = (micro % 1_000_000n).toString().padStart(6, "0").replace(/0{1,4}$/, "");
-  return `${whole.toLocaleString("en-US")}.${fraction.padEnd(2, "0")}`;
+// The last day paid for, remembered in this browser so the next report starts after it.
+const paidKey = () => `hexns-referrals-paid-through:${network}:${deployment?.pulsechain.registrar.toLowerCase()}`;
+function loadPaidThrough(): string | null {
+  try {
+    return localStorage.getItem(paidKey());
+  } catch {
+    return null;
+  }
+}
+function savePaidThrough(day: string) {
+  try {
+    if ((loadPaidThrough() ?? "") < day) localStorage.setItem(paidKey(), day);
+  } catch {
+    // Without storage, the next report just starts at the beginning of the offer again.
+  }
 }
 
 function download(report: PayoutReport, from: string, to: string) {
@@ -31,36 +59,122 @@ function download(report: PayoutReport, from: string, to: string) {
   URL.revokeObjectURL(url);
 }
 
+/** The wallet every payment goes to: the registrar's beneficiary, fixed at deployment. */
+function usePaymentsWallet(): Address | null | undefined {
+  const [payee, setPayee] = useState<Address | null | undefined>(deployment ? undefined : null);
+  useEffect(() => {
+    if (!deployment) return;
+    clients.pulsechain
+      .readContract({ address: deployment.pulsechain.registrar, abi: registrarAbi, functionName: "BENEFICIARY" })
+      .then(setPayee, () => setPayee(null));
+  }, []);
+  return payee;
+}
+
+interface Done {
+  report: PayoutReport;
+  from: string;
+  to: string;
+  payments: number;
+  decimals: number;
+  /** A payout that already paid all of this, if there is one. */
+  paid: { transfer: Transfer; day: string } | null;
+}
+
 type State =
   | { status: "idle" }
   | { status: "working"; percent: number }
-  | { status: "done"; report: PayoutReport; from: string; to: string; payments: number }
+  | ({ status: "done" } & Done)
   | { status: "failed"; message: string };
 
-/** app.hexns.domains/referrals: what each referrer is owed, worked out from the registrar's records. */
+/**
+ * app.hexns.domains/referrals: what each referrer is owed, worked out from the registrar's records,
+ * and paid in one transaction. Shown only to the wallet that receives .hex's payments. That keeps it
+ * out of casual view, though everything on it can be read from the chain by anyone.
+ */
 export function ReferralsPage() {
-  const offer = launchOffer(deployment?.launchDate);
-  const offerFrom = offer ? deployment!.launchDate! : "";
-  const offerTo = offer ? isoDay(offer.lastDay) : "";
-  const today = isoDay(new Date());
-  const [from, setFrom] = useState(offerFrom);
-  const [to, setTo] = useState(offer && offerTo < today ? offerTo : today);
-  const [state, setState] = useState<State>({ status: "idle" });
+  const wallet = useWallet();
+  const payee = usePaymentsWallet();
+  const account = wallet.connected?.account;
 
   if (!deployment) {
     return (
-      <div className="payouts">
-        <h1>Referral payouts</h1>
+      <Shell>
         <section className="card payouts__card">
           <p>
             This report reads the registrar&rsquo;s records on PulseChain, so it works once .hex is deployed and{" "}
             <code>web/src/deployment.ts</code> is filled in.
           </p>
         </section>
-      </div>
+      </Shell>
     );
   }
-  const pulsechain = deployment.pulsechain;
+  if (payee === undefined) {
+    return (
+      <Shell>
+        <p className="name-page__loading">Checking…</p>
+      </Shell>
+    );
+  }
+  if (payee === null) {
+    return (
+      <Shell>
+        <section className="card payouts__card" role="alert">
+          <p>Couldn&rsquo;t read the registrar on PulseChain. Reload the page in a minute.</p>
+        </section>
+      </Shell>
+    );
+  }
+  if (!account) {
+    return (
+      <Shell>
+        <section className="card payouts__card">
+          <p>
+            This report is for the wallet that receives .hex&rsquo;s payments, <b>{short(payee)}</b>. Connect it to see
+            who&rsquo;s owed what, and to pay them.
+          </p>
+          <WalletChoices />
+        </section>
+      </Shell>
+    );
+  }
+  if (account.toLowerCase() !== payee.toLowerCase()) {
+    return (
+      <Shell>
+        <section className="card payouts__card">
+          <p>
+            This report is for the wallet that receives .hex&rsquo;s payments, <b>{short(payee)}</b>. You&rsquo;re
+            connected with {short(account)}: switch to the other one in your wallet.
+          </p>
+        </section>
+      </Shell>
+    );
+  }
+  return <Payouts />;
+}
+
+function Shell({ children }: { children: ReactNode }) {
+  return (
+    <div className="payouts">
+      <h1>Referral payouts</h1>
+      {children}
+    </div>
+  );
+}
+
+function Payouts() {
+  const pulsechain = deployment!.pulsechain;
+  const offer = launchOffer(deployment!.launchDate);
+  const offerFrom = offer ? deployment!.launchDate! : "";
+  const offerTo = offer ? isoDay(offer.lastDay) : "";
+  const today = isoDay(new Date());
+  const paidThrough = loadPaidThrough();
+  const [from, setFrom] = useState(() => {
+    const after = paidThrough ? nextDay(paidThrough) : "";
+    return after && (!offer || after <= offerTo) ? after : offerFrom;
+  });
+  const [to, setTo] = useState(offer && offerTo < today ? offerTo : today);
+  const [state, setState] = useState<State>({ status: "idle" });
 
   // Only purchases during the launch offer earn the 10%, so the report keeps to its days.
   const first = offer && from < offerFrom ? offerFrom : from;
@@ -74,22 +188,39 @@ export function ReferralsPage() {
     setState({ status: "working", percent: 0 });
     try {
       const client = clients.pulsechain;
-      const { payments } = await readReferredPayments(client, pulsechain, startOf(first), startOf(last) + DAY, (p) =>
+      const { payments, blocks } = await readReferredPayments(client, pulsechain, startOf(first), startOf(last) + DAY, (p) =>
         setState({ status: "working", percent: p.total ? Number((p.done * 100n) / p.total) : 100 }),
       );
-      const [referrers, tokens] = await Promise.all([
+      const [referrers, tokens, decimals] = await Promise.all([
         readReferrers(client, pulsechain.registry, payments.map((payment) => payment.referrer)),
         readTokens(client, payments.map((payment) => payment.token)),
+        client.readContract({ address: pulsechain.usdc, abi: erc20Abi, functionName: "decimals" }),
       ]);
-      setState({ status: "done", report: payoutReport(payments, referrers, tokens), from: first, to: last, payments: payments.length });
+      const report = payoutReport(payments, referrers, tokens);
+      // Has this exact payout been sent already, from any device? Payouts come after their days.
+      const transfers = await readPayoutTransfers(
+        client,
+        pulsechain.usdc,
+        report.pay.flatMap((row) => (row.payTo ? [row.payTo] : [])),
+        blocks.last + 1n,
+      );
+      const sent = findPayout(report, transfers, decimals);
+      setState({
+        status: "done",
+        report,
+        from: first,
+        to: last,
+        payments: payments.length,
+        decimals,
+        paid: sent ? { transfer: sent, day: await blockDay(sent.block) } : null,
+      });
     } catch (error) {
       setState({ status: "failed", message: error instanceof Error ? error.message.split("\n")[0] : String(error) });
     }
   }
 
   return (
-    <div className="payouts">
-      <h1>Referral payouts</h1>
+    <Shell>
       <p className="payouts__lede">
         What each referrer is owed: {REFERRAL_PERCENT}% of what the buyers they brought paid, for purchases and renewals
         made through their referral link. Worked out from the registrar&rsquo;s records on PulseChain.
@@ -98,6 +229,7 @@ export function ReferralsPage() {
         {offer
           ? `The launch offer runs from ${dayText(offerFrom)} to ${dayText(offerTo)}. Only purchases in those days earn the ${REFERRAL_PERCENT}%.`
           : `The launch offer runs for ${LAUNCH_OFFER_DAYS} days from launchDate in web/src/deployment.ts, which isn't set yet. Choose the days yourself.`}
+        {paidThrough ? ` You've paid up to ${dayText(paidThrough)} from this browser.` : ""}
       </p>
 
       <form className="card payouts__card payouts__form" onSubmit={run}>
@@ -125,13 +257,31 @@ export function ReferralsPage() {
         </section>
       ) : null}
 
-      {state.status === "done" ? <Report {...state} /> : null}
-    </div>
+      {state.status === "done" ? <Report key={`${state.from}:${state.to}`} {...state} /> : null}
+    </Shell>
   );
 }
 
-function Report({ report, from, to, payments }: { report: PayoutReport; from: string; to: string; payments: number }) {
+function Report({ report, from, to, payments, decimals, paid }: Done) {
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [sent, setSent] = useState<Hex | null>(null);
+  const [busy, setBusy] = useState(false);
   const notPaid = [...report.selfReferrals, ...report.noOwner];
+  const transfers = payoutTransfers(report, decimals);
+
+  async function payAll() {
+    setBusy(true);
+    try {
+      const hash = await payReferrers({ payments: transfers, report: setSteps });
+      setSent(hash);
+      savePaidThrough(to);
+    } catch {
+      // The steps show what went wrong.
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <section className="card payouts__card" aria-labelledby="to-pay">
@@ -186,10 +336,36 @@ function Report({ report, from, to, payments }: { report: PayoutReport; from: st
                 </tbody>
               </table>
             </div>
-            <p className="payouts__how">
-              Send each referrer&rsquo;s amount in USDC on PulseChain to the wallet shown for them: whoever owns the
-              referring name now. The spreadsheet has the same, with every referrer and exact amounts.
-            </p>
+
+            {paid ? (
+              <p className="payouts__paid">
+                <b>Already paid</b> on {dayText(paid.day)}: every referrer exactly this, in{" "}
+                <a href={txUrl("pulsechain", paid.transfer.tx)} target="_blank" rel="noreferrer">
+                  one transaction
+                </a>
+                . Nothing more to send for these days.
+              </p>
+            ) : sent ? (
+              <p className="payouts__paid">
+                <b>Paid.</b> {transfers.length} {transfers.length === 1 ? "referrer" : "referrers"},{" "}
+                {usdcText(report.total.owed)} USDC, in{" "}
+                <a href={txUrl("pulsechain", sent)} target="_blank" rel="noreferrer">
+                  one transaction
+                </a>
+                . Next time, start from {dayText(nextDay(to))}.
+              </p>
+            ) : transfers.length ? (
+              <div className="payouts__pay">
+                <p className="payouts__how">
+                  <b>Pay all</b> sends every referrer their amount in USDC on PulseChain, from this wallet, in one
+                  transaction. Your wallet asks twice: to allow the exact total, then to send it.
+                </p>
+                <button type="button" className="button button--primary" onClick={payAll} disabled={busy}>
+                  {busy ? "Paying…" : `Pay all: ${usdcText(report.total.owed)} USDC`}
+                </button>
+              </div>
+            ) : null}
+            {steps ? <Steps steps={steps} /> : null}
           </>
         )}
         <button

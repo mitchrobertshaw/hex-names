@@ -12,7 +12,7 @@ import {
   referrerFrom,
 } from "../lib/referral";
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
-import { usdcText } from "./ReferralsPage";
+import { usdcText } from "../lib/payouts";
 import { hrefOf, modeOf, parse, type Place } from "./router";
 
 const purchase: Purchase = {

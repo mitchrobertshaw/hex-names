@@ -3,7 +3,7 @@
 import { type Address, type ContractFunctionArgs, type Hex, zeroAddress } from "viem";
 
 import type { ChainKey, PayToken } from "../lib/tokens";
-import { checkoutAbi, erc20Abi, orderBookAbi, registrarAbi, registryAbi } from "./abis";
+import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, orderBookAbi, registrarAbi, registryAbi } from "./abis";
 import { clients, deployment, PAY } from "./network";
 import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR, sealFor } from "./order";
 import { switchTo, walletClient } from "./wallet";
@@ -457,6 +457,52 @@ export async function send(o: { label: string; to: Address; report: Report }) {
     progress.set("send", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
     progress.done("send");
+  } catch (error) {
+    progress.fail(errorText(error));
+    throw error;
+  }
+}
+
+/**
+ * Pays referrers what they're owed, from the connected wallet, in one transaction: allow Disperse
+ * the exact total in USDC, then Disperse sends each amount. `amounts` are in USDC's own units.
+ */
+export async function payReferrers(o: { payments: { to: Address; amount: bigint }[]; report: Report }): Promise<Hex> {
+  const d = required();
+  const total = o.payments.reduce((sum, p) => sum + p.amount, 0n);
+  const progress = new Progress(
+    [
+      ["chain", `Switch to ${PAY.pulsechain.name}`],
+      ["approve", "Allow the total in USDC"],
+      ["pay", `Pay ${o.payments.length} ${o.payments.length === 1 ? "referrer" : "referrers"}`],
+    ],
+    o.report,
+  );
+  try {
+    progress.start("chain");
+    await switchTo("pulsechain");
+    progress.done("chain");
+    const wallet = walletClient("pulsechain");
+    const balance = await clients.pulsechain.readContract({
+      address: d.pulsechain.usdc,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [wallet.account.address],
+    });
+    if (balance < total) throw new Error("This wallet doesn't hold enough USDC on PulseChain to pay everyone.");
+    await ensureAllowance("pulsechain", d.pulsechain.usdc, DISPERSE, total, progress);
+    progress.done("approve");
+    progress.start("pay");
+    const hash = await wallet.writeContract({
+      address: DISPERSE,
+      abi: disperseAbi,
+      functionName: "disperseToken",
+      args: [d.pulsechain.usdc, o.payments.map((p) => p.to), o.payments.map((p) => p.amount)],
+    });
+    progress.set("pay", { tx: { chain: "pulsechain", hash } });
+    await confirm("pulsechain", hash);
+    progress.done("pay");
+    return hash;
   } catch (error) {
     progress.fail(errorText(error));
     throw error;

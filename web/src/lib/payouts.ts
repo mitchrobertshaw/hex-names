@@ -175,3 +175,42 @@ export function payoutCsv(report: PayoutReport): string {
   }
   return `${lines.join("\n")}\n`;
 }
+
+/** USDC to send, without trailing zeros past the cents: "3.25", "0.000007". */
+export function usdcText(micro: bigint): string {
+  const whole = micro / 1_000_000n;
+  const fraction = (micro % 1_000_000n).toString().padStart(6, "0").replace(/0{1,4}$/, "");
+  return `${whole.toLocaleString("en-US")}.${fraction.padEnd(2, "0")}`;
+}
+
+/** An amount in USDC's units (millionths of a dollar) in a token's own units. */
+export function tokenUnits(micro: bigint, decimals: number): bigint {
+  return decimals >= 6 ? micro * 10n ** BigInt(decimals - 6) : micro / 10n ** BigInt(6 - decimals);
+}
+
+/** What Pay all sends: each referrer with something owed, in the token's units. */
+export function payoutTransfers(report: PayoutReport, decimals: number): { to: Address; amount: bigint }[] {
+  return report.pay
+    .filter((row) => row.payTo && row.owed > 0n)
+    .map((row) => ({ to: row.payTo!, amount: tokenUnits(row.owed, decimals) }));
+}
+
+/** A token transfer out of the payout contract. */
+export interface Transfer {
+  to: Address;
+  value: bigint;
+  tx: Hex;
+  block: bigint;
+}
+
+/** The transaction that already paid every referrer exactly what they're owed, if there is one. */
+export function findPayout(report: PayoutReport, transfers: Transfer[], decimals: number): Transfer | null {
+  const wanted = payoutTransfers(report, decimals);
+  if (!wanted.length) return null;
+  const byTx = new Map<string, Transfer[]>();
+  for (const transfer of transfers) byTx.set(transfer.tx, [...(byTx.get(transfer.tx) ?? []), transfer]);
+  for (const sent of byTx.values()) {
+    if (wanted.every((w) => sent.some((t) => same(t.to, w.to) && t.value === w.amount))) return sent[0];
+  }
+  return null;
+}

@@ -1,7 +1,19 @@
 import { keccak256, toBytes } from "viem";
 import { describe, expect, it } from "vitest";
 
-import { dollarsText, microDollarsText, payoutCsv, payoutReport, type ReferredPayment, type Referrer, toMicroDollars } from "./payouts";
+import {
+  dollarsText,
+  findPayout,
+  microDollarsText,
+  payoutCsv,
+  payoutReport,
+  payoutTransfers,
+  type ReferredPayment,
+  type Referrer,
+  tokenUnits,
+  toMicroDollars,
+  type Transfer,
+} from "./payouts";
 
 const tag = (name: string) => keccak256(toBytes(name));
 const A = "0x00000000000000000000000000000000000000aa"; // owns mick.hex
@@ -94,5 +106,37 @@ describe("the referral payout report", () => {
       "lapsed.hex,,1,0,10.000000,0.000000,not paid: no one owns this name",
       "",
     ]);
+  });
+});
+
+describe("paying out", () => {
+  const report = payoutReport(
+    [
+      pay("purchase", "bob", "0x00000000000000000000000000000000000000c0", "mick", usdc(10)),
+      pay("purchase", "dave", "0x00000000000000000000000000000000000000e0", "sommi", usdc(2.5)),
+      pay("purchase", "tiny", "0x00000000000000000000000000000000000000e0", "sommi", 0n), // nothing owed for this one
+    ],
+    referrers,
+    tokens,
+  );
+  const sent = (tx: string, to: string, value: bigint): Transfer => ({ to: to as `0x${string}`, value, tx: tx as `0x${string}`, block: 1n });
+
+  it("sends each referrer what they're owed, in the token's own units", () => {
+    expect(payoutTransfers(report, 6)).toEqual([
+      { to: "0x00000000000000000000000000000000000000AA", amount: usdc(1) },
+      { to: B, amount: usdc(0.25) },
+    ]);
+    expect(tokenUnits(usdc(1), 18)).toBe(10n ** 18n);
+    expect(tokenUnits(usdc(1), 2)).toBe(100n);
+  });
+
+  it("knows a payout was already sent when one transaction paid everyone exactly", () => {
+    const tx = "0x01";
+    // Paid in full, in one go: found, whatever else went to these wallets.
+    expect(findPayout(report, [sent("0x09", B, 5n), sent(tx, A, usdc(1)), sent(tx, B, usdc(0.25))], 6)?.tx).toBe(tx);
+    // The same amounts in two transactions, or a different amount: not this payout.
+    expect(findPayout(report, [sent("0x02", A, usdc(1)), sent("0x03", B, usdc(0.25))], 6)).toBeNull();
+    expect(findPayout(report, [sent(tx, A, usdc(1)), sent(tx, B, usdc(0.24))], 6)).toBeNull();
+    expect(findPayout(report, [], 6)).toBeNull();
   });
 });

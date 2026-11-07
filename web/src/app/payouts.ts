@@ -5,8 +5,8 @@
 import { type Address, type Hex, type PublicClient, zeroAddress, zeroHash } from "viem";
 
 import type { Deployment } from "../deployment";
-import type { ReferredPayment, Referrer, Token } from "../lib/payouts";
-import { erc20Abi, labelStoreAbi, registrarEvents, registryAbi } from "./abis";
+import type { ReferredPayment, Referrer, Token, Transfer } from "../lib/payouts";
+import { DISPERSE, erc20Abi, labelStoreAbi, registrarEvents, registryAbi, transferEvent } from "./abis";
 
 /** Blocks per log request, as the bot reads PulseChain. */
 const RANGE = 50_000n;
@@ -111,4 +111,17 @@ export async function readTokens(client: PublicClient, addresses: Address[]): Pr
     return [address, { symbol, decimals }] as const;
   });
   return new Map(found);
+}
+
+/** Every transfer of `token` out of Disperse to these wallets from block `from` on: past payouts. */
+export async function readPayoutTransfers(client: PublicClient, token: Address, wallets: Address[], from: bigint): Promise<Transfer[]> {
+  if (!wallets.length) return [];
+  const latest = await client.getBlockNumber();
+  const out: Transfer[] = [];
+  for (let start = from; start <= latest; start += RANGE) {
+    const end = start + RANGE - 1n < latest ? start + RANGE - 1n : latest;
+    const logs = await client.getLogs({ address: token, event: transferEvent[0], args: { from: DISPERSE, to: wallets }, fromBlock: start, toBlock: end });
+    for (const log of logs) out.push({ to: log.args.to!, value: log.args.value!, tx: log.transactionHash, block: log.blockNumber });
+  }
+  return out;
 }
