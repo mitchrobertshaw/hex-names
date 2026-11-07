@@ -147,8 +147,9 @@ When everything above has worked, and someone other than the author has reviewed
    type `mainnet` in the **confirm** box. This guards against a slip of the mouse.
 5. **Start the bot** in Railway's `production` environment, with the mainnet settings
    ([the bot guide](bot/README.md#mainnet)).
-6. **Fill in `mainnet`** in `web/src/deployment.ts`. That switches on buying in the app and the
-   live numbers on the homepage. Then add the domains and launch
+6. **Fill in `mainnet`** in `web/src/deployment.ts`, with `launchDate` set to launch day (the
+   referral launch offer, 10% for 58 days, counts from it). That switches on buying in the app and
+   the live numbers on the homepage. Then add the domains and launch
    ([the website guide](website/README.md#mainnet-launch)).
 
 Before step 2 on Ethereum, check the note on

@@ -45,6 +45,7 @@ themselves.
 
 ```ts
   testnet: {
+    launchDate: "2026-11-20", // the day you deployed on the testnets: the referral offer counts from it
     pulsechain: {
       rpc: "https://rpc.v4.testnet.pulsechain.com",
       registry: "0x…", // PULSECHAIN_HEX_REGISTRY, from step 1
@@ -68,6 +69,10 @@ themselves.
 Keep every quote mark and comma. Everything after `//` on a line is a note, and can stay. If
 Netlify's build fails afterwards, its deploy log names the line it didn't like.
 
+`launchDate` is the day you deploy, written year-month-day. The referral launch offer counts from
+it: referrers earn 10% of what the buyers they bring pay for 58 days, and the app tells name owners
+until when.
+
 ## Mainnet launch
 
 1. **Fill in the `mainnet` part** the same way, replacing `mainnet: null,`, with the values from the
@@ -75,6 +80,7 @@ Netlify's build fails afterwards, its deploy log names the line it didn't like.
 
    ```ts
      mainnet: {
+       launchDate: "2026-12-01", // launch day: referrers earn 10% for the 58 days from it
        pulsechain: {
          rpc: "https://rpc.pulsechain.com",
          registry: "0x…", // PULSECHAIN_HEX_REGISTRY
@@ -95,7 +101,8 @@ Netlify's build fails afterwards, its deploy log names the line it didn't like.
      },
    ```
 
-   That switches on buying in the app, and the live numbers on the homepage.
+   That switches on buying in the app, and the live numbers on the homepage. Set `launchDate` to
+   the day you launch: the 58 days of the referral offer count from it.
 
 2. **Add the domains.** In the `hexns` project, open **Domain management**, then **Add a domain**,
    and add `hexns.domains`, then `app.hexns.domains`. Follow Netlify's steps at the company you
