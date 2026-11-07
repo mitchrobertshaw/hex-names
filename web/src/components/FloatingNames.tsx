@@ -6,19 +6,17 @@ import { Avatar } from "./Avatar";
 /**
  * Where the names float on wide screens, inside the content width like ENS's: `x` is the distance
  * from that side, as a percentage of the content width; `y` is the distance from the middle of the
- * hero in pixels, chosen to sit beside the badge and the lede and above and below the words, never
- * beside the wide headline.
+ * hero in pixels, chosen to sit beside the badge, above the words and beside the search, never
+ * beside the wide headline. The first six people float here; everyone scrolls past on phones.
  */
-const SLOTS: { side: "left" | "right"; x: number; y: number; tilt: number; scale: number }[] = [
-  { side: "left", x: 13, y: -325, tilt: -3, scale: 0.96 },
-  { side: "right", x: 15, y: -312, tilt: 3, scale: 1 },
-  { side: "left", x: 0, y: -232, tilt: 2, scale: 1.04 },
-  { side: "right", x: 0, y: -222, tilt: -2, scale: 1 },
-  { side: "left", x: 1, y: 112, tilt: 3, scale: 1 },
-  { side: "right", x: 1, y: 100, tilt: -3, scale: 1.04 },
-  // Below the live strip; left out on short screens, where there's no room (styles.css).
-  { side: "left", x: 3, y: 344, tilt: -2, scale: 0.98 },
-  { side: "right", x: 4, y: 352, tilt: 2, scale: 0.96 },
+const SLOTS: { side: "left" | "right"; x: number; y: number; scale: number }[] = [
+  { side: "left", x: 13, y: -325, scale: 0.96 },
+  { side: "right", x: 15, y: -312, scale: 1 },
+  { side: "left", x: 0, y: -232, scale: 1.04 },
+  { side: "right", x: 0, y: -222, scale: 1 },
+  { side: "left", x: 1, y: 112, scale: 1 },
+  { side: "right", x: 1, y: 100, scale: 1.04 },
+  // None lower down: the search and the live line below it have the bottom to themselves.
 ];
 
 function Pill({ name, style }: { name: FeaturedName; style?: CSSProperties }) {
@@ -45,7 +43,6 @@ export function FloatingNames({ variant }: { variant: "scatter" | "marquee" }) {
           const style = {
             [slot.side]: `${slot.x}%`,
             "--y": `${slot.y}px`,
-            "--tilt": `${slot.tilt}deg`,
             "--scale": slot.scale,
             "--duration": `${6 + (i % 4) * 1.3}s`,
             "--delay": `${-i * 0.9}s`,
