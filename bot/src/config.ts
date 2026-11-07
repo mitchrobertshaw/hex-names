@@ -2,7 +2,11 @@
 
 import { type Address, type Hex, getAddress, isHex } from "viem";
 
+/** Mainnet (PulseChain + Ethereum), or the testnets (PulseChain Testnet v4 + Sepolia). */
+export type Network = "mainnet" | "testnet";
+
 export type Config = {
+  network: Network;
   pulsechainRpcUrl: string;
   ethereumRpcUrl: string;
   botPrivateKey: Hex; // the bot's wallet, the same address on both chains
@@ -33,9 +37,26 @@ export type Config = {
   sync: boolean; // copy name changes to Ethereum
 };
 
-const DEFAULT_PULSECHAIN_USDC = "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07"; // USDC bridged from Ethereum
-const DEFAULT_HOME_AMB = "0x6ef79FD6f9f840264332884240539Ed7A2dA8b2b";
-const DEFAULT_FOREIGN_AMB = "0xd0764FAe29E0a6a96fF685f71CfC685456D5636c";
+/** What each network uses unless the .env says otherwise (the same addresses as script/Addresses.sol). */
+export const NETWORK_DEFAULTS: Record<
+  Network,
+  { pulsechainRpcUrl: string; ethereumRpcUrl: string; homeAmb: string; foreignAmb: string; pulsechainUsdc?: string }
+> = {
+  mainnet: {
+    pulsechainRpcUrl: "https://rpc.pulsechain.com",
+    ethereumRpcUrl: "https://ethereum-rpc.publicnode.com",
+    homeAmb: "0x6ef79FD6f9f840264332884240539Ed7A2dA8b2b",
+    foreignAmb: "0xd0764FAe29E0a6a96fF685f71CfC685456D5636c",
+    pulsechainUsdc: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07", // USDC bridged from Ethereum
+  },
+  testnet: {
+    pulsechainRpcUrl: "https://rpc.v4.testnet.pulsechain.com",
+    ethereumRpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+    homeAmb: "0xf902DE27606cd3A7F66695c77487769Ff96211fE",
+    foreignAmb: "0x67e190aaF39b9E05b162A78ab94189446077C694",
+    // No default: "USDC from Sepolia" exists once someone bridges it. Step 1 prints it as PULSECHAIN_USDC.
+  },
+};
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const required = (name: string): string => {
@@ -61,9 +82,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     return BigInt(whole) * 1_000_000n + BigInt((fraction + "000000").slice(0, 6));
   };
 
+  const networkName = (optional("NETWORK") ?? "mainnet").toLowerCase();
+  if (networkName !== "mainnet" && networkName !== "testnet") throw new Error("NETWORK must be mainnet or testnet");
+  const network: Network = networkName;
+  const defaults = NETWORK_DEFAULTS[network];
+
   return {
-    pulsechainRpcUrl: optional("PULSECHAIN_RPC_URL") ?? "https://rpc.pulsechain.com",
-    ethereumRpcUrl: optional("ETHEREUM_RPC_URL") ?? "https://ethereum-rpc.publicnode.com",
+    network,
+    pulsechainRpcUrl: optional("PULSECHAIN_RPC_URL") ?? defaults.pulsechainRpcUrl,
+    ethereumRpcUrl: optional("ETHEREUM_RPC_URL") ?? defaults.ethereumRpcUrl,
     botPrivateKey: key("BOT_PRIVATE_KEY"),
     encryptionSecretKey: key("BOT_ENCRYPTION_SECRET_KEY"),
     payee: optional("PAYEE") ? getAddress(optional("PAYEE")!) : undefined,
@@ -71,11 +98,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     hexRegistry: address("PULSECHAIN_HEX_REGISTRY"),
     orderFiller: address("PULSECHAIN_ORDER_FILLER"),
     mirrorSync: address("PULSECHAIN_MIRROR_SYNC"),
-    pulsechainUsdc: address("PULSECHAIN_USDC", DEFAULT_PULSECHAIN_USDC),
-    homeAmb: address("PULSECHAIN_AMB", DEFAULT_HOME_AMB),
+    pulsechainUsdc: address("PULSECHAIN_USDC", defaults.pulsechainUsdc),
+    homeAmb: address("PULSECHAIN_AMB", defaults.homeAmb),
     orderBook: address("ETHEREUM_ORDER_BOOK"),
     mirrorRegistrar: address("ETHEREUM_MIRROR_REGISTRAR"),
-    foreignAmb: address("ETHEREUM_AMB", DEFAULT_FOREIGN_AMB),
+    foreignAmb: address("ETHEREUM_AMB", defaults.foreignAmb),
     minFee: usdc(optional("MIN_FEE_USDC") ?? "0.25"),
     ethereumConfirmations: BigInt(optional("ETHEREUM_CONFIRMATIONS") ?? "2"),
     pollSeconds: Number(optional("POLL_SECONDS") ?? "5"),

@@ -71,6 +71,9 @@ abstract contract HexDeployer {
     uint64 internal constant MAX_EXPIRY = type(uint64).max;
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;
     uint256 internal constant PULSECHAIN_CHAIN_ID = 369;
+    /// @dev The testnets, joined by PulseChain's official testnet bridge.
+    uint256 internal constant SEPOLIA_CHAIN_ID = 11155111;
+    uint256 internal constant PULSECHAIN_TESTNET_CHAIN_ID = 943;
     string internal constant TLD = "hex";
 
     /// @notice The ENSv2 contracts both chains have.
@@ -101,6 +104,7 @@ abstract contract HexDeployer {
         address admin; // may change prices and payment tokens and add registrars; cannot take names
         address beneficiary; // receives every registration and renewal payment
         IAMB amb; // the bridge's message contract on PulseChain
+        uint256 ethereumChainId; // where the Ethereum copy lives: Ethereum (1), or Sepolia on the testnet
         IERC20 usdc; // USDC bridged from Ethereum: accepted by the registrar, used by the checkout
         IERC20 dai; // DAI bridged from Ethereum: also accepted by the registrar
         IERC20 wpls;
@@ -121,6 +125,7 @@ abstract contract HexDeployer {
         address deployer;
         address admin; // owns only the gateway list and the contract namer; has no say over names
         IAMB amb; // the bridge's message contract on Ethereum
+        uint256 pulsechainChainId; // where names live: PulseChain (369), or its testnet (943)
         IERC20 usdc;
         IERC20 weth;
         address[] routers; // Uniswap-V2-style routers for paying with other tokens
@@ -171,10 +176,10 @@ abstract contract HexDeployer {
             RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_RENEW, address(hub.registrar)
         );
 
-        hub.mirrorSync = new HexMirrorSync(cfg.amb, ETHEREUM_CHAIN_ID, cfg.deployer, hexRegistry, cfg.mirrorGas);
+        hub.mirrorSync = new HexMirrorSync(cfg.amb, cfg.ethereumChainId, cfg.deployer, hexRegistry, cfg.mirrorGas);
         hub.orderFiller = new HexOrderFiller(
             cfg.amb,
-            ETHEREUM_CHAIN_ID,
+            cfg.ethereumChainId,
             cfg.deployer,
             hub.registrar,
             IHexMirrorSync(address(hub.mirrorSync)),
@@ -211,7 +216,7 @@ abstract contract HexDeployer {
         mirror.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles);
 
         mirror.mirrorRegistrar =
-            new HexMirrorRegistrar(cfg.amb, PULSECHAIN_CHAIN_ID, cfg.deployer, mirror.core.hexRegistry);
+            new HexMirrorRegistrar(cfg.amb, cfg.pulsechainChainId, cfg.deployer, mirror.core.hexRegistry);
         mirror.core.hexRegistry
             .grantRootRoles(
                 RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_RENEW,
@@ -219,7 +224,7 @@ abstract contract HexDeployer {
             );
         mirror.orderBook = new HexOrderBook(
             cfg.amb,
-            PULSECHAIN_CHAIN_ID,
+            cfg.pulsechainChainId,
             cfg.deployer,
             cfg.usdc,
             cfg.weth,
