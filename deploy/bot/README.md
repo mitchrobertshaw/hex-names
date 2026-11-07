@@ -123,6 +123,8 @@ After steps 1 to 3 on mainnet:
    - `NETWORK=mainnet`;
    - the **mainnet** bot wallet's private key: a different wallet from the testnet one, funded with
      real coins;
+   - `PAYEE=0x102785E63DCD7C2ba1146E96da7fE429155602C6`, so that orders from Ethereum pay your
+     wallet, the bot's fee included, rather than the bot's ([money](#money));
    - the **For the bot** lines from the mainnet runs.
 3. Check the logs, and copy its public key into the `mainnet` part of `web/src/deployment.ts`.
 
@@ -131,11 +133,14 @@ After the rehearsal you can delete the `testnet` environment (project **Settings
 
 ## Money
 
-- **The float.** The bot pays USDC on PulseChain for each name ordered from Ethereum. Each order
-  pays it back in USDC on Ethereum about 15 minutes later. Now and then, move that USDC back to
-  PulseChain through the official bridge or LibertySwap, and top up the bot's PLS and ETH for gas.
-- **Paid elsewhere** (optional): add `PAYEE=0x…` to have orders pay a wallet of yours instead. Then
-  you top up the bot's USDC on PulseChain yourself.
+- **Where the money goes.** Every payment for a name, wherever it was bought, goes to your wallet
+  on PulseChain: that was fixed in step 1. An order from Ethereum also pays the name's price and
+  the bot's fee (25 cents) on Ethereum, about 15 minutes later, to `PAYEE`. On mainnet that's your
+  wallet too. Without `PAYEE` it's the bot's own wallet, which is how the testnet bot is set up.
+- **The float.** The bot pays for each name ordered from Ethereum out of its USDC on PulseChain, and
+  the order pays it back on Ethereum, to `PAYEE`. Now and then, top the bot's USDC back up on
+  PulseChain from your wallet (through the official bridge or LibertySwap), along with its PLS and
+  ETH for gas.
 - **Costs.** Railway's Hobby plan, $5 a month. Gas: a few cents for each order and bridge claim.
 
 ## Keeping it safe

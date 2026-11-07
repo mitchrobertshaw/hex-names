@@ -103,7 +103,8 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
   so nobody can snipe a name the moment it lapses.
-- **Payment.** Paid in USDC or DAI bridged from Ethereum, to the beneficiary set at deployment.
+- **Payment.** Paid in USDC or DAI bridged from Ethereum, straight to the beneficiary set at
+  deployment, which can never change (the deploy workflow fills in the project owner's wallet).
 
 ## Reserved names
 
