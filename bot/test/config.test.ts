@@ -5,8 +5,9 @@ import { createPublicClient, custom, parseGwei } from "viem";
 
 import { loadConfig } from "../src/config.ts";
 import { CHAINS } from "../src/context.ts";
+import { encryptionSecretKeyFrom } from "../src/reveal.ts";
 
-const KEY = `0x${"11".repeat(32)}`;
+const KEY = `0x${"11".repeat(32)}` as const;
 const ADDRESS = "0x000000000000000000000000000000000000dEaD";
 const DEPLOYED = {
   BOT_PRIVATE_KEY: KEY,
@@ -67,4 +68,39 @@ test("on the testnets, USDC must come from step 1's summary", () => {
 
 test("an unknown network is refused", () => {
   assert.throws(() => loadConfig({ ...DEPLOYED, NETWORK: "goerli" }), /NETWORK must be mainnet or testnet/);
+});
+
+test("without BOT_ENCRYPTION_SECRET_KEY, the order key is made from the wallet key", () => {
+  const { BOT_ENCRYPTION_SECRET_KEY: _, ...withoutKey } = DEPLOYED;
+  const config = loadConfig(withoutKey);
+  assert.equal(config.encryptionKeyFromWallet, true);
+  assert.equal(config.encryptionSecretKey, encryptionSecretKeyFrom(KEY));
+  assert.notEqual(config.encryptionSecretKey, KEY, "never the wallet key itself");
+  assert.equal(loadConfig(withoutKey).encryptionSecretKey, config.encryptionSecretKey, "the same every time it starts");
+  const otherWallet = loadConfig({ ...withoutKey, BOT_PRIVATE_KEY: `0x${"22".repeat(32)}` });
+  assert.notEqual(otherWallet.encryptionSecretKey, config.encryptionSecretKey, "a new wallet, a new key");
+});
+
+test("BOT_ENCRYPTION_SECRET_KEY is used when it is set", () => {
+  const own = `0x${"33".repeat(32)}`;
+  const config = loadConfig({ ...DEPLOYED, BOT_ENCRYPTION_SECRET_KEY: own });
+  assert.equal(config.encryptionKeyFromWallet, false);
+  assert.equal(config.encryptionSecretKey, own);
+  assert.throws(() => loadConfig({ ...DEPLOYED, BOT_ENCRYPTION_SECRET_KEY: "0x1234" }), /must be 32 bytes of hex/);
+});
+
+test("on Railway, the bot remembers its place on the attached volume", () => {
+  assert.equal(loadConfig({ ...DEPLOYED }).stateFile, "./state.json");
+  assert.equal(loadConfig({ ...DEPLOYED }).railway, undefined);
+
+  const railway = { RAILWAY_PROJECT_ID: "p", RAILWAY_SERVICE_ID: "s", RAILWAY_ENVIRONMENT_ID: "e" };
+  const withVolume = loadConfig({ ...DEPLOYED, ...railway, RAILWAY_VOLUME_MOUNT_PATH: "/data" });
+  assert.equal(withVolume.stateFile, "/data/state.json");
+  assert.deepEqual(withVolume.railway, { volume: "/data" });
+
+  const noVolume = loadConfig({ ...DEPLOYED, ...railway });
+  assert.equal(noVolume.stateFile, "./state.json");
+  assert.deepEqual(noVolume.railway, { volume: undefined }, "so the bot can warn that it will forget");
+
+  assert.equal(loadConfig({ ...DEPLOYED, ...railway, RAILWAY_VOLUME_MOUNT_PATH: "/data", STATE_FILE: "/data/testnet.json" }).stateFile, "/data/testnet.json");
 });

@@ -1,6 +1,10 @@
 // Settings, from environment variables. See bot/.env.example.
 
+import { join } from "node:path";
+
 import { type Address, type Hex, getAddress, isHex } from "viem";
+
+import { encryptionSecretKeyFrom } from "./reveal.ts";
 
 /** Mainnet (PulseChain + Ethereum), or the testnets (PulseChain Testnet v4 + Sepolia). */
 export type Network = "mainnet" | "testnet";
@@ -11,6 +15,7 @@ export type Config = {
   ethereumRpcUrl: string;
   botPrivateKey: Hex; // the bot's wallet, the same address on both chains
   encryptionSecretKey: Hex; // opens the sealed order details; keep it secret
+  encryptionKeyFromWallet: boolean; // true if made from the wallet key (BOT_ENCRYPTION_SECRET_KEY not set)
   payee: Address | undefined; // who HexOrderBook pays on Ethereum; defaults to the bot's wallet
 
   // PulseChain (from deploy step 1)
@@ -29,7 +34,8 @@ export type Config = {
   minFee: bigint; // least fee per order, in USDC units (6 decimals)
   ethereumConfirmations: bigint; // Ethereum blocks to wait before acting on an order
   pollSeconds: number;
-  stateFile: string;
+  stateFile: string; // where it remembers its place: STATE_FILE, else on a Railway volume, else ./state.json
+  railway: { volume: string | undefined } | undefined; // set when running on Railway
   startBlockEthereum: bigint | undefined;
   startBlockPulseChain: bigint | undefined;
   fill: boolean; // fill Ethereum orders
@@ -87,12 +93,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const network: Network = networkName;
   const defaults = NETWORK_DEFAULTS[network];
 
+  const botPrivateKey = key("BOT_PRIVATE_KEY");
+  const ownEncryptionKey = optional("BOT_ENCRYPTION_SECRET_KEY") !== undefined;
+  // Railway sets its RAILWAY_ variables in every deployment, and RAILWAY_VOLUME_MOUNT_PATH when a
+  // volume is attached: the bot keeps its state there, so it survives restarts and redeploys.
+  const onRailway = ["RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_ENVIRONMENT_ID", "RAILWAY_ENVIRONMENT_NAME"].some(
+    (name) => optional(name) !== undefined,
+  );
+  const railway = onRailway ? { volume: optional("RAILWAY_VOLUME_MOUNT_PATH") } : undefined;
+
   return {
     network,
     pulsechainRpcUrl: optional("PULSECHAIN_RPC_URL") ?? defaults.pulsechainRpcUrl,
     ethereumRpcUrl: optional("ETHEREUM_RPC_URL") ?? defaults.ethereumRpcUrl,
-    botPrivateKey: key("BOT_PRIVATE_KEY"),
-    encryptionSecretKey: key("BOT_ENCRYPTION_SECRET_KEY"),
+    botPrivateKey,
+    encryptionSecretKey: ownEncryptionKey ? key("BOT_ENCRYPTION_SECRET_KEY") : encryptionSecretKeyFrom(botPrivateKey),
+    encryptionKeyFromWallet: !ownEncryptionKey,
     payee: optional("PAYEE") ? getAddress(optional("PAYEE")!) : undefined,
     registrar: address("PULSECHAIN_REGISTRAR"),
     hexRegistry: address("PULSECHAIN_HEX_REGISTRY"),
@@ -106,7 +122,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     minFee: usdc(optional("MIN_FEE_USDC") ?? "0.25"),
     ethereumConfirmations: BigInt(optional("ETHEREUM_CONFIRMATIONS") ?? "2"),
     pollSeconds: Number(optional("POLL_SECONDS") ?? "5"),
-    stateFile: optional("STATE_FILE") ?? "./state.json",
+    stateFile: optional("STATE_FILE") ?? (railway?.volume ? join(railway.volume, "state.json") : "./state.json"),
+    railway,
     startBlockEthereum: block("START_BLOCK_ETHEREUM"),
     startBlockPulseChain: block("START_BLOCK_PULSECHAIN"),
     fill: flag("FILL"),

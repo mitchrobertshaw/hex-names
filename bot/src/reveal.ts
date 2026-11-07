@@ -17,6 +17,7 @@ import {
   encodeAbiParameters,
   hexToBytes,
   keccak256,
+  stringToHex,
 } from "viem";
 
 export type Reveal = {
@@ -79,6 +80,23 @@ export function openReveal(sealed: Hex, botSecretKey: Uint8Array): Reveal | null
   } catch {
     return null;
   }
+}
+
+/**
+ * Mixed with the wallet key to make the bot's encryption key. It must never change: a different
+ * label would give the bot a different public key, and orders sealed to the old one couldn't be
+ * opened.
+ */
+export const ENCRYPTION_KEY_LABEL = "hex-names bot: order encryption key";
+
+/**
+ * The bot's encryption secret key when BOT_ENCRYPTION_SECRET_KEY isn't set, made from its wallet
+ * key so that there's one secret to keep instead of two. Both sit in the same settings anyway, so a
+ * separate key wouldn't be any safer. The label keeps it from being the wallet key itself, and the
+ * wallet key can't be worked out from it. A new wallet means a new public key for the website.
+ */
+export function encryptionSecretKeyFrom(walletKey: Hex): Hex {
+  return keccak256(concat([stringToHex(ENCRYPTION_KEY_LABEL), walletKey]));
 }
 
 /** The bot's encryption key pair, from its 32-byte secret key. */

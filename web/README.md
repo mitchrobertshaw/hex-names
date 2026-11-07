@@ -21,9 +21,10 @@ sits at `window.ethereum` ([`wallet.ts`](src/app/wallet.ts)). Phone wallets by Q
 WalletConnect, which needs a project ID from reown.com.
 
 **Switching it on.** Fill in [`src/deployment.ts`](src/deployment.ts) from the deploy run summaries
-and the bot's `npm run keygen`. Until then the app searches and prices names, connects wallets, and
-plays a purchase through as a walkthrough that sends nothing. For a testnet copy, fill in `testnet`
-and set `VITE_NETWORK=testnet` in Netlify's environment variables.
+and the public key the bot prints when it starts ([how](../deploy/website/README.md)). Until then
+the app searches and prices names, connects wallets, and plays a purchase through as a walkthrough
+that sends nothing. For a testnet copy, fill in `testnet` and set `VITE_NETWORK=testnet` in a second
+Netlify project's environment variables.
 
 **Where it lives.** On Netlify, add `app.hexns.domains` as a second domain of this same site:
 [`public/_redirects`](public/_redirects) serves the app there, and under `/app` on preview links.
@@ -42,16 +43,16 @@ renewing, sending, My names, and a referral tag landing on-chain.
 
 ## Putting it on Netlify
 
-Nothing needs installing: Netlify builds the site from GitHub.
+Nothing needs installing: Netlify builds the site from GitHub. Step by step, with the testnet copy
+and the launch: [deploy/website/README.md](../deploy/website/README.md).
 
 1. Sign in at [netlify.com](https://www.netlify.com) with your GitHub account.
-2. **Add new site > Import an existing project > GitHub**, and pick `hex-names`.
+2. **Add new project > Import an existing project > GitHub**, and pick `hex-names`.
 3. Netlify reads the settings from [`netlify.toml`](../netlify.toml) (build in `web/`, publish
    `web/dist`). Leave the branch as `main` and click **Deploy**.
-4. In **Site configuration > Change site name**, pick a name such as `hexns`, for
-   `hexns.netlify.app`.
-5. Later, in **Domain management > Add a domain**, add `hexns.domains` and follow Netlify's DNS
-   steps at the place you bought the domain.
+4. In **Project configuration**, change the project name to `hexns`, for `hexns.netlify.app`.
+5. Later, in **Domain management > Add a domain**, add `hexns.domains` and `app.hexns.domains`, and
+   follow Netlify's DNS steps at the place you bought the domain.
 
 Every push to `main` then redeploys the site, and every pull request gets its own preview link.
 

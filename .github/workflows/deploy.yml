@@ -7,7 +7,10 @@ name: deploy
 # Pick the network: the testnets (PulseChain Testnet v4 + Sepolia) to rehearse, then mainnet.
 # Leave "broadcast" unticked for a dry run, which simulates the step and sends nothing.
 # Use the same deployer key for all three steps of a network: only it can link the chains, once.
-# Each network has its own GitHub environment and key: "testnet" and "deploy" (mainnet).
+# Each network has its own deployer key, in a repository secret (Settings > Secrets and variables >
+# Actions): DEPLOYER_PRIVATE_KEY_TESTNET and DEPLOYER_PRIVATE_KEY_MAINNET. Repository secrets work on
+# every GitHub plan; environment secrets don't, in a private repository on GitHub Free.
+# A real mainnet run also needs "mainnet" typed into the confirm box.
 # The full guide: deploy/README.md.
 
 on:
@@ -33,6 +36,10 @@ on:
         required: true
         type: boolean
         default: false
+      confirm:
+        description: "Mainnet only, when sending for real: type mainnet"
+        required: false
+        type: string
       admin:
         description: "Admin wallet (steps 1 and 2): a plain wallet or a Safe"
         required: false
@@ -65,9 +72,6 @@ jobs:
   deploy:
     name: ${{ inputs.step }} (${{ startsWith(inputs.network, 'Testnet') && 'testnet' || 'mainnet' }})
     runs-on: ubuntu-latest
-    # Settings > Environments holds each network's key: "testnet", and "deploy" for mainnet, which
-    # can require your approval before each run.
-    environment: ${{ startsWith(inputs.network, 'Testnet') && 'testnet' || 'deploy' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -95,7 +99,10 @@ jobs:
           STEP: ${{ inputs.step }}
           NETWORK: ${{ inputs.network }}
           BROADCAST: ${{ inputs.broadcast }}
-          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          CONFIRM: ${{ inputs.confirm }}
+          # Repository secrets, one deployer key per network. Picked below, never one for the other.
+          DEPLOYER_PRIVATE_KEY_TESTNET: ${{ secrets.DEPLOYER_PRIVATE_KEY_TESTNET }}
+          DEPLOYER_PRIVATE_KEY_MAINNET: ${{ secrets.DEPLOYER_PRIVATE_KEY_MAINNET }}
           # Optional repository variables (Settings > Secrets and variables > Actions > Variables)
           # point a network at your own RPC providers.
           PULSECHAIN_RPC_URL: >-
@@ -117,6 +124,11 @@ jobs:
           for v in ADMIN BENEFICIARY PULSECHAIN_MIRROR_SYNC PULSECHAIN_ORDER_FILLER ETHEREUM_MIRROR_REGISTRAR ETHEREUM_ORDER_BOOK; do
             if [ -z "${!v}" ]; then unset "$v"; fi
           done
+          # This network's deployer key, and only this network's.
+          if [[ "$NETWORK" == Testnet* ]]; then key_name=DEPLOYER_PRIVATE_KEY_TESTNET; else key_name=DEPLOYER_PRIVATE_KEY_MAINNET; fi
+          DEPLOYER_PRIVATE_KEY="${!key_name}"
+          unset DEPLOYER_PRIVATE_KEY_TESTNET DEPLOYER_PRIVATE_KEY_MAINNET
+          if [ -n "$DEPLOYER_PRIVATE_KEY" ]; then export DEPLOYER_PRIVATE_KEY; else unset DEPLOYER_PRIVATE_KEY; fi
           case "$STEP" in
             1.*) target="script/pulsechain/DeployPulseChain.s.sol:DeployPulseChain"; rpc="$PULSECHAIN_RPC_URL" ;;
             2.*) target="script/ethereum/DeployEthereum.s.sol:DeployEthereum"; rpc="$ETHEREUM_RPC_URL" ;;
@@ -134,8 +146,12 @@ jobs:
             esac
           fi
           if [ "$BROADCAST" = "true" ]; then
-            if [ -z "$DEPLOYER_PRIVATE_KEY" ]; then
-              echo "::error::Add the DEPLOYER_PRIVATE_KEY secret to this network's environment (testnet or deploy) before broadcasting."
+            if [ -z "${DEPLOYER_PRIVATE_KEY:-}" ]; then
+              echo "::error::Add the $key_name repository secret (Settings > Secrets and variables > Actions) before sending for real."
+              exit 1
+            fi
+            if [[ "$NETWORK" == Mainnet* ]] && [ "$(echo "$CONFIRM" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" != "mainnet" ]; then
+              echo "::error::This sends real transactions on mainnet. To go ahead, type mainnet in the confirm box."
               exit 1
             fi
             args+=(--broadcast)
@@ -153,6 +169,16 @@ jobs:
             # What it costs, and whether every transaction went through.
             grep -E "^(Estimated (total gas used|amount required)|ONCHAIN EXECUTION)" output.txt || true
             echo '```'
+            # After a real run, the bot's settings from this step, ready to paste into Railway.
+            bot=$(grep -E "^\s+(PULSECHAIN_(MIRROR_SYNC|ORDER_FILLER|REGISTRAR|HEX_REGISTRY|USDC)|ETHEREUM_(MIRROR_REGISTRAR|ORDER_BOOK)|START_BLOCK_(PULSECHAIN|ETHEREUM))\s" output.txt | awk '{print $1 "=" $2}' || true)
+            if [ "$BROADCAST" = "true" ] && [ "$status" = "0" ] && [ -n "$bot" ]; then
+              net=$([[ "$NETWORK" == Testnet* ]] && echo testnet || echo mainnet)
+              echo "### For the bot"
+              echo "On Railway, in the bot's ${net/mainnet/production} environment: Variables, RAW Editor. Add these lines, then deploy the change."
+              echo '```'
+              echo "$bot"
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
 

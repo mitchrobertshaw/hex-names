@@ -25,8 +25,18 @@ const ctx = createContext(config, state);
 
 ctx.log(`hex-names bot ${ctx.account.address} on ${config.network === "testnet" ? "the testnets (PulseChain Testnet v4 + Sepolia)" : "mainnet (PulseChain + Ethereum)"}`);
 ctx.log(`  pays out to ${ctx.payee} on Ethereum`);
-ctx.log(`  order encryption public key (publish this for websites): ${ctx.encryption.publicKey}`);
+ctx.log(
+  `  order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): ${ctx.encryption.publicKey}` +
+    (config.encryptionKeyFromWallet ? " (made from the bot's wallet key)" : " (from BOT_ENCRYPTION_SECRET_KEY)"),
+);
 ctx.log(`  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}`);
+ctx.log(`  remembers its place in ${config.stateFile}`);
+if (config.railway && !config.railway.volume) {
+  ctx.log(
+    "  WARNING: no volume is attached on Railway, so the bot forgets its place every time it restarts and reads " +
+      "everything again from the start blocks. Attach a volume to this service, mounted at /data.",
+  );
+}
 
 let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
