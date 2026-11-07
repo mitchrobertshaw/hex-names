@@ -172,6 +172,10 @@ Straight away:
   shows "yourfriendsommi.hex changed on PulseChain; copy sent to Ethereum". About 15 minutes later,
   once the bridge has signed it: "bridge message … from HexMirrorSync claimed on Ethereum".
 
+To see the homepage's live numbers on the testnet, fill in `testnet` in
+[`web/src/deployment.ts`](../web/src/deployment.ts) with `PULSECHAIN_HEX_REGISTRY` and
+`START_BLOCK_PULSECHAIN`, and run a copy of the site with `VITE_NETWORK=testnet`.
+
 Then, once the website can buy on the testnets:
 
 - [ ] Buy a name on PulseChain Testnet v4 with USDC. It's yours in about two minutes, and on Sepolia
@@ -194,7 +198,9 @@ the contracts:
 4. Verify the contracts on the block explorers. Sourcify, which both explorers read, covers
    PulseChain, Ethereum and Sepolia, but not PulseChain Testnet v4.
 5. Start the bot on its server, with its float.
-6. Give the website the addresses and the bot's public key, then launch.
+6. Give the website the addresses and the bot's public key, then launch. The registry's address
+   and start block go in [`web/src/deployment.ts`](../web/src/deployment.ts), which switches on
+   the live numbers under the search.
 
 Sepolia already has Ethereum's next upgrade, which makes creating contracts about 7 times dearer in
 gas. When Ethereum gets it too, update Foundry in the deploy workflow before step 2 (see
