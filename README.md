@@ -1,11 +1,12 @@
 # hex-names
 
-`.hex` names that work on both PulseChain and Ethereum, bought in a few clicks from either chain.
+`.hex` names that work on both PulseChain and Ethereum, bought in a few clicks on PulseChain and
+copied to Ethereum.
 
 Built on [ENSv2](https://github.com/ensdomains/contracts-v2), the next version of the Ethereum Name
 Service, at its audited commit. A `.hex` name lives on PulseChain and is copied to Ethereum
 automatically, so one purchase covers both chains. Every name resolves to its owner's address on
-both chains from the moment it is registered.
+PulseChain from the moment it is registered, and on Ethereum about 15 minutes later.
 
 > **Status:** unaudited and not deployed. ENSv2 itself has been audited, but the small patch that
 > runs it on PulseChain and the contracts in `src/` have not. Don't put real money through them
@@ -26,9 +27,12 @@ either.
 ## Buying a name
 
 Names are bought on PulseChain: 2–3 clicks (approve if paying with a token, commit, register), and
-the name is yours in about 1–2 minutes, on Ethereum about 15 minutes later. The buyer can pay with
-PLS or any token with a PulseX pool (HEX, PLSX, and USDC, DAI, WETH or HEX bridged from Ethereum,
-...). It is swapped into a dollar stablecoin, so prices stay in dollars without a price oracle.
+the name is yours in about 1–2 minutes, on Ethereum about 15 minutes later. The app takes PLS, HEX,
+eHEX (HEX bridged from Ethereum), PLSX, and USDC or WETH bridged from Ethereum. The checkout
+contract takes any token with a PulseX pool, but the app offers just these: holders of other tokens
+swap to PLS on PulseX first. Whatever the buyer pays with is swapped into USDC, so prices stay in
+dollars without a price oracle. The app quotes each payment on both PulseX routers (V1 and V2) and
+pays along whichever needs less: in November 2026, $640 of PLS cost 6.6% more on V2 than on V1.
 
 1. **Commit.** The wallet commits to the name with a hash of its details. Nothing is paid yet, and
    nobody watching can see which name it is.
@@ -40,16 +44,19 @@ PLS or any token with a PulseX pool (HEX, PLSX, and USDC, DAI, WETH or HEX bridg
 
 The app checks the buyer's wallet on PulseChain. If it doesn't hold enough, the app sends them to
 [LibertySwap](https://libertyswap.finance), a separate service: they send USDC from Ethereum, Base,
-Arbitrum or another chain, and choose PLS on PulseChain to receive. It arrives in a few minutes, for
-a 0.3% fee (minimum $10), and the PLS pays for the name and the network fee.
+Arbitrum or another chain, and choose PLS on PulseChain to receive. It takes a few minutes and costs
+about 0.3%, sending at least $10. The PLS pays for the name and the network fee.
 
 ### Buying from Ethereum directly (switched off)
 
 The contracts for it are deployed but unused: an order placed in `HexOrderBook` on Ethereum, filled
 on PulseChain through `HexOrderFiller` by a bot paying from its own float, and settled over the
 bridge, with a refund if it can't be filled. The website doesn't offer it, and the bot leaves it off
-(`FILL=false`), so no float is needed. Turning it back on needs the website's Ethereum checkout and
-a bot with `FILL=true` and a float.
+(`FILL=false`), so it needs no float for orders, and ignores any order placed on the contract
+directly. A buyer who places one anyway can take the money back 6½ hours after ordering (`reclaim`
+on Ethereum), or anyone can call `reportExpired` on PulseChain once the order's 30 minutes are up,
+which sends a refund over the bridge. Turning it back on needs the website's Ethereum checkout and a
+bot with `FILL=true` and a float.
 
 ### Why there's a bot
 
@@ -65,13 +72,18 @@ Timed over its last 25 messages each way on 5 November 2026:
 
 The bot gets no special powers: it can only deliver what the bridge has signed.
 
+So that nobody can run up its gas by changing a name over and over, the bot copies each name at most
+once an hour (the newest change wins), and spends at most 0.02 ETH a day copying names, about 1,600
+copies at November 2026's gas prices. The rest wait until the next day (UTC).
+
 ## How names work on both chains
 
 - **Where names live.** Names live in an ENSv2 registry on PulseChain. That's where they're bought,
   renewed and transferred.
-- **The Ethereum copy.** Every change is copied to an identical ENSv2 registry on Ethereum by bridge
-  messages, which the bot claims on Ethereum. Copies on Ethereum can't be transferred; they follow
-  PulseChain.
+- **The Ethereum copy.** Every change is copied to an identical ENSv2 registry on Ethereum about 15
+  minutes later, by bridge messages the bot claims on Ethereum. Copies on Ethereum can't be bought,
+  renewed or transferred there; they follow PulseChain. A name renewed in its grace period is
+  extended on Ethereum too, so its owner's Ethereum settings stay.
 - **Addresses.** By default a name resolves to its owner's address, for Ethereum (coin type 60),
   PulseChain (ENSIP-11 coin type `0x80000171`) and any EVM chain's default (ENSIP-19). This is the
   `OwnerResolver` set on `.hex` itself.
@@ -108,8 +120,10 @@ Each covers the name on both chains.
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
   so nobody can snipe a name the moment it lapses.
-- **Payment.** Paid in USDC or DAI bridged from Ethereum, straight to the beneficiary set at
-  deployment, which can never change (the deploy workflow fills in the project owner's wallet).
+- **Payment.** Whatever the buyer pays with ([buying a name](#buying-a-name)), the checkout turns it
+  into USDC, and the registrar sends it straight to the beneficiary set at deployment, which can
+  never change (the deploy workflow fills in the project owner's wallet). The registrar itself takes
+  only USDC or DAI bridged from Ethereum.
 
 ## Reserved names
 
@@ -145,29 +159,38 @@ registry with:
 | `roleBitmap` | `97409655027181761882228017414928043058140282880` (the rights a buyer gets) |
 | `expiry` | `0` (keeps the reservation's expiry) |
 
-This works only on held names: the admin can't take a name someone owns. A page that does it for
-you can come with the website.
+This works only on held names, never on a name someone owns. A page that does it for you can come
+with the website.
 
 ## Who can do what
 
-**Nobody can** take, unregister, or redirect someone's name on PulseChain. That includes the admin
-and the deployer. The registry has no role that can, and the tests check it. Nobody can replace the
-`.hex` registry or its default resolver on either chain: `.hex` is registered in each root with no
-roles at all.
+**Nobody can** unregister, move, or redirect someone's live name on PulseChain. That includes the
+admin and the deployer. The registry has no role that can, and the tests check it. Nobody can
+replace the `.hex` registry or its default resolver on either chain: `.hex` is registered in each
+root with no roles at all.
 
-**The admin** (PulseChain only) can raise or lower all prices together, change the accepted
-stablecoins, add registrars and renewers, hand held reserved names to their owners, and add other
-endings to the root. It can't change the price of one length, the multi-year prices, the premium for
-expired names, the 63-character limit or the 5-year limit. The registrar is deployed with them and
-gives up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests
-check it. A new registrar can only register names nobody owns. Keep it in a wallet used for nothing
-else, with its recovery phrase offline, or give these powers up once things are settled. (A multisig
-such as a Safe would be stronger, but Safe's own app doesn't support PulseChain.)
+**The admin** (PulseChain only) can:
+
+- raise or lower all prices together: it looks after the price oracle's payment tokens, so it can
+  add or remove one and set its exchange rate (which scales every price), or stop sales;
+- add or remove registrars and renewers on the `.hex` registry. A registrar it adds could register a
+  name that has expired, even one still in its 28-day grace period, and removing the official
+  registrar's renew role would stop renewals;
+- hand held reserved names to their owners;
+- add new endings to the root registry.
+
+It can't unregister a live name, change a name's resolver, or move a name. Nor can it change the
+price of one length, the multi-year prices, the premium for expired names, the 63-character limit or
+the 5-year limit: the registrar is deployed with them and gives up the one power that could swap
+them (`setRentPriceOracle`), so nobody can, and the tests check it. It can give up each of its
+powers, handing out reserved names included. Keep the admin in a wallet used for nothing else, with
+its recovery phrase offline, or give these powers up once things are settled. (A multisig such as a
+Safe would be stronger, but Safe's own app doesn't support PulseChain.)
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
-releasing money held by Ethereum orders. If they were compromised they could write a false Ethereum
-copy, or redirect money held by open orders. They could never touch the real names on PulseChain.
-Every token bridged to PulseChain relies on the same validators.
+releasing money held by Ethereum orders (only if those are switched on). If they were compromised
+they could write a false Ethereum copy, or redirect money held by open orders. They could never
+touch the real names on PulseChain. Every token bridged to PulseChain relies on the same validators.
 
 **The bot** affects only how soon Ethereum's copy is current. A stolen bot key loses only the bot's
 own gas and working balance, and what's left of the budget the payments wallet allows it. If the bot
@@ -186,6 +209,7 @@ nothing can change.
 | ENSv2 `ETHRegistrar` + `StandardRentPriceOracle` | the `.hex` registrar and its prices |
 | [`HexNameRules`](src/pulsechain/HexNameRules.sol) | between the registrar and its prices: new names can be up to 63 characters, paid for up to 5 years ahead |
 | ENSv2 `UniversalResolverV2`, `PermissionedResolver`, `VerifiableFactory`, `LabelStore`, `ContractNamer` | lookups, owners' own resolvers, and supporting contracts |
+| [`SafeVerifiableFactory`](src/common/SafeVerifiableFactory.sol) | deploys `VerifiableFactory` so nobody can take over the logic owners' own resolvers share (see below) |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
 | [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai |
 | [`HexOrderFiller`](src/pulsechain/HexOrderFiller.sol) | completes Ethereum orders and tells Ethereum over the bridge |
@@ -209,26 +233,37 @@ the same bytecode then runs on both chains:
 
 The compiled contracts were scanned and contain none of the missing opcodes.
 
+PulseChain also lacks that upgrade's limit on `SELFDESTRUCT` (EIP-6780). Every resolver that ENSv2's
+`VerifiableFactory` makes for an owner forwards to one shared logic contract. Left as it comes,
+anyone could set that contract up with their own code, destroy it on PulseChain, and break every
+owner's resolver for good. So the factory is deployed through
+[`SafeVerifiableFactory`](src/common/SafeVerifiableFactory.sol), which sets the shared contract up
+in the same transaction with an implementation that does nothing, so nobody can take it over. The
+tests check it.
+
 ## Running the tests
 
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 104 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 108 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
-  - prices and roles, the 63-character and 5-year limits, and that nobody can change the price
-    rules or take a name;
+  - prices and roles, the 63-character and 5-year limits, that nobody can swap the price rules or
+    unregister, move or redirect a live name, and that the admin can give up every power;
+  - that nobody can take over the logic owners' own resolvers share;
   - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;
   - the whole Ethereum order flow, and every way it can be refunded;
   - that a buyer can never get both the name and a refund, and that a filler can't claim the wrong
     order;
-  - the Ethereum copy following transfers, renewals and expiry;
+  - the Ethereum copy following transfers, renewals and expiry, and keeping its owner's settings
+    when a name is renewed in its grace period;
   - forged and out-of-order bridge messages.
 - **Fork tests** (`test/fork/`): 10 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
-- **Bot tests** (`bot/test/`): 36 tests, including hashes checked against the deployed contracts, a
-  real bridge message, and each network's settings.
+- **Bot tests** (`bot/test/`): 46 tests, including hashes checked against the deployed contracts, a
+  real bridge message, each network's settings, how it pays its own gas, and its limits on copying
+  names.
 
 With [Foundry](https://getfoundry.sh) and git:
 
@@ -250,9 +285,10 @@ short: three steps, run from the GitHub website (a phone works too), first on th
 1. **Deploy on PulseChain** ([`script/pulsechain/`](script/pulsechain)): the `.hex` registry,
    registrar and checkout, the bridge contracts, and the [reserved names](#reserved-names).
 2. **Deploy on Ethereum and link it** ([`script/ethereum/`](script/ethereum)): the Ethereum copy of
-   `.hex`, and the order book for buying from Ethereum.
+   `.hex`, and the order book for buying from Ethereum (switched off).
 3. **Link PulseChain** ([`script/pulsechain/`](script/pulsechain)): after this, nothing can change
-   the links.
+   the links. Run it straight after steps 1 and 2: until then, the deployer's key can still link the
+   bridge contracts.
 
 Each runs from Actions > deploy > Run workflow, as a dry run first. A new wallet, just for
 deploying, pays for them: about 10 tPLS and 0.01 Sepolia ETH from faucets on the testnets, and about
@@ -273,10 +309,12 @@ and `production` for mainnet. Step by step: [the bot, on Railway](deploy/bot/REA
 1. Give it a wallet with a little PLS on PulseChain and ETH on Ethereum, for gas (a few cents a
    claim at today's gas prices). That's the only funding it needs.
 2. Paste its settings into Railway: `NETWORK`, its private key (sealed), and the **For the bot**
-   lines from the deploy run summaries. Its order encryption key is made from its wallet key, and it
-   prints the public key, for websites, when it starts.
+   lines from the deploy run summaries. Its order encryption key, only used if buying from Ethereum
+   is switched on (`FILL=true`), is made from its wallet key, and it prints the public key when it
+   starts.
 3. Give it a Railway volume, where it remembers its place between restarts.
-4. Let it draw from the payments wallet, up to a budget, on the app's payments page.
+4. Let it draw from the payments wallet, up to a budget, on the app's payments page
+   (app.hexns.domains/referrals, titled "Referral payouts").
 
 It runs on autopilot. It keeps a small working balance of USDC ($20), buys PLS and ETH with it when
 they run low, and tops the balance up from the payments wallet, within the budget. So its gas comes
@@ -288,7 +326,8 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 ## For websites
 
 - **On PulseChain:**
-  1. Get the price with `AnyTokenCheckout.quoteRegister`.
+  1. Get the price with `AnyTokenCheckout.quoteRegister`, on each PulseX router (V1 and V2), and use
+     whichever needs less.
   2. Commit with `registrar.commit(registrar.makeCommitment(...))`.
   3. After a minute, call `registerWithToken` or `registerWithPLS` with a 2% buffer.
 - **On Ethereum** (only with a bot that fills orders, `FILL=true`; the official site and bot don't):
@@ -310,14 +349,16 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
   at app.hexns.domains/referrals, for the payments wallet only, pays them all in one transaction when
   you press Pay all. It doesn't pay by itself.
 - Phone wallets by QR code (WalletConnect) in the app at app.hexns.domains. Browser wallets work.
-- Primary names (showing `alice.hex` for an address), and renewing or transferring from Ethereum.
-  For now, names are managed on PulseChain, and anyone can renew any name there.
+- Primary names (showing `alice.hex` for an address). Names themselves are managed on PulseChain
+  only, where anyone can renew any name, and Ethereum's copy follows.
 - Wallet support: wallets look up ENS out of the box but need adding `.hex`, for example as a
   MetaMask Snap. What to have ready, and who to ask: [docs/WALLET_CHECKLIST.md](docs/WALLET_CHECKLIST.md).
 - Verifying the contracts on the block explorers (publishing their source code) from the deploy
   workflow.
-- A button in the app to take back an Ethereum order the bot never filled. The order book allows it
-  6½ hours after ordering. While the bot runs, it refunds such orders by itself.
+- A button in the app to take back an Ethereum order, should anyone place one on the contract
+  directly. The bot ignores such orders while buying from Ethereum is switched off; the buyer can
+  `reclaim` it 6½ hours after ordering, or anyone can call `reportExpired` on PulseChain once its 30
+  minutes are up ([how](#buying-from-ethereum-directly-switched-off)).
 - A review by someone other than the author.
 
 ## License

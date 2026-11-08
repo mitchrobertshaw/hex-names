@@ -4,7 +4,7 @@
 (app.hexns.domains) from the `web/` folder. Whenever `main` changes, it rebuilds them by itself in a
 minute or two.
 
-The website needs to know where .hex is: the addresses of its contracts, and the bot's public key.
+The website needs to know where .hex is: the addresses of its contracts, and the bot's wallet.
 They all go in one file, [`web/src/deployment.ts`](../../web/src/deployment.ts), which has a part for
 each network. Until a network's part is filled in, the website shows no live numbers for it, and the
 app can search and price names but not buy them.
@@ -56,12 +56,12 @@ themselves.
     },
     ethereum: {
       rpc: "https://ethereum-sepolia-rpc.publicnode.com",
-      orderBook: "0x…", // ETHEREUM_ORDER_BOOK, from step 2
+      orderBook: "0x…", // ETHEREUM_ORDER_BOOK, from step 2 (only for buying from Ethereum)
       usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Circle's test USDC on Sepolia
     },
     bot: {
-      publicKey: "0x…", // from the bot's log on Railway
-      minFee: 0.25, // the bot's fee per order, in dollars
+      publicKey: "0x…", // from the bot's log on Railway (only for buying from Ethereum)
+      minFee: 0.25, // the bot's fee per order, in dollars (only for buying from Ethereum)
       address: "0x…", // the bot's wallet: the first 0x… in its log
     },
   },
@@ -69,6 +69,9 @@ themselves.
 
 Keep every quote mark and comma. Everything after `//` on a line is a note, and can stay. If
 Netlify's build fails afterwards, its deploy log names the line it didn't like.
+
+`orderBook`, `publicKey` and `minFee` are only used if buying from Ethereum is switched on
+(`FILL=true`). It's off, but fill them in anyway, so they're ready.
 
 `launchDate` is the day you deploy, written year-month-day. The referral launch offer counts from
 it: referrers earn 10% of what the buyers they bring pay for 58 days, and the app tells name owners
@@ -92,12 +95,12 @@ until when.
        },
        ethereum: {
          rpc: "https://ethereum-rpc.publicnode.com",
-         orderBook: "0x…", // ETHEREUM_ORDER_BOOK
+         orderBook: "0x…", // ETHEREUM_ORDER_BOOK (only for buying from Ethereum)
          usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
        },
        bot: {
-         publicKey: "0x…", // from the production bot's log
-         minFee: 0.25,
+         publicKey: "0x…", // from the production bot's log (only for buying from Ethereum)
+         minFee: 0.25, // only for buying from Ethereum
          address: "0x…", // the production bot's wallet
        },
      },

@@ -24,9 +24,10 @@ Fill in `.env` from the deploy run summaries (each step's **For the bot** block)
 npm start
 ```
 
-It prints its wallet, its network, and the public key websites seal orders to. That key is made from
-`BOT_PRIVATE_KEY`, so there's no other key to keep. `npm run keygen` makes a separate one, if you'd
-rather set `BOT_ENCRYPTION_SECRET_KEY` yourself.
+It prints its wallet, its network, and the public key websites seal orders to, which is only used if
+buying from Ethereum is switched on (`FILL=true`). That key is made from `BOT_PRIVATE_KEY`, so
+there's no other key to keep. `npm run keygen` makes a separate one, if you'd rather set
+`BOT_ENCRYPTION_SECRET_KEY` yourself.
 
 **Testnet.** Set `NETWORK=testnet` to run it on PulseChain Testnet v4 and Sepolia, with the testnet
 bridge. Give it its own wallet, `.env` and `STATE_FILE`, and set `PULSECHAIN_USDC` to the "USDC from
@@ -34,10 +35,10 @@ Sepolia" address step 1 printed. On Railway, the state file goes on the attached
 
 | File | What it does |
 |---|---|
-| `src/orders.ts` | reads orders on Ethereum, commits and fills them on PulseChain, refunds the ones it can't fill |
-| `src/relay.ts` | claims signed bridge messages on Ethereum, skipping ones that would change nothing |
+| `src/orders.ts` | only with `FILL=true`: reads orders on Ethereum, commits and fills them on PulseChain, refunds the ones it can't fill |
+| `src/relay.ts` | claims signed bridge messages on Ethereum, its own USDC first, skipping ones that would change nothing; copies each name at most once an hour, within a daily ETH limit |
 | `src/sync.ts` | copies registrations, renewals and transfers made outside the checkouts |
-| `src/treasury.ts` | its money: buys PLS and ETH for gas, keeps a small working balance, draws from the payments wallet's budget and returns any extra |
+| `src/treasury.ts` | its money: buys PLS and ETH for gas, keeps a small working balance, draws from the payments wallet's budget and returns any extra, never sending a bridge transfer twice |
 | `src/reveal.ts` | the sealed order details, their registrar commitment, and the bot's encryption key |
 | `src/buy.ts` | for websites: everything needed to place an order from Ethereum |
 | `src/amb.ts` | the bridge's message and signature formats |

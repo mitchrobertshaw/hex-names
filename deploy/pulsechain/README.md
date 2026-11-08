@@ -24,22 +24,23 @@ connect your wallet, and add the network from there.
 
 ## Testnets: USDC from Sepolia
 
-Names are paid for in USDC (a dollar stablecoin). On mainnet that's USDC bridged from Ethereum. On
-the testnet it's Circle's test USDC, bridged from Sepolia, which the testnet bridge calls "USDC from
-Sepolia". Its copy on the testnet only appears once someone has bridged some. On 7 November 2026
-nobody had, so step 1 stops until someone does. Do this once:
+Names are priced in USDC (a dollar stablecoin), and whatever a buyer pays with is swapped into it.
+On mainnet that's USDC bridged from Ethereum. On the testnet it's Circle's test USDC, bridged from
+Sepolia, which the testnet bridge calls "USDC from Sepolia". Its copy on the testnet only appears
+once someone has bridged some. On 7 November 2026 nobody had, so step 1 stops until someone does.
+Do this once:
 
 1. **Get Sepolia ETH** for gas ([faucets](../ethereum/README.md#sepolia-eth)).
 2. **Get test USDC on Sepolia** at [faucet.circle.com](https://faucet.circle.com): choose Ethereum
    Sepolia and paste your wallet's address. (Its address is
    `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`, if your wallet asks.)
 3. **Bridge it** at [bridge.v4.testnet.pulsechain.com](https://bridge.v4.testnet.pulsechain.com):
-   from Sepolia to PulseChain Testnet v4, token USDC, to your own wallet. Send about 50: a name costs
-   10, and the bot needs 20 or so as its float.
+   from Sepolia to PulseChain Testnet v4, token USDC, to your own wallet. Send about 30: a name
+   costs 10; the rest is for a renewal and the bot's budget. The bot needs no USDC from you: it draws
+   what it needs from the budget you set on the app's payments page.
 4. **Wait about 15 to 20 minutes** for it to arrive. That's how long the testnet bridge took on
-   7 November 2026, much like the real one.
-5. **Send 20 to the bot's wallet.** To see the token in your wallet, add the address step 1's
-   summary lists as `PULSECHAIN_USDC`. A dry run of step 1 shows it too.
+   7 November 2026, much like the real one. To see the token in your wallet, add the address step
+   1's summary lists as `PULSECHAIN_USDC`. A dry run of step 1 shows it too.
 
 To check it worked, run step 1 as a dry run. If it gets past the USDC check, you're ready.
 
@@ -87,7 +88,8 @@ Then do [step 2 on Ethereum](../ethereum/README.md#step-2-deploy-on-ethereum-and
 
 ## Step 3: link PulseChain
 
-After step 2. On GitHub: **Actions**, then **deploy**, then **Run workflow**.
+After step 2, and straight after it: until step 3 is done, the deployer's key can still link the
+bridge contracts. On GitHub: **Actions**, then **deploy**, then **Run workflow**.
 
 | Field | Fill in |
 |---|---|

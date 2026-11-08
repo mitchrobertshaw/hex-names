@@ -6,8 +6,10 @@ a separate ask. The list below is what to have ready first, then who to approach
 ## Before approaching anyone
 
 - [ ] The contracts are live on PulseChain and Ethereum, and verified on both block explorers.
-- [ ] The admin is a multisig, or has given up its powers. Nobody can take a name either way, but
-      wallets will ask who can raise prices and add registrars.
+- [ ] The admin is a multisig, or has given up its powers. Either way nobody can unregister, move
+      or redirect a live name, but wallets will ask who can raise or lower prices, stop sales and
+      add registrars (a registrar the admin adds could register an expired name, even one still in
+      its 28-day grace period).
 - [ ] The `UniversalResolverV2` addresses on both chains are published. A wallet that already looks
       up ENS names can then add `.hex` mostly by pointing those lookups at them.
 - [ ] Primary names work (address to name), so wallets can show `alice.hex` instead of `0x…`. Not
@@ -23,8 +25,9 @@ a separate ask. The list below is what to have ready first, then who to approach
 - [ ] **MetaMask:** build a name-lookup Snap for PulseChain and Ethereum, covering the `hex` ending,
       and submit it for MetaMask's approval (they may ask for an audit). Have it check PulseChain,
       where names live, so it never relies on the Ethereum copy while that is catching up (about
-      15 minutes after a purchase or a sale). Add an install button to the website. Consider
-      having it look up `.pls` too, through Pulse Domains, so it's useful to everyone on PulseChain.
+      15 minutes after any change: a purchase, renewal or transfer). Add an install button to the
+      website. Consider having it look up `.pls` too, through Pulse Domains, so it's useful to
+      everyone on PulseChain.
 - [ ] **Internet Money:** ask the team to add `.hex` lookups to the send screen, and give them the
       library and the `UniversalResolverV2` addresses.
 - [ ] **ZKX Web3 Wallet:** a browser extension that supports PulseChain, with about 1,000 to 2,000
