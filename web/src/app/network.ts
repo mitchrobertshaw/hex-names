@@ -18,6 +18,12 @@ export const CHAINS: Record<ChainKey, Chain> =
 /** What each chain's checkout offers to pay with. */
 export const PAY: Record<ChainKey, PayChain> = NETWORK === "testnet" ? TESTNET_PAY_CHAINS : PAY_CHAINS;
 
+/**
+ * What the app calls the dollar coin names are paid in on PulseChain: "eUSDC", USDC bridged from
+ * Ethereum, never the copy of USDC made when PulseChain launched ("USDC" on the testnet).
+ */
+export const STABLE = PAY.pulsechain.tokens.find((token) => !token.path)!.symbol;
+
 const rpcOf = (key: ChainKey) => deployment?.[key].rpc ?? PAY[key].rpc;
 
 /** For reading the chains, whatever wallet is connected. */

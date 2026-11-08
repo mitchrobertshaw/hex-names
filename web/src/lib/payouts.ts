@@ -157,7 +157,7 @@ export function payoutCsv(report: PayoutReport): string {
     const text = String(value);
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  const lines = [["referrer", "pay_to", "purchases", "renewals", "buyers_paid_usd", "owed_usdc", "status"].join(",")];
+  const lines = [["referrer", "pay_to", "purchases", "renewals", "buyers_paid_usd", "owed_eusdc", "status"].join(",")];
   for (const row of [...report.pay, ...report.selfReferrals, ...report.noOwner]) {
     lines.push(
       [

@@ -51,12 +51,17 @@ also owns the referring name) and tags that aren't a name anyone owns are set as
 titled "Referral payouts", also shows the bot's balances and sets the budget it may draw from this
 wallet for gas ([how](../deploy/bot/README.md#money)).
 
-**Pay all** pays every referrer from the connected wallet in one transaction, in USDC on PulseChain,
+**Pay all** pays every referrer from the connected wallet in one transaction, in eUSDC on PulseChain,
 through [Disperse](https://disperse.app) (`0xD152f549545093347A162Dce210e7293f1452150`, with the same
 code on PulseChain and PulseChain Testnet v4): an approval of the exact total, then one
 `disperseToken`. Each run also looks for a payout already sent, one transaction that paid every
 referrer exactly what they're owed, and says so instead of offering to pay again. The spreadsheet it
-downloads has each wallet and the exact USDC.
+downloads has each wallet and the exact amount.
+
+The app calls USDC bridged from Ethereum "eUSDC" everywhere, as PulseChain users do, so it's never
+mistaken for the copy of USDC made when PulseChain launched (`STABLE` in `src/app/network.ts`; the
+testnet's "USDC from Sepolia" keeps its own name). USDC on other chains, which LibertySwap takes,
+stays "USDC".
 
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
 and the bot: buying on PulseChain with USDC, renewing, sending, My names, and a referral tag landing

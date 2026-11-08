@@ -83,9 +83,8 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
       },
       { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC] },
       {
-        symbol: "USDC",
-        label: "USDC from Ethereum",
-        note: "USDC bridged from Ethereum, which your wallet calls \u201cUSD Coin from Ethereum\u201d. There\u2019s no native USDC on PulseChain yet, and the USDC copied when PulseChain launched is a different token.",
+        symbol: "eUSDC",
+        note: "USDC bridged from Ethereum, which your wallet calls \u201cUSD Coin from Ethereum\u201d. Not the USDC copied when PulseChain launched, a different token; there\u2019s no native USDC on PulseChain yet.",
         decimals: 6,
         path: null,
       },
