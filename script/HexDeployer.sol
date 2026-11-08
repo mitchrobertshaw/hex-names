@@ -24,6 +24,7 @@ import {LabelStore} from "@ensv2/utils/LabelStore.sol";
 import {ILabelStore} from "@ensv2/utils/interfaces/ILabelStore.sol";
 
 import {OwnerResolver} from "../src/common/OwnerResolver.sol";
+import {SafeVerifiableFactory} from "../src/common/SafeVerifiableFactory.sol";
 import {HexMirrorRegistrar} from "../src/ethereum/HexMirrorRegistrar.sol";
 import {HexOrderBook} from "../src/ethereum/HexOrderBook.sol";
 import {IAMB} from "../src/interfaces/IAMB.sol";
@@ -199,12 +200,13 @@ abstract contract HexDeployer {
             hub.registrar, cfg.usdc, cfg.wpls, cfg.routers, IHexMirrorSync(address(hub.mirrorSync))
         );
 
-        // Hand over: the admin may add registrars and renewers later (neither can take a name),
-        // may hand held reserved names to their owners, and may add new endings to the root.
-        // Then the deployer gives up everything.
+        // Hand over: the admin may add registrars and renewers later (a registrar can register a
+        // name that has expired, even one still in its grace period), may hand held reserved names
+        // to their owners, and may add new endings to the root. It can give up each of these
+        // powers, handing out reserved names included. Then the deployer gives up everything.
         hexRegistry.grantRootRoles(
             RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
-                | RegistryRolesLib.ROLE_REGISTER_RESERVED,
+                | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN,
             cfg.admin
         );
         hub.core.rootRegistry
@@ -283,7 +285,9 @@ abstract contract HexDeployer {
             IGatewayProvider(address(core.batchGatewayProvider)),
             core.contractNamer
         );
-        core.verifiableFactory = new VerifiableFactory();
+        // Through SafeVerifiableFactory, so the proxy logic every owner's resolver forwards to can't
+        // be initialized by anyone else (and on PulseChain, destroyed).
+        core.verifiableFactory = new SafeVerifiableFactory().FACTORY();
         core.resolverImplementation = new PermissionedResolver(admin);
     }
 

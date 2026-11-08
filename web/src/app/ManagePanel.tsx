@@ -49,12 +49,15 @@ export function RenewPanel({
   label,
   length,
   expiry,
+  mine = false,
   onChanged,
 }: {
   label: string;
   length: number;
   /** When the name expires now, in unix seconds. */
   expiry: number;
+  /** Whether the connected wallet owns it: anyone else renewing is told it stays the owner's. */
+  mine?: boolean;
   onChanged?: () => void;
 }) {
   const most = renewableYears(expiry);
@@ -107,10 +110,15 @@ export function RenewPanel({
           ))}
         </div>
       </div>
+      {!mine ? (
+        <p className="manage__note">
+          Anyone can renew a name, but it stays its owner&rsquo;s: this adds time for them, it doesn&rsquo;t buy it.
+        </p>
+      ) : null}
       {most === 0 ? (
         <p className="manage__note">
-          It&rsquo;s paid up 5 years ahead, the most a name can be. It can be renewed again from{" "}
-          {dayText(expiry - (MAX_YEARS - 1) * YEAR)}.
+          It&rsquo;s paid up more than {MAX_YEARS - 1} years ahead, and a name can be paid for at most {MAX_YEARS}{" "}
+          years ahead. It can be renewed again from {dayText(expiry - (MAX_YEARS - 1) * YEAR)}.
         </p>
       ) : null}
       {steps ? <Steps steps={steps} /> : null}
@@ -136,7 +144,16 @@ export function RenewPanel({
 }
 
 /** For the owner: send the name to another wallet, and their referral link. */
-export function OwnerPanel({ label, onChanged }: { label: string; onChanged?: () => void }) {
+export function OwnerPanel({
+  label,
+  canSend = true,
+  onChanged,
+}: {
+  label: string;
+  /** False while the name is in its grace period: the registry won't move an expired name. */
+  canSend?: boolean;
+  onChanged?: () => void;
+}) {
   const [to, setTo] = useState("");
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -161,38 +178,41 @@ export function OwnerPanel({ label, onChanged }: { label: string; onChanged?: ()
           Send it to another wallet
         </h2>
         <p className="manage__text">
-          It moves for good: only the new owner can send it back. Its Ethereum copy follows by itself, about 15 minutes
-          later.
+          {canSend
+            ? "It moves for good: only the new owner can send it back. Its Ethereum copy follows by itself, about 15 minutes later."
+            : "Renew it first: an expired name can't be sent."}
         </p>
-        <div className="manage__row">
-          <input
-            className="manage__input"
-            type="text"
-            placeholder="0x… wallet address"
-            spellCheck={false}
-            autoComplete="off"
-            value={to}
-            disabled={busy}
-            onChange={(event) => setTo(event.target.value)}
-          />
-          <button
-            type="button"
-            className="button button--primary button--small"
-            disabled={!valid || busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await send({ label, to: to.trim() as Address, report: setSteps });
-                onChanged?.();
-              } catch {
-                // Shown in the steps.
-              }
-              setBusy(false);
-            }}
-          >
-            Send
-          </button>
-        </div>
+        {canSend ? (
+          <div className="manage__row">
+            <input
+              className="manage__input"
+              type="text"
+              placeholder="0x… wallet address"
+              spellCheck={false}
+              autoComplete="off"
+              value={to}
+              disabled={busy}
+              onChange={(event) => setTo(event.target.value)}
+            />
+            <button
+              type="button"
+              className="button button--primary button--small"
+              disabled={!valid || busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await send({ label, to: to.trim() as Address, report: setSteps });
+                  onChanged?.();
+                } catch {
+                  // Shown in the steps.
+                }
+                setBusy(false);
+              }}
+            >
+              Send
+            </button>
+          </div>
+        ) : null}
         {steps ? <Steps steps={steps} /> : null}
       </section>
     </>

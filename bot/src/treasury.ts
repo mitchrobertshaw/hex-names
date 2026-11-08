@@ -9,7 +9,8 @@
 // So the float only ever lends: the buyer pays it back, not the payments wallet.
 //
 // Gas: it buys PLS on PulseX and ETH on Uniswap with its USDC when either runs low. With no USDC on
-// Ethereum to buy ETH, it first sends some there over the bridge (0.3% fee).
+// Ethereum to buy ETH, it first sends some there over the bridge (0.3% fee). If its working balance
+// can't cover a purchase, it draws the difference from the payments wallet's budget first.
 //
 // Settling up with the payments wallet (the registrar's beneficiary): the bot's fees, less its gas,
 // pile up in the float, and it sends anything beyond the float back to the payments wallet. If gas
@@ -17,14 +18,15 @@
 // payments wallet, up to the budget that wallet allows it in the app (a USDC allowance). So the
 // payments wallet ends up with every sale less the bot's gas, and nobody moves money by hand.
 
-import { type Address, formatUnits, isAddressEqual, parseEventLogs } from "viem";
+import { type Address, type Hex, type TransactionReceipt, formatUnits, isAddressEqual, parseEventLogs } from "viem";
 
 import { ORDER_STATUS, erc20Abi, foreignAmbAbi, homeAmbAbi, orderBookAbi, registrarAbi, routerAbi, tokenBridgeAbi } from "./abis.ts";
 import { parseAmbMessage } from "./amb.ts";
 import type { Treasury } from "./config.ts";
 import type { Context } from "./context.ts";
-import { send, sendForReceipt, short } from "./orders.ts";
-import type { TreasuryState } from "./state.ts";
+import { receiptOf, send, short, submit } from "./orders.ts";
+import { ownTransfer } from "./relay.ts";
+import type { Submitted, TreasuryState } from "./state.ts";
 
 /** How often it looks at its balances, unless an order is waiting on the float. */
 export const EVERY_SECONDS = 300n;
@@ -34,6 +36,8 @@ export const MIN_SEND_HOME = 5_000_000n;
 export const OUT_EXTRA = 1_000_000n;
 /** Money sent home is counted as on its way for this long at most. */
 const HOME_TIMEOUT = 6n * 3600n;
+/** A bridge transfer the bot sent but never saw mined is given up on after this long. */
+const SUBMITTED_TIMEOUT = 30n * 60n;
 const DAY = 86_400n;
 
 export type Balances = {
@@ -42,6 +46,7 @@ export type Balances = {
   eth: bigint; // wei
   ethUsdc: bigint; // USDC on Ethereum
   budget: bigint; // what the payments wallet lets it draw: the smaller of its allowance and its USDC
+  ethUnknown?: boolean; // Ethereum couldn't be read just now: leave its gas alone this time
 };
 
 export type Pending = {
@@ -67,41 +72,48 @@ export function margin(floatUsdc: bigint): bigint {
   return fifth > 5_000_000n ? fifth : 5_000_000n;
 }
 
-/** What to do, given the balances and what's on its way. Pure, so it's easy to test. */
+/**
+ * What to do, given the balances and what's on its way. Pure, so it's easy to test. Anything drawn
+ * from the payments wallet comes first, as one draw, so it's there for what spends it.
+ */
 export function plan(b: Balances, p: Pending, t: Pick<Treasury, "floatUsdc" | "plsLow" | "plsBuyUsdc" | "ethLow" | "ethBuyUsdc">): Action[] {
   const actions: Action[] = [];
+  const warnings: Action[] = [];
   let float = b.float;
+  let budget = b.budget;
+  let drawn = 0n;
   let ethUsdc = b.ethUsdc;
+  /** Pays `usdc` from the float, drawing what it lacks from the budget; false if even that can't. */
+  const spend = (usdc: bigint): boolean => {
+    const missing = usdc > float ? usdc - float : 0n;
+    if (missing > budget) return false;
+    budget -= missing;
+    drawn += missing;
+    float += missing - usdc;
+    return true;
+  };
 
   // 1. Gas on PulseChain.
   if (b.pls < t.plsLow) {
-    if (float >= t.plsBuyUsdc) {
-      actions.push({ kind: "buy-pls", usdc: t.plsBuyUsdc });
-      float -= t.plsBuyUsdc;
-    } else {
-      actions.push({ kind: "warn", key: "pls", message: "low on PLS for gas, and has no USDC on PulseChain to buy more" });
-    }
+    if (spend(t.plsBuyUsdc)) actions.push({ kind: "buy-pls", usdc: t.plsBuyUsdc });
+    else warnings.push({ kind: "warn", key: "pls", message: "low on PLS for gas, with no USDC or budget left to buy more" });
   }
 
-  // 2. Gas on Ethereum.
-  if (b.eth < t.ethLow) {
+  // 2. Gas on Ethereum, unless Ethereum couldn't be read just now.
+  if (!b.ethUnknown && b.eth < t.ethLow) {
     if (ethUsdc >= t.ethBuyUsdc) {
       actions.push({ kind: "buy-eth", usdc: t.ethBuyUsdc });
       ethUsdc -= t.ethBuyUsdc;
     } else if (p.out === 0n) {
       const usdc = t.ethBuyUsdc - ethUsdc + OUT_EXTRA;
-      if (float >= usdc) {
-        actions.push({ kind: "send-out", usdc });
-        float -= usdc;
-      } else {
-        actions.push({ kind: "warn", key: "eth", message: "low on ETH for gas, and has no USDC to buy more" });
-      }
+      if (spend(usdc)) actions.push({ kind: "send-out", usdc });
+      else warnings.push({ kind: "warn", key: "eth", message: "low on ETH for gas, with no USDC or budget left to buy more" });
     }
   }
 
   // 3. Buyers' payments go home to the float, less enough for the next ETH purchase.
   let home = p.home;
-  if (ethUsdc >= t.ethBuyUsdc + MIN_SEND_HOME) {
+  if (!b.ethUnknown && ethUsdc >= t.ethBuyUsdc + MIN_SEND_HOME) {
     const usdc = ethUsdc - t.ethBuyUsdc;
     actions.push({ kind: "send-home", usdc });
     home += usdc;
@@ -112,34 +124,35 @@ export function plan(b: Balances, p: Pending, t: Pick<Treasury, "floatUsdc" | "p
   const free = float - p.reserved; // the float, less what orders about to be filled will take
   if (free > t.floatUsdc + m) {
     actions.push({ kind: "return", usdc: free - t.floatUsdc });
-    return actions;
-  }
-  // An order waiting on the float: drawn for only if the budget covers all it needs, or the draw
-  // would just come back unused when the order is refunded.
-  const nowNeed = free < 0n ? -free : 0n;
-  const coverOrders = nowNeed <= b.budget;
-  if (!coverOrders) {
-    actions.push({
-      kind: "warn",
-      key: "order",
-      message: `${usdcText(nowNeed)} USDC short for an order from Ethereum, more than the payments wallet's budget for it: the order will be refunded unless the budget is raised in the app`,
-    });
-  }
-  const expected = (coverOrders ? free + p.reservedBack : float) + p.repayments + home; // with what's on its way back
-  const laterNeed = expected < t.floatUsdc - m ? t.floatUsdc - expected : 0n; // short even once paid back
-  const need = coverOrders && nowNeed > laterNeed ? nowNeed : laterNeed;
-  if (need > 0n) {
-    const usdc = need < b.budget ? need : b.budget;
-    if (usdc > 0n) actions.push({ kind: "draw", usdc });
-    if (usdc < need) {
-      actions.push({
+  } else {
+    // An order waiting on the float: drawn for only if the budget covers all it needs, or the draw
+    // would just come back unused when the order is refunded.
+    const nowNeed = free < 0n ? -free : 0n;
+    const coverOrders = nowNeed <= budget;
+    if (!coverOrders) {
+      warnings.push({
         kind: "warn",
-        key: "budget",
-        message: `short of its working balance by ${usdcText(need - usdc)} USDC, and the payments wallet's budget for it has run out: raise it in the app`,
+        key: "order",
+        message: `${usdcText(nowNeed)} USDC short for an order from Ethereum, more than the payments wallet's budget for it: the order will be refunded unless the budget is raised in the app`,
       });
     }
+    const expected = (coverOrders ? free + p.reservedBack : float) + p.repayments + home; // with what's on its way back
+    const laterNeed = expected < t.floatUsdc - m ? t.floatUsdc - expected : 0n; // short even once paid back
+    const need = coverOrders && nowNeed > laterNeed ? nowNeed : laterNeed;
+    if (need > 0n) {
+      const usdc = need < budget ? need : budget;
+      drawn += usdc;
+      budget -= usdc;
+      if (usdc < need) {
+        warnings.push({
+          kind: "warn",
+          key: "budget",
+          message: `short of its working balance by ${usdcText(need - usdc)} USDC, and the payments wallet's budget for it has run out: raise it in the app`,
+        });
+      }
+    }
   }
-  return actions;
+  return [...(drawn > 0n ? [{ kind: "draw", usdc: drawn } as Action] : []), ...actions, ...warnings];
 }
 
 /** Looks at its balances every few minutes (or at once if an order is waiting on the float) and acts. */
@@ -147,12 +160,14 @@ export async function runTreasury(ctx: Context): Promise<void> {
   const t = ctx.config.treasury;
   const state = (ctx.state.treasury ??= { home: [], warned: {} });
   const now = BigInt(Math.floor(Date.now() / 1000));
-  const waitingOnFloat = Object.values(ctx.state.orders).some((o) => o.status === "committed");
+  // Orders count only while the bot fills them (FILL=true): one left half-done when filling was
+  // turned off is the order book's to refund, not the float's to wait on or lend for.
+  const waitingOnFloat = ctx.config.fill && Object.values(ctx.state.orders).some((o) => o.status === "committed");
   if (!waitingOnFloat && state.lastRun && now - BigInt(state.lastRun) < EVERY_SECONDS) return;
   state.lastRun = now.toString();
 
   const payments = await ctx.pls.readContract({ address: ctx.config.registrar, abi: registrarAbi, functionName: "BENEFICIARY" });
-  await collectOwed(ctx);
+  if (ctx.config.fill) await collectOwed(ctx).catch((error) => ctx.log(`balance: couldn't check the order book (${short(error)})`));
   const [balances, pending] = await Promise.all([readBalances(ctx, payments), readPending(ctx, state, now)]);
   for (const action of plan(balances, pending, t)) {
     if (action.kind === "warn") {
@@ -185,15 +200,23 @@ async function readBalances(ctx: Context, payments: Address): Promise<Balances> 
   const { config } = ctx;
   const t = config.treasury;
   const bot = ctx.account.address;
-  const [pls, float, eth, ethUsdc, allowance, held] = await Promise.all([
+  const [pls, float, allowance, held] = await Promise.all([
     ctx.pls.getBalance({ address: bot }),
     ctx.pls.readContract({ address: config.pulsechainUsdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
-    ctx.eth.getBalance({ address: bot }),
-    ctx.eth.readContract({ address: t.ethereumUsdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
     ctx.pls.readContract({ address: config.pulsechainUsdc, abi: erc20Abi, functionName: "allowance", args: [payments, bot] }),
     ctx.pls.readContract({ address: config.pulsechainUsdc, abi: erc20Abi, functionName: "balanceOf", args: [payments] }),
   ]);
-  return { pls, float, eth, ethUsdc, budget: allowance < held ? allowance : held };
+  const budget = allowance < held ? allowance : held;
+  try {
+    const [eth, ethUsdc] = await Promise.all([
+      ctx.eth.getBalance({ address: bot }),
+      ctx.eth.readContract({ address: t.ethereumUsdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
+    ]);
+    return { pls, float, eth, ethUsdc, budget };
+  } catch (error) {
+    ctx.log(`balance: couldn't read Ethereum just now (${short(error)}); looking after PulseChain only this time`);
+    return { pls, float, eth: 0n, ethUsdc: 0n, budget, ethUnknown: true };
+  }
 }
 
 async function readPending(ctx: Context, state: TreasuryState, now: bigint): Promise<Pending> {
@@ -201,7 +224,7 @@ async function readPending(ctx: Context, state: TreasuryState, now: bigint): Pro
   let repayments = 0n;
   let reserved = 0n;
   let reservedBack = 0n;
-  for (const order of Object.values(ctx.state.orders)) {
+  for (const order of config.fill ? Object.values(ctx.state.orders) : []) {
     if (order.status === "committed" && order.price) {
       reserved += BigInt(order.price);
       reservedBack += BigInt(order.amount); // what it will pay back once filled
@@ -212,6 +235,7 @@ async function readPending(ctx: Context, state: TreasuryState, now: bigint): Pro
     else order.repaid = true; // paid to the bot (FILLED), or never will be (refunded or reclaimed)
   }
 
+  await resolveSubmitted(ctx, state, now);
   let home = 0n;
   for (const transfer of state.home) {
     if (transfer.arrived) continue;
@@ -232,7 +256,82 @@ async function readPending(ctx: Context, state: TreasuryState, now: bigint): Pro
   for (const message of Object.values(ctx.state.messages)) {
     if (message.own && message.status === "waiting") out += BigInt(message.own.usdc);
   }
+  // Sent, but not yet seen mined: counted as on their way, so nothing is sent twice.
+  for (const transfer of state.submitted ?? []) {
+    if (transfer.kind === "out") out += BigInt(transfer.usdc);
+    else home += BigInt(transfer.usdc);
+  }
   return { repayments, home, out, reserved, reservedBack };
+}
+
+/**
+ * Bridge transfers the bot sent without seeing them mined (the wait failed, or it restarted): once
+ * mined, recorded as if it had seen them at once; given up on if never mined.
+ */
+async function resolveSubmitted(ctx: Context, state: TreasuryState, now: bigint): Promise<void> {
+  const still: Submitted[] = [];
+  for (const transfer of state.submitted ?? []) {
+    const client = transfer.kind === "out" ? ctx.pls : ctx.eth;
+    const receipt = await client.getTransactionReceipt({ hash: transfer.tx }).catch(() => null);
+    if (receipt?.status === "success") recordTransfer(ctx, state, transfer, receipt);
+    else if (receipt) ctx.log(`balance: the bridge transfer ${transfer.tx} reverted, so its ${usdcText(BigInt(transfer.usdc))} USDC never left`);
+    else if (now - BigInt(transfer.sentAt) > SUBMITTED_TIMEOUT) ctx.log(`balance: the bridge transfer ${transfer.tx} was never mined; giving up on it`);
+    else still.push(transfer);
+  }
+  state.submitted = still;
+}
+
+/** Records a mined bridge transfer: the message to claim on Ethereum, or the money on its way home. */
+function recordTransfer(ctx: Context, state: TreasuryState, transfer: Submitted, receipt: TransactionReceipt): void {
+  const { config } = ctx;
+  const t = config.treasury;
+  if (transfer.kind === "home") {
+    const [sent] = parseEventLogs({ abi: foreignAmbAbi, eventName: "UserRequestForAffirmation", logs: receipt.logs }).filter((l) => isAddressEqual(l.address, config.foreignAmb));
+    if (!sent) return ctx.log(`balance: the bridge took the USDC but sent no message (${receipt.transactionHash})`);
+    if (!state.home.some((h) => h.messageId === sent.args.messageId)) {
+      state.home.push({ messageId: sent.args.messageId, usdc: transfer.usdc, tx: receipt.transactionHash, sentAt: transfer.sentAt });
+    }
+    return;
+  }
+  const [sent] = parseEventLogs({ abi: homeAmbAbi, eventName: "UserRequestForSignature", logs: receipt.logs }).filter((l) => isAddressEqual(l.address, config.homeAmb));
+  if (!sent) return ctx.log(`gas: the bridge took the USDC but sent no message (${receipt.transactionHash})`);
+  const message = parseAmbMessage(sent.args.encodedData);
+  if (ctx.state.messages[message.messageId]) return; // found already by the bridge scan
+  const arriving = ownTransfer(message, ctx.account.address, t.homeBridge, t.ethereumUsdc);
+  ctx.state.messages[message.messageId] = {
+    messageId: message.messageId,
+    encoded: message.encoded,
+    hash: message.hash,
+    gasLimit: message.gasLimit.toString(),
+    sender: message.sender,
+    seenAtBlock: receipt.blockNumber.toString(),
+    status: "waiting",
+    own: { usdc: (arriving ?? BigInt(transfer.usdc)).toString() },
+  };
+}
+
+/**
+ * Sends the bot's own USDC over the bridge, remembering the transaction (and saving the state)
+ * before waiting for it: if the wait fails, the next pass picks it up rather than sending again.
+ */
+async function sendTransfer(ctx: Context, state: TreasuryState, now: bigint, kind: Submitted["kind"], usdc: bigint): Promise<Hex> {
+  const { config } = ctx;
+  const t = config.treasury;
+  const bot = ctx.account.address;
+  const chain = kind === "out" ? "pls" : "eth";
+  const tx = await submit(ctx, chain, {
+    address: kind === "out" ? t.homeBridge : t.foreignBridge,
+    abi: tokenBridgeAbi,
+    functionName: "relayTokens",
+    args: [kind === "out" ? config.pulsechainUsdc : t.ethereumUsdc, bot, usdc],
+  });
+  const transfer: Submitted = { kind, tx, usdc: usdc.toString(), sentAt: now.toString() };
+  (state.submitted ??= []).push(transfer);
+  ctx.save();
+  const receipt = await receiptOf(ctx, chain, tx);
+  recordTransfer(ctx, state, transfer, receipt);
+  state.submitted = state.submitted.filter((s) => s.tx !== tx);
+  return tx;
 }
 
 /** Takes any repayment the order book holds for the bot because a transfer to it failed. */
@@ -264,30 +363,14 @@ async function act(ctx: Context, action: Exclude<Action, { kind: "warn" }>, paym
     }
     case "send-home": {
       await allow(ctx, "eth", t.ethereumUsdc, t.foreignBridge, action.usdc);
-      const receipt = await sendForReceipt(ctx, "eth", { address: t.foreignBridge, abi: tokenBridgeAbi, functionName: "relayTokens", args: [t.ethereumUsdc, bot, action.usdc] });
-      const [sent] = parseEventLogs({ abi: foreignAmbAbi, eventName: "UserRequestForAffirmation", logs: receipt.logs }).filter((l) => isAddressEqual(l.address, config.foreignAmb));
-      if (!sent) throw new Error(`the bridge took the USDC but sent no message (${receipt.transactionHash})`);
-      state.home.push({ messageId: sent.args.messageId, usdc: action.usdc.toString(), tx: receipt.transactionHash, sentAt: now.toString() });
-      ctx.log(`balance: sent ${usdcText(action.usdc)} USDC home from Ethereum over the bridge; it arrives in about 20 minutes (${receipt.transactionHash})`);
+      const tx = await sendTransfer(ctx, state, now, "home", action.usdc);
+      ctx.log(`balance: sent ${usdcText(action.usdc)} USDC home from Ethereum over the bridge; it arrives in about 20 minutes (${tx})`);
       return;
     }
     case "send-out": {
       await allow(ctx, "pls", config.pulsechainUsdc, t.homeBridge, action.usdc);
-      const receipt = await sendForReceipt(ctx, "pls", { address: t.homeBridge, abi: tokenBridgeAbi, functionName: "relayTokens", args: [config.pulsechainUsdc, bot, action.usdc] });
-      const [sent] = parseEventLogs({ abi: homeAmbAbi, eventName: "UserRequestForSignature", logs: receipt.logs }).filter((l) => isAddressEqual(l.address, config.homeAmb));
-      if (!sent) throw new Error(`the bridge took the USDC but sent no message (${receipt.transactionHash})`);
-      const message = parseAmbMessage(sent.args.encodedData);
-      ctx.state.messages[message.messageId] = {
-        messageId: message.messageId,
-        encoded: message.encoded,
-        hash: message.hash,
-        gasLimit: message.gasLimit.toString(),
-        sender: message.sender,
-        seenAtBlock: receipt.blockNumber.toString(),
-        status: "waiting",
-        own: { usdc: action.usdc.toString() },
-      };
-      ctx.log(`gas: sent ${usdcText(action.usdc)} USDC to Ethereum over the bridge, to buy ETH once it arrives (${receipt.transactionHash})`);
+      const tx = await sendTransfer(ctx, state, now, "out", action.usdc);
+      ctx.log(`gas: sent ${usdcText(action.usdc)} USDC to Ethereum over the bridge, to buy ETH once it arrives (${tx})`);
       return;
     }
     case "return": {

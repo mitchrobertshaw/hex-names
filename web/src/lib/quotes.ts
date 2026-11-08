@@ -18,23 +18,35 @@ export function decodeAmountIn(result: string): bigint {
   return BigInt(`0x${hex.slice(128, 192)}`);
 }
 
-/** How much of `token` buys `usdc` (6-decimal units) on `chain` right now. */
-export async function quoteIn(chain: PayChain, token: PayToken, usdc: bigint, signal?: AbortSignal): Promise<bigint> {
-  if (!token.path) return usdc;
-  const response = await fetch(chain.rpc, {
+/** How much of a token buys `usdc` (6-decimal units) along `path` on one router right now. */
+async function quoteOn(rpc: string, router: string, path: string[], usdc: bigint, signal?: AbortSignal) {
+  const response = await fetch(rpc, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
       method: "eth_call",
-      params: [{ to: token.router ?? chain.router, data: encodeGetAmountsIn(usdc, token.path) }, "latest"],
+      params: [{ to: router, data: encodeGetAmountsIn(usdc, path) }, "latest"],
     }),
     signal,
   });
   const json = (await response.json()) as { result?: string; error?: { message?: string } };
   if (!json.result || json.result === "0x") throw new Error(json.error?.message ?? "no answer");
   return decodeAmountIn(json.result);
+}
+
+/**
+ * How much of `token` buys `usdc` (6-decimal units) on `chain` right now: the least any of its
+ * routers asks, as the checkout pays along whichever is cheapest.
+ */
+export async function quoteIn(chain: PayChain, token: PayToken, usdc: bigint, signal?: AbortSignal): Promise<bigint> {
+  if (!token.path) return usdc;
+  const path = token.path;
+  const answers = await Promise.allSettled(chain.routers.map((router) => quoteOn(chain.rpc, router, path, usdc, signal)));
+  const amounts = answers.flatMap((a) => (a.status === "fulfilled" ? [a.value] : []));
+  if (amounts.length === 0) throw (answers[0] as PromiseRejectedResult).reason;
+  return amounts.reduce((least, amount) => (amount < least ? amount : least));
 }
 
 /** A token amount for people: 4 significant figures, with thousands separators. */

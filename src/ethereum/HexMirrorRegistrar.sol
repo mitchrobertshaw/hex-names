@@ -70,17 +70,15 @@ contract HexMirrorRegistrar is BridgeLink, IHexMirrorReceiver {
 
         bool live = owner != address(0) && expiry > block.timestamp;
         IPermissionedRegistry.State memory state = REGISTRY.getState(labelId);
-        if (state.status != IPermissionedRegistry.Status.AVAILABLE) {
-            if (
-                live && state.status == IPermissionedRegistry.Status.REGISTERED && state.latestOwner == owner
-                    && expiry >= state.expiry
-            ) {
-                if (expiry > state.expiry) REGISTRY.renew(labelId, expiry);
-                emit Mirrored(label, owner, expiry, nonce);
-                return;
-            }
-            REGISTRY.unregister(labelId);
+        // The same owner, no earlier expiry: extend the copy, keeping any settings its owner made on
+        // Ethereum. That includes a copy that has lapsed here, as when its owner renews during the
+        // grace period (this contract's root ROLE_RENEW lets it revive the entry).
+        if (live && state.latestOwner == owner && expiry >= state.expiry) {
+            if (expiry > state.expiry) REGISTRY.renew(labelId, expiry);
+            emit Mirrored(label, owner, expiry, nonce);
+            return;
         }
+        if (state.status != IPermissionedRegistry.Status.AVAILABLE) REGISTRY.unregister(labelId);
         if (!live) {
             emit Mirrored(label, address(0), expiry, nonce);
             return;

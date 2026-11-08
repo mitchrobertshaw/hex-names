@@ -2,8 +2,6 @@
 
 import { parseAbi } from "viem";
 
-const SWAP = "struct Swap { address router; address[] path; uint256 amountOutMin; uint256 deadline; }";
-
 /** ENSv2's ETHRegistrar: commitments and prices. */
 export const registrarAbi = parseAbi([
   "function commit(bytes32 commitment)",
@@ -12,7 +10,6 @@ export const registrarAbi = parseAbi([
   "function MAX_COMMITMENT_AGE() view returns (uint64)",
   "function isAvailable(string label) view returns (bool)",
   "function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
-  "function getRenewPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
   "function BENEFICIARY() view returns (address)",
 ]);
 
@@ -117,16 +114,6 @@ export const checkoutAbi = [
     "function quoteRenew(string label, uint64 duration, address router, address[] path) view returns (uint256 price, uint256 amountIn)",
   ]),
 ] as const;
-
-/** HexOrderBook: orders placed from Ethereum. */
-export const orderBookAbi = parseAbi([
-  SWAP,
-  "function placeOrder(bytes32 commitment, uint256 amount, bytes encryptedReveal) returns (uint256 orderId)",
-  "function placeOrderWithToken(bytes32 commitment, uint256 amount, bytes encryptedReveal, address tokenIn, uint256 amountIn, Swap swap) returns (uint256 orderId, uint256 change)",
-  "function placeOrderWithETH(bytes32 commitment, uint256 amount, bytes encryptedReveal, Swap swap) payable returns (uint256 orderId, uint256 change)",
-  "function quote(uint256 amount, address router, address[] path) view returns (uint256 amountIn)",
-  "event OrderPlaced(uint256 indexed orderId, address indexed buyer, bytes32 indexed commitment, uint256 amount, uint64 deadline, bytes encryptedReveal)",
-]);
 
 export const erc20Abi = parseAbi([
   "function decimals() view returns (uint8)",

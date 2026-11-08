@@ -7,9 +7,9 @@ on Ethereum. New to this? [Start here](../README.md).
 |---|---|
 | ENSv2's registries and resolvers (the contracts that store names and answer lookups), and `UniversalResolverV2` | the Ethereum copy of `.hex`, so Ethereum apps and wallets can look `.hex` names up |
 | [`HexMirrorRegistrar`](../../src/ethereum/HexMirrorRegistrar.sol) | the only thing that writes that copy, from bridge messages sent from PulseChain |
-| [`HexOrderBook`](../../src/ethereum/HexOrderBook.sol) | buying from Ethereum: it holds each buyer's payment until the bridge confirms the name was registered on PulseChain, or refunds it |
+| [`HexOrderBook`](../../src/ethereum/HexOrderBook.sol) | orders from Ethereum: switched off (the site doesn't offer them, the bot ignores them), kept for later |
 
-Without step 2, names would work only on PulseChain, and nobody could buy one from Ethereum.
+Without step 2, names would work only on PulseChain.
 
 | | Sepolia (the rehearsal) | Ethereum (for real) |
 |---|---|---|

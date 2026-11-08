@@ -65,7 +65,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | Wallet | For the testnets | For mainnet | Its private key goes in |
 |---|---|---|---|
 | **Deployer**: pays for deploying, and has no powers once step 3 is done | a new one | another new one | GitHub, as a repository secret |
-| **Admin**: can raise or lower all prices together, change payment tokens, and hand held names to their owners. It can't take anyone's name, or change the price of one length | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
+| **Admin**: can raise or lower all prices together, add or remove payment tokens, or stop sales; add or remove registrars and renewers (a registrar it adds could register an expired name, even one in its 28-day grace period); hand held names to their owners; and add new endings. It can't unregister, move or redirect a live name, or change the price of one length. It can give up each of these powers ([more](../README.md#who-can-do-what)) | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
 | **Payments**: receives every payment for a name, for good | your wallet, `0x1027…02C6` | your wallet, `0x1027…02C6` | nowhere: step 1's form already has its address |
 | **Bot**: the bot's own wallet, with a little gas | a new one | another new one | Railway, as a sealed variable |
 
@@ -90,8 +90,8 @@ afterwards.
 
 2. **Get test USDC onto PulseChain Testnet v4** (USDC is a dollar stablecoin: names are priced in
    it). It comes from Sepolia over the testnet bridge (the bridge moves coins and messages between
-   the two chains), and step 1 won't start until someone has done this once. Bridge about 50 to your
-   own wallet, then send 20 of it to the bot.
+   the two chains), and step 1 won't start until someone has done this once. Bridge about 30 to your
+   own wallet: a name costs 10; the rest is for a renewal and the bot's budget.
    [How](pulsechain/README.md#testnets-usdc-from-sepolia), about 20 minutes.
 
 3. **Check the reserved names** in [`script/reserved-names.csv`](../script/reserved-names.csv).
@@ -113,10 +113,14 @@ afterwards.
    | 2. Deploy on Ethereum and link it | [Ethereum guide](ethereum/README.md#step-2-deploy-on-ethereum-and-link-it) | two addresses for step 3, and the **For the bot** lines |
    | 3. Link PulseChain | [PulseChain guide](pulsechain/README.md#step-3-link-pulsechain) | nothing: it ends "Linked. .hex is live" |
 
-   Each step takes 5 to 10 minutes. Keep the summaries: the bot and the website need them.
+   Each step takes 5 to 10 minutes. Keep the summaries: the bot and the website need them. Run
+   step 3 straight after steps 1 and 2: until then, the deployer's key can still link the bridge
+   contracts.
 
 6. **Start the bot on Railway**, in a `testnet` environment (a separate copy of the bot, with its own
-   settings). [The bot guide](bot/README.md), about 15 minutes. Copy the public key it prints.
+   settings). [The bot guide](bot/README.md), about 15 minutes. Copy the wallet and the public key
+   it prints, for the website. (The public key is only used if buying from Ethereum is switched on,
+   with `FILL=true`.)
 
 7. **Put up a testnet copy of the website.** Fill in the `testnet` part of `web/src/deployment.ts`,
    then add a second Netlify project that shows the testnets. [The website guide](website/README.md).
@@ -204,7 +208,7 @@ stopped run deployed is simply never used.
 | Address | A wallet's or contract's public number, starting `0x`. Safe to share |
 | Private key | The secret that controls a wallet. Never share it |
 | Recovery phrase (seed phrase) | The 12 or 24 words that restore a wallet. Whoever has them has the wallet |
-| Admin / deployer | The wallet that can raise or lower all prices together / the wallet that pays for the deploy |
+| Admin / deployer | The wallet that can raise or lower all prices together, add registrars and hand out held names, but can't unregister, move or redirect a live name ([more](#what-youll-need)) / the wallet that pays for the deploy |
 | Block, start block | The chain's numbered batches of transactions; where the bot starts reading |
 | RPC | The web address programs use to talk to a chain, for example `https://rpc.pulsechain.com` |
 | Explorer | A website for looking up transactions and contracts: scan.pulsechain.com, etherscan.io |

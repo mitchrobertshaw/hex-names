@@ -125,7 +125,7 @@ export async function connect(id: string, quietly = false): Promise<void> {
     set({ connected: { option, account: getAddress(accounts[0]), chainId }, connecting: false });
     remember(id);
     // Names live on PulseChain: on connecting, offer to move there (adding it if the wallet doesn't
-    // have it). Paying from Ethereum switches back when it's needed.
+    // have it).
     if (!quietly && chainId !== CHAINS.pulsechain.id) await switchTo("pulsechain").catch(() => undefined);
   } catch (error) {
     set({ connecting: false, error: quietly ? null : messageOf(error) });
@@ -146,6 +146,7 @@ async function refreshChain(): Promise<number | null> {
   try {
     const chainId = Number(await connected.option.provider.request({ method: "eth_chainId" }));
     if (state.connected && state.connected.chainId !== chainId) set({ connected: { ...state.connected, chainId } });
+    if (state.missing && CHAINS[state.missing].id === chainId) set({ missing: null });
     return chainId;
   } catch {
     return null;
@@ -185,7 +186,7 @@ export async function switchTo(key: ChainKey): Promise<void> {
   const connected = state.connected;
   if (!connected) throw new Error("Connect a wallet first.");
   const chain = CHAINS[key];
-  if (connected.chainId === chain.id) return;
+  if (((await refreshChain()) ?? connected.chainId) === chain.id) return;
   const provider = connected.option.provider;
   const chainId = `0x${chain.id.toString(16)}`;
   try {

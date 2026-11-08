@@ -173,10 +173,24 @@ export async function send(ctx: Context, chain: "pls" | "eth", call: Call): Prom
 
 /** The same, returning the receipt, for reading what the transaction logged. */
 export async function sendForReceipt(ctx: Context, chain: "pls" | "eth", call: Call): Promise<TransactionReceipt> {
+  return receiptOf(ctx, chain, await submit(ctx, chain, call));
+}
+
+/**
+ * Simulates and sends a transaction, returning its hash without waiting for it to be mined, so the
+ * caller can remember it first: if waiting then fails (an RPC error, a restart), the next pass finds
+ * the transaction again instead of sending it twice.
+ */
+export async function submit(ctx: Context, chain: "pls" | "eth", call: Call): Promise<Hex> {
   const client = chain === "pls" ? ctx.pls : ctx.eth;
   const wallet = chain === "pls" ? ctx.plsWallet : ctx.ethWallet;
   const { request } = await client.simulateContract({ ...call, account: ctx.account } as never);
-  const hash = await wallet.writeContract(request as never);
+  return wallet.writeContract(request as never);
+}
+
+/** Waits for a transaction sent with `submit`; throws if it reverted. */
+export async function receiptOf(ctx: Context, chain: "pls" | "eth", hash: Hex): Promise<TransactionReceipt> {
+  const client = chain === "pls" ? ctx.pls : ctx.eth;
   const receipt = await client.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
   return receipt;

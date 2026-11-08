@@ -183,24 +183,28 @@ export function NamePage({ label }: { label: string }) {
               </div>
               <div>
                 <dt>Points to</dt>
-                <dd>Its owner, on PulseChain and Ethereum</dd>
+                <dd>Its owner, on PulseChain and Ethereum, unless they point it elsewhere</dd>
               </div>
               <div>
-                <dt>{info.inGrace ? "Expired on" : "Renews by"}</dt>
+                <dt>{info.inGrace ? "Expired on" : "Paid until"}</dt>
                 <dd>{dateText(info.expiry)}</dd>
               </div>
             </dl>
             {info.inGrace ? (
               <p className="details__note">
-                Its owner has until {dateText(info.expiry + 28 * 86400)} to renew it. After that anyone can buy it.
+                Its owner has until {dateText(info.expiry + 28 * 86400)} to renew it. After that anyone can buy it,
+                at a price that starts at $100 million and halves every day for 21 days.
               </p>
             ) : null}
           </section>
-          {mine ? <OwnerPanel label={label} onChanged={() => setVersion((v) => v + 1)} /> : null}
+          {mine ? (
+            <OwnerPanel label={info.label} canSend={!info.inGrace} onChanged={() => setVersion((v) => v + 1)} />
+          ) : null}
           <RenewPanel
-            label={label}
-            length={[...label].length}
+            label={info.label}
+            length={[...info.label].length}
             expiry={info.expiry}
+            mine={mine}
             onChanged={() => setVersion((v) => v + 1)}
           />
         </>
@@ -272,7 +276,9 @@ export function MyNamesPage() {
       </p>
       {owned === null ? (
         <p className="name-page__loading">Looking…</p>
-      ) : owned === "unavailable" || owned.length === 0 ? (
+      ) : owned === "unavailable" ? (
+        <p className="card name-page__note">Couldn&rsquo;t load your names just now. Try again in a moment.</p>
+      ) : owned.length === 0 ? (
         <section className="card my-names__empty">
           <p>
             <b>No .hex names in this wallet yet.</b>
@@ -290,7 +296,7 @@ export function MyNamesPage() {
                   {n.label}
                   <span className="grad-text">.hex</span>
                 </a>
-                <p className="my-names__expiry">Renews by {dateText(n.expiry)}</p>
+                <p className="my-names__expiry">Paid until {dateText(n.expiry)}</p>
               </div>
               <div className="my-names__actions">
                 <CopyButton text={referralLink(n.label)} label="Copy referral link" />

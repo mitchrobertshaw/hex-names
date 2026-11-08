@@ -1,5 +1,6 @@
-// The chains and tokens the checkout offers, with the routes the contracts swap along: PulseX on
-// PulseChain (as AnyTokenCheckout and its fork tests use), Uniswap V2 on Ethereum (HexOrderBook).
+// The tokens the checkout offers on PulseChain, where names are bought, and the routes the contracts
+// swap them along on PulseX (as AnyTokenCheckout and its fork tests use). Ethereum's entry is for
+// reading it; buying from Ethereum (HexOrderBook, on Uniswap V2) is switched off.
 import { ETHEREUM_ORDER_FEE } from "./names";
 
 export type ChainKey = "pulsechain" | "ethereum";
@@ -15,7 +16,6 @@ export interface PayToken {
   native?: boolean;
   /** The swap from this token to USDC, or null for USDC itself. */
   path: string[] | null;
-  router?: string;
 }
 
 export interface PayChain {
@@ -23,7 +23,12 @@ export interface PayChain {
   name: string;
   /** A public RPC that answers browsers, for live quotes. */
   rpc: string;
-  router: string;
+  /**
+   * The exchanges the checkout may swap on. Each payment asks them all and uses whichever needs the
+   * least: pools differ in depth (in November 2026, $640 of PLS cost 6.6% more on PulseX V2 than on
+   * V1, while HEX from Ethereum was cheaper on V2), and they change over time.
+   */
+  routers: string[];
   dex: string;
   /** Dollars added to the price when paying from this chain. */
   fee: number;
@@ -58,21 +63,25 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
     key: "pulsechain",
     name: "PulseChain",
     rpc: "https://pulsechain-rpc.publicnode.com",
-    router: PULSECHAIN.PULSEX_V2,
+    routers: [PULSECHAIN.PULSEX_V1, PULSECHAIN.PULSEX_V2],
     dex: "PulseX",
     fee: 0,
     network: "A fraction of a cent, in PLS",
     tokens: [
       { symbol: "PLS", decimals: 18, native: true, path: [PULSECHAIN.WPLS, PULSECHAIN.USDC] },
-      { symbol: "HEX", decimals: 8, path: [PULSECHAIN.HEX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
+      {
+        symbol: "HEX",
+        note: "PulseChain\u2019s own HEX. HEX bridged from Ethereum is eHEX.",
+        decimals: 8,
+        path: [PULSECHAIN.HEX, PULSECHAIN.WPLS, PULSECHAIN.USDC],
+      },
       {
         symbol: "eHEX",
         note: "HEX bridged from Ethereum, which your wallet calls \u201cHEX from Ethereum\u201d. Not the HEX made on PulseChain.",
         decimals: 8,
         path: [PULSECHAIN.HEX_FROM_ETHEREUM, PULSECHAIN.WPLS, PULSECHAIN.USDC],
-        router: PULSECHAIN.PULSEX_V2,
       },
-      { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
+      { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC] },
       {
         symbol: "USDC",
         label: "USDC from Ethereum",
@@ -80,15 +89,14 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
         decimals: 6,
         path: null,
       },
-      // Through WPLS, on the PulseX router with the deeper pools for each (checked on 8 November
-      // 2026: WETH lost 0.1% on $100 and eHEX 1% on $100, about 7% on $640).
+      // Through WPLS. On 8 November 2026 the swap lost WETH about 0.2% on $100; eHEX's pools are
+      // smaller, so it lost about 1% on $100 and 7% on $640.
       {
         symbol: "WETH",
         label: "WETH from Ethereum",
         note: "Ether bridged from Ethereum, which your wallet calls \u201cWrapped Ether from Ethereum\u201d.",
         decimals: 18,
         path: [PULSECHAIN.WETH_FROM_ETHEREUM, PULSECHAIN.WPLS, PULSECHAIN.USDC],
-        router: PULSECHAIN.PULSEX_V1,
       },
     ],
   },
@@ -96,7 +104,7 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
     key: "ethereum",
     name: "Ethereum",
     rpc: "https://ethereum-rpc.publicnode.com",
-    router: ETHEREUM.UNISWAP_V2,
+    routers: [ETHEREUM.UNISWAP_V2],
     dex: "Uniswap",
     fee: ETHEREUM_ORDER_FEE,
     network: "Set by Ethereum; your wallet shows it before you confirm",
@@ -122,7 +130,7 @@ export const TESTNET_PAY_CHAINS: Record<ChainKey, PayChain> = {
     key: "pulsechain",
     name: "PulseChain Testnet v4",
     rpc: "https://rpc.v4.testnet.pulsechain.com",
-    router: "0x636f6407B90661b73b1C0F7e24F4C79f624d0738",
+    routers: ["0x636f6407B90661b73b1C0F7e24F4C79f624d0738"],
     dex: "PulseX",
     fee: 0,
     network: "A fraction of a cent, in tPLS",
@@ -140,7 +148,7 @@ export const TESTNET_PAY_CHAINS: Record<ChainKey, PayChain> = {
     key: "ethereum",
     name: "Sepolia",
     rpc: "https://ethereum-sepolia-rpc.publicnode.com",
-    router: SEPOLIA.UNISWAP_V2,
+    routers: [SEPOLIA.UNISWAP_V2],
     dex: "Uniswap",
     fee: ETHEREUM_ORDER_FEE,
     network: "Close to nothing, in Sepolia ETH",

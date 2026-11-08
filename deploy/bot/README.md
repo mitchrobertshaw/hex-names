@@ -114,6 +114,9 @@ hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
 - **"daily: working balance … PLS … ETH …"**, once a day: its balances, and its budget from your
   payments wallet.
 - **"gas: bought …"** and **"balance: …"** are it paying its own way ([money](#money)).
+- **"bridge: holding back a claim, …"**, at most once an hour, says why a claim is waiting: a name
+  copied less than an hour ago, the day's limit reached ([money](#money)), or ETH kept back to claim
+  its own USDC. It goes through by itself later.
 - **"WARNING: the bot is …"**, at most once a day, means it needs you: it says what for.
 
 On its first run the bot also copies the reserved names that went straight to a wallet over to
@@ -152,8 +155,13 @@ a sale.
 (`FLOAT_USDC`). When its gas runs low it buys more with it: PLS on PulseX ($2 at a time, over
 300,000 PLS) and ETH on Uniswap ($15 at a time, sent to Ethereum over the bridge first, which
 charges 0.3% in that direction). When the working balance runs low, it draws what it needs from your
-payments wallet, up to the budget you set on the app's payments page. If it ever holds more than it
-needs, the extra comes back to your payments wallet.
+payments wallet, up to the budget you set on the app's payments page. If the working balance can't
+cover a purchase of gas, it draws the difference first. If it ever holds more than it needs, the
+extra comes back to your payments wallet.
+
+**It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
+knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends
+the same money again. On Ethereum it claims its own USDC first, and keeps enough ETH back to do so.
 
 **What you'll see in your payments wallet:** the price of every name sold, and now and then a small
 draw by the bot for gas. The app's payments page shows the bot's balances and the budget left.
@@ -164,6 +172,12 @@ itself, its log says so, once a day, starting "WARNING".
 
 **Costs.** Railway's Hobby plan, $5 a month. Gas, at 8 November 2026's prices: about 3 cents to copy
 each name, renewal or transfer to Ethereum. A $100 budget covers about 3,000 of those.
+
+**Limits on copying names.** So that nobody can run up its Ethereum gas by changing a name over and
+over, it copies each name at most once an hour (the newest change wins), and spends at most 0.02 ETH
+a day copying names, about 1,600 copies at November 2026's gas prices. The rest wait until the next
+day (UTC). The settings `RELAY_NAME_COOLDOWN_MINUTES` (60) and `RELAY_DAILY_ETH` (0.02) change
+these.
 
 ## Keeping it safe
 
@@ -183,6 +197,8 @@ each name, renewal or transfer to Ethereum. A $100 budget covers about 3,000 of 
 - **New settings:** edit them under **Variables**, then **Details** and **Deploy** in the bar at the
   top, as in 2.6.
 
-The optional settings (other RPCs, the bot's fee and so on) are listed in
-[`bot/.env.example`](../../bot/.env.example). To run the bot on a computer instead, see
-[`bot/README.md`](../../bot/README.md).
+The optional settings (other RPCs, the limits on copying names, and those only used if buying from
+Ethereum is switched on, such as the bot's fee) are listed in
+[`bot/.env.example`](../../bot/.env.example). On/off settings (`FILL`, `RELAY`, `SYNC`, `TREASURY`)
+take true/false, 1/0, yes/no or on/off; anything else stops the bot, and its log says which setting.
+To run the bot on a computer instead, see [`bot/README.md`](../../bot/README.md).

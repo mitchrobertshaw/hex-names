@@ -8,12 +8,14 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
 [`app/index.html`](app/index.html) and [`src/app`](src/app). One page with three views:
 
 - **Search** (`/`): find a name, and see the names just registered.
-- **A name** (`/alice.hex`): if it's free, choose how long, which chain to pay from and which
-  token, see exactly what it costs, and buy it. From PulseChain that's: reserve it, wait a minute
-  (the token is allowed meanwhile), pay ([`flows.ts`](src/app/flows.ts)). From Ethereum it's one
-  order, sealed so only the bot can read which name it is, which the bot fills on PulseChain within
-  about a minute and a half. If it's taken: who owns it and until when. If it's yours: renew it,
-  send it to another wallet, and your referral link.
+- **A name** (`/alice.hex`): if it's free, choose how long and which token, see exactly what it
+  costs, and buy it on PulseChain: reserve it, wait a minute, pay ([`flows.ts`](src/app/flows.ts)).
+  Each payment is quoted on both PulseX routers (V1 and V2) and paid along whichever needs less: in
+  November 2026, $640 of PLS cost 6.6% more on V2 than on V1. A token is allowed during the minute,
+  with about 5% to spare in case its price moves. Just before paying, the app checks the allowance
+  again, and asks for one more approval only if the price rose more than that room allows. If it's
+  taken: who owns it and until when. If it's yours: renew it, send it to another wallet, and your
+  referral link.
 - **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
 
 Wallets: any browser wallet that announces itself (MetaMask, Rabby, Internet Money and others) or
@@ -21,9 +23,10 @@ sits at `window.ethereum` ([`wallet.ts`](src/app/wallet.ts)). Phone wallets by Q
 WalletConnect, which needs a project ID from reown.com.
 
 **Switching it on.** Fill in [`src/deployment.ts`](src/deployment.ts) from the deploy run summaries
-and the public key the bot prints when it starts ([how](../deploy/website/README.md)). Until then
-the app searches and prices names, connects wallets, and plays a purchase through as a walkthrough
-that sends nothing. For a testnet copy, fill in `testnet` and set `VITE_NETWORK=testnet` in a second
+and the bot's log ([how](../deploy/website/README.md)). The bot's public key and fee there are only
+used if buying from Ethereum is switched on (`FILL=true`). Until the file is filled in, the app
+searches and prices names, connects wallets, and plays a purchase through as a walkthrough that
+sends nothing. For a testnet copy, fill in `testnet` and set `VITE_NETWORK=testnet` in a second
 Netlify project's environment variables.
 
 **Where it lives.** On Netlify, add `app.hexns.domains` as a second domain of this same site:
@@ -44,7 +47,9 @@ kept to the launch offer, it works out 10% of what each referrer's buyers paid, 
 the referring name now ([`src/app/ReferralsPage.tsx`](src/app/ReferralsPage.tsx), adding up in
 [`src/lib/payouts.ts`](src/lib/payouts.ts)). It reads the registrar's `NameRegistered` and
 `NameRenewed` events from the deployment's start block, in the browser. Self-referrals (the buyer
-also owns the referring name) and tags that aren't a name anyone owns are set aside.
+also owns the referring name) and tags that aren't a name anyone owns are set aside. The same page,
+titled "Referral payouts", also shows the bot's balances and sets the budget it may draw from this
+wallet for gas ([how](../deploy/bot/README.md#money)).
 
 **Pay all** pays every referrer from the connected wallet in one transaction, in USDC on PulseChain,
 through [Disperse](https://disperse.app) (`0xD152f549545093347A162Dce210e7293f1452150`, with the same
@@ -54,8 +59,9 @@ referrer exactly what they're owed, and says so instead of offering to pay again
 downloads has each wallet and the exact USDC.
 
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
-and the bot: buying on PulseChain with USDC, ordering from Sepolia with ETH (filled by the bot),
-renewing, sending, My names, and a referral tag landing on-chain.
+and the bot: buying on PulseChain with USDC, renewing, sending, My names, and a referral tag landing
+on-chain. Ordering from Sepolia with ETH (filled by the bot) was tested too, before buying from
+Ethereum was switched off.
 
 ## Putting it on Netlify
 

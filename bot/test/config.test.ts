@@ -109,3 +109,20 @@ test("on Railway, the bot remembers its place on the attached volume", () => {
 
   assert.equal(loadConfig({ ...DEPLOYED, ...railway, RAILWAY_VOLUME_MOUNT_PATH: "/data", STATE_FILE: "/data/testnet.json" }).stateFile, "/data/testnet.json");
 });
+
+test("switches read as on or off, and anything unclear is refused rather than guessed", () => {
+  for (const off of ["false", "FALSE", "0", "no", "off"]) assert.equal(loadConfig({ ...DEPLOYED, FILL: off }).fill, false, off);
+  for (const on of ["true", "1", "yes", "on"]) assert.equal(loadConfig({ ...DEPLOYED, FILL: on }).fill, true, on);
+  assert.equal(loadConfig({ ...DEPLOYED }).fill, false, "filling is off unless asked for");
+  assert.equal(loadConfig({ ...DEPLOYED, RELAY: "0" }).relay, false);
+  assert.throws(() => loadConfig({ ...DEPLOYED, FILL: "maybe" }), /FILL must be true or false/);
+});
+
+test("copying names keeps to a daily ETH limit and to one copy of a name an hour, unless changed", () => {
+  const limits = loadConfig({ ...DEPLOYED }).relayLimits;
+  assert.equal(limits.dailyEth, 20_000_000_000_000_000n); // 0.02 ETH
+  assert.equal(limits.nameCooldown, 3600n);
+  const custom = loadConfig({ ...DEPLOYED, RELAY_DAILY_ETH: "0.1", RELAY_NAME_COOLDOWN_MINUTES: "15" }).relayLimits;
+  assert.equal(custom.dailyEth, 100_000_000_000_000_000n);
+  assert.equal(custom.nameCooldown, 900n);
+});

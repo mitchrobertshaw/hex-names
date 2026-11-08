@@ -28,15 +28,18 @@ export interface Deployment {
   };
   ethereum: {
     rpc: string;
-    /** ETHEREUM_ORDER_BOOK: orders placed from Ethereum. */
+    /** ETHEREUM_ORDER_BOOK: orders placed from Ethereum. Only for buying from Ethereum, which is switched off. */
     orderBook: Address;
     /** USDC on Ethereum (or Sepolia). */
     usdc: Address;
   };
   bot: {
-    /** The public key the bot prints when it starts ("for the website"): orders are sealed to it. */
+    /**
+     * The public key the bot prints when it starts ("for the website"): orders from Ethereum are sealed
+     * to it. Only for buying from Ethereum, which is switched off; kept ready in case that changes.
+     */
     publicKey: Address;
-    /** The bot's least fee per order, in dollars (MIN_FEE_USDC). */
+    /** The bot's least fee per order from Ethereum, in dollars (MIN_FEE_USDC). Only for buying from Ethereum. */
     minFee: number;
     /**
      * The bot's wallet, the address it prints when it starts ("hex-names bot 0x…"). The payments

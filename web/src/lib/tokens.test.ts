@@ -36,9 +36,6 @@ describe("the checkout's tokens match the deployment", () => {
     expect(pulsechain.HEX_FROM_ETHEREUM).not.toBe(pulsechain.HEX); // eHEX is not PulseChain's HEX
     expect(weth!.label).toBe("WETH from Ethereum");
     expect(eHex!.note).toMatch(/bridged from Ethereum/);
-    // Each pays along a route the fork tests buy names with.
-    expect(lower(weth!.router!)).toBe(pulsechain.PULSEX_V1_ROUTER);
-    expect(lower(eHex!.router!)).toBe(pulsechain.PULSEX_V2_ROUTER);
     expect(new Set(PAY_CHAINS.pulsechain.tokens.map((token) => token.symbol)).size).toBe(PAY_CHAINS.pulsechain.tokens.length);
   });
 
@@ -49,15 +46,15 @@ describe("the checkout's tokens match the deployment", () => {
     }
   });
 
-  it("asks the same routers the checkout contracts swap on", () => {
-    expect(pulsexRouters).toContain(lower(PAY_CHAINS.pulsechain.router));
+  it("asks the same routers the checkout contracts swap on, both of PulseX's", () => {
+    // Each payment is quoted on both and paid along the cheaper (the fork tests buy on each).
+    expect(PAY_CHAINS.pulsechain.routers.map(lower).sort()).toEqual([...pulsexRouters].sort());
     for (const token of PAY_CHAINS.pulsechain.tokens) {
-      if (token.router) expect(pulsexRouters).toContain(lower(token.router));
       if (token.path) expect(lower(token.path[0])).not.toBe(pulsechain.USDC);
     }
     expect(lower(PAY_CHAINS.pulsechain.tokens[0].path![0])).toBe(pulsechain.WPLS);
 
-    expect(lower(PAY_CHAINS.ethereum.router)).toBe(ethereum.UNISWAP_V2_ROUTER);
+    expect(PAY_CHAINS.ethereum.routers.map(lower)).toEqual([ethereum.UNISWAP_V2_ROUTER]);
     for (const token of PAY_CHAINS.ethereum.tokens) {
       if (token.path) expect(lower(token.path[token.path.length - 1])).toBe(ethereum.USDC);
     }

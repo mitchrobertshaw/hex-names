@@ -116,8 +116,23 @@ test("an order bigger than the float: it draws only what the order needs now", (
   // With too small a budget, it draws nothing for the order, which is refunded, and says so.
   assert.deepEqual(kinds(plan(healthy, threeLetters, t)), ["warn:order"]);
   // ...while still keeping its own float topped up.
-  assert.deepEqual(kinds(plan({ ...healthy, float: usdc(100) }, threeLetters, t)), ["warn:order", "draw 50.00"]);
+  assert.deepEqual(kinds(plan({ ...healthy, float: usdc(100) }, threeLetters, t)), ["draw 50.00", "warn:order"]);
   assert.deepEqual(kinds(plan({ ...healthy, float: usdc(640.25) }, nothing, t)), ["return 490.25"]);
+});
+
+test("too little in its working balance to buy gas: it draws the difference first, in one draw", () => {
+  const d = defaults.treasury; // a $20 working balance, kept within $5
+  // $10 left and ETH low: it needs $16 on Ethereum, draws $6 for that and $20 to refill, then sends.
+  assert.deepEqual(kinds(plan({ ...healthy, float: usdc(10), eth: parseEther("0.001") }, nothing, d)), ["draw 26.00", "send-out 16.00"]);
+  // Low on PLS with nothing left: $2 for PLS and $20 to refill.
+  assert.deepEqual(kinds(plan({ ...healthy, float: 0n, pls: 0n }, nothing, d)), ["draw 22.00", "buy-pls 2.00"]);
+  // A budget too small for the ETH: it says so, and draws what it can for its working balance.
+  assert.deepEqual(kinds(plan({ ...healthy, float: usdc(10), eth: parseEther("0.001"), budget: usdc(3) }, nothing, d)), ["draw 3.00", "warn:eth", "warn:budget"]);
+});
+
+test("when Ethereum can't be read, it still looks after PulseChain, and leaves Ethereum alone", () => {
+  const unknown = { ...healthy, eth: 0n, ethUsdc: 0n, ethUnknown: true, pls: 0n };
+  assert.deepEqual(kinds(plan(unknown, nothing, t)), ["buy-pls 2.00"]);
 });
 
 test("USDC amounts read as dollars and cents", () => {
