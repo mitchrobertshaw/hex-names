@@ -176,11 +176,13 @@ function GetFunds({ funds, total }: { funds: Funds; total: number }) {
     return (
       <section className="get-funds get-funds--open" aria-labelledby="get-funds-title" role="status">
         <h3 id="get-funds-title" className="get-funds__title">
-          {funds === "no-gas" ? "You need a little PLS for the network fee" : "Not enough on PulseChain yet"}
+          Top up on PulseChain first
         </h3>
         <p>
-          Names are bought on PulseChain. LibertySwap brings money over from other chains in a few minutes, for a
-          0.3% fee.
+          {funds === "no-gas"
+            ? "This wallet needs a little PLS for the network fee."
+            : "This wallet doesn't hold enough on PulseChain yet."}{" "}
+          LibertySwap moves funds over from other chains in a few minutes, for a 0.3% fee.
         </p>
         {steps}
         {link}
