@@ -36,7 +36,7 @@ function Result({ check }: { check: NameCheck }) {
       return (
         <Card tone="ok" icon={<CheckIcon />} title={<><b>{check.name}</b> is available</>}>
           <p>
-            ${check.yearlyPrice} a year for both chains, paid in PLS, HEX or any token.
+            ${check.yearlyPrice} a year for both chains. Pay on PulseChain, with PLS, HEX and more.
           </p>
           <RegisterLink name={check.name} />
         </Card>

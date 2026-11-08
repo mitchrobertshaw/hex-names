@@ -413,7 +413,10 @@ interface BotBalances {
   pls: bigint;
   eth: bigint;
   ethUsdc: bigint;
+  /** What the bot can draw now: the budget allowed, or what this wallet holds if that's less. */
   budget: bigint;
+  /** The budget allowed. */
+  allowed: bigint;
 }
 
 /**
@@ -440,8 +443,13 @@ function BotCard() {
       clients.ethereum.getBalance({ address: bot }),
       clients.ethereum.readContract({ address: d.ethereum.usdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
       clients.pulsechain.readContract({ address: d.pulsechain.usdc, abi: erc20Abi, functionName: "allowance", args: [owner, bot] }),
+      clients.pulsechain.readContract({ address: d.pulsechain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner] }),
     ])
-      .then(([float, pls, eth, ethUsdc, budget]) => alive && setBalances({ float, pls, eth, ethUsdc, budget }))
+      .then(
+        ([float, pls, eth, ethUsdc, allowed, held]) =>
+          // The bot can draw no more than this wallet holds, whatever it's allowed.
+          alive && setBalances({ float, pls, eth, ethUsdc, budget: allowed < held ? allowed : held, allowed }),
+      )
       .catch(() => alive && setBalances("failed"));
     return () => {
       alive = false;
@@ -520,7 +528,7 @@ function BotCard() {
             <button
               type="button"
               className="button button--ghost"
-              disabled={busy || !balances || balances === "failed" || balances.budget === 0n}
+              disabled={busy || !balances || balances === "failed" || balances.allowed === 0n}
               onClick={() => void setBudget(0n)}
             >
               Stop it drawing

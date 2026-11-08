@@ -42,7 +42,7 @@ export function BothChains() {
           title={<span id="chains-title">One name, covered on both chains</span>}
         >
           Live on PulseChain, still on Ethereum, or somewhere in between? Your .hex name works on both, so you&rsquo;re
-          covered wherever you end up. {PRICE} a year covers both chains.
+          covered wherever you end up. From {PRICE} a year, for both chains.
         </SectionHeading>
         <div className="chains">
           <article className="card chain chain--pulsechain">
@@ -71,7 +71,7 @@ export function BothChains() {
         </div>
         <ul className="ticks ticks--grid">
           <li>
-            <CheckIcon size={18} /> Buy from either chain, with whatever you hold there
+            <CheckIcon size={18} /> Buy once on PulseChain, and it&rsquo;s yours on both
           </li>
           <li>
             <CheckIcon size={18} /> Points to your wallet on both chains
@@ -88,7 +88,7 @@ export function BothChains() {
   );
 }
 
-const TOKENS = ["PLS", "HEX", "PLSX", "ETH", "USDC"];
+const TOKENS = ["PLS", "HEX", "PLSX", "eHEX", "WETH", "USDC"];
 
 export function Features() {
   return (
@@ -104,7 +104,7 @@ export function Features() {
                 <span>
                   you<span className="pill__tld">.hex</span>
                 </span>
-                <small>{PRICE} a year, both chains</small>
+                <small>From {PRICE} a year, both chains</small>
               </span>
               <span className="art-chains__wire" />
               <ChainLogo chain="ethereum" size={56} />
@@ -112,8 +112,8 @@ export function Features() {
             <div className="bento__text">
               <h3>One price, both chains</h3>
               <p>
-                {PRICE} a year covers your name on PulseChain and Ethereum. No paying twice, no keeping two names in
-                step.
+                One yearly price, from {PRICE}, covers your name on PulseChain and Ethereum. No paying twice, no
+                keeping two names in step.
               </p>
             </div>
           </article>
@@ -126,16 +126,15 @@ export function Features() {
                     {token}
                   </span>
                 ))}
-                <span className="art-tokens__chip art-tokens__chip--any">+ any token</span>
               </span>
               <span className="art-tokens__arrow">
                 <ArrowIcon />
               </span>
-              <span className="art-tokens__total">{PRICE} a year</span>
+              <span className="art-tokens__total">From {PRICE} a year</span>
             </div>
             <div className="bento__text">
               <h3>Pay with your bag</h3>
-              <p>Any token with a pool. It&rsquo;s swapped at checkout, so the price stays {PRICE} a year.</p>
+              <p>PLS, HEX, eHEX, PLSX, WETH or USDC, on PulseChain. It&rsquo;s swapped at checkout, so prices stay in dollars.</p>
             </div>
           </article>
 
@@ -240,7 +239,7 @@ export function Pricing() {
               <CheckIcon size={18} /> No paying twice for two chains
             </li>
             <li>
-              <CheckIcon size={18} /> Pay in PLS, HEX or any token, from either chain
+              <CheckIcon size={18} /> Pay in PLS, HEX, eHEX, PLSX, WETH or USDC
             </li>
             <li>
               <CheckIcon size={18} /> 28 days&rsquo; grace to renew if you forget
@@ -311,7 +310,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Which chains does it work on?",
-    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after a purchase or a sale. If you use both chains, or might one day, you're covered either way.",
+    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. If you use both chains, or might one day, you're covered either way.",
   },
   {
     q: `Why ${PRICE} a year?`,
@@ -323,7 +322,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "What can I pay with?",
-    a: "Names are bought on PulseChain, with PLS, HEX or PLSX, with USDC, WETH or HEX bridged from Ethereum (eHEX), or with any token that has a PulseX pool. It's swapped into USDC at checkout, so the price stays in dollars. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee, and the PLS pays for your name and the network fee.",
+    a: "Names are bought on PulseChain, with PLS, HEX or PLSX, or with USDC, WETH or HEX (eHEX) bridged from Ethereum. It's swapped into USDC at checkout, so the price stays in dollars. Holding another token? Swap it for PLS on PulseX first. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee (send at least $10), and the PLS pays for your name and the network fee.",
   },
   {
     q: "What happens if I forget to renew?",
@@ -372,7 +371,7 @@ export function Cta() {
         <div className="cta">
           <h2 id="cta-title">Claim your name before someone else does</h2>
           <p>
-            Every name exists once. Search for yours, pay with whatever you hold, and it&rsquo;s yours on both chains.
+            Every name exists once. Search for yours, buy it on PulseChain, and it&rsquo;s yours on both chains.
           </p>
           <div className="cta__actions">
             <a className="button button--primary" href="#top">

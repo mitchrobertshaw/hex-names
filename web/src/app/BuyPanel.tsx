@@ -7,7 +7,7 @@ import { formatToken, formatUsd, quoteIn } from "../lib/quotes";
 import { captureReferral, referralLink } from "../lib/referral";
 import type { ChainKey, PayToken } from "../lib/tokens";
 import { erc20Abi } from "./abis";
-import { buyOnPulseChain, type Step, tokenAddress } from "./flows";
+import { buyOnPulseChain, type Step, tokenAddress, withBuffer } from "./flows";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
 import { clients, deployment, PAY } from "./network";
@@ -93,8 +93,8 @@ export const LIBERTYSWAP_URL = "https://libertyswap.finance";
 type Funds = "enough" | "short" | "no-gas" | null;
 
 /**
- * Whether the connected wallet holds enough on PulseChain to buy: `need` of `token` (from the live
- * quote) and a little PLS for the network fee. Checked again every 20 seconds and whenever the page
+ * Whether the connected wallet holds enough on PulseChain to buy: `need` of `token` (the live quote,
+ * plus the 2% a swap sends in case the price moves) and a little PLS for the network fee. Checked again every 20 seconds and whenever the page
  * comes back into view, for buyers returning from LibertySwap. Null until it's known.
  */
 function useFunds(account: Address | undefined, token: PayToken, need: bigint | null): Funds {
@@ -140,9 +140,12 @@ function useFunds(account: Address | undefined, token: PayToken, need: bigint | 
   return funds;
 }
 
-/** What LibertySwap should send, in dollars: the total, a margin for prices moving, and its $10 minimum. */
+/**
+ * What LibertySwap should send, in dollars: the total, its 0.3% fee, the 2% a swap sends on top (it
+ * comes back as change), a margin for prices moving, and LibertySwap's $10 minimum.
+ */
 export function amountToSend(total: number): number {
-  return Math.max(10, Math.ceil(total * 1.03 + 1));
+  return Math.max(10, Math.ceil(total * 1.04 + 1));
 }
 
 /**
@@ -150,8 +153,10 @@ export function amountToSend(total: number): number {
  * bring it over with LibertySwap, a separate service, as PLS, which also pays the network fee.
  * Open when the connected wallet is short; a closed "Coming from another chain?" otherwise.
  */
-function GetFunds({ funds, total }: { funds: Funds; total: number }) {
+function GetFunds({ funds, total, token }: { funds: Funds; total: number; token: PayToken }) {
   const short = funds === "short" || funds === "no-gas";
+  // Short of a token other than PLS: another token may do, so say which one is short.
+  const tokenShort = funds === "short" && !token.native ? (token.label ?? token.symbol) : null;
   const steps = (
     <ol className="get-funds__steps">
       <li>
@@ -176,12 +181,14 @@ function GetFunds({ funds, total }: { funds: Funds; total: number }) {
     return (
       <section className="get-funds get-funds--open" aria-labelledby="get-funds-title" role="status">
         <h3 id="get-funds-title" className="get-funds__title">
-          Top up on PulseChain first
+          {tokenShort ? `Not enough ${tokenShort}` : "Top up on PulseChain first"}
         </h3>
         <p>
           {funds === "no-gas"
             ? "This wallet needs a little PLS for the network fee."
-            : "This wallet doesn't hold enough on PulseChain yet."}{" "}
+            : tokenShort
+              ? `This wallet doesn't hold enough ${tokenShort} for this. Pick another token above, or bring money over:`
+              : "This wallet doesn't hold enough on PulseChain yet."}{" "}
           LibertySwap moves funds over from other chains in a few minutes, for a 0.3% fee.
         </p>
         {steps}
@@ -214,7 +221,8 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const price = priceOf(info, years);
   const total = Math.round(price.total * 100) / 100;
   const quote = useQuote("pulsechain", token, total);
-  const funds = useFunds(wallet.connected?.account, token, quote.status === "ok" ? quote.amount : null);
+  const need = quote.status === "ok" ? (token.path ? withBuffer(quote.amount) : quote.amount) : null;
+  const funds = useFunds(wallet.connected?.account, token, need);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [phase, setPhase] = useState<"choose" | "buying" | "done" | "failed">("choose");
 
@@ -281,11 +289,11 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
               </button>
             ))}
           </div>
-          <p className="checkout__hint">{token.note ?? `Or any token with a ${chain.dex} pool.`}</p>
+          <p className="checkout__hint">{token.note ?? `Holding another token? Swap it for PLS on ${chain.dex} first.`}</p>
         </div>
       </fieldset>
 
-      <GetFunds funds={funds} total={total} />
+      <GetFunds funds={funds} total={total} token={token} />
 
       <dl className="breakdown">
         <div>

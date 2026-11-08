@@ -70,7 +70,7 @@ const dayText = (date: Date) =>
 
 /** What a name's owner is told about their referral link. */
 export function referralOfferText(offer: LaunchOffer | null): string {
-  const earn = `when someone buys a name through it, you earn ${REFERRAL_PERCENT}% of what they pay`;
+  const earn = `when someone buys or renews a name through it, you earn ${REFERRAL_PERCENT}% of what they pay`;
   if (!offer) return `Share it. For the first ${LAUNCH_OFFER_DAYS} days after launch, ${earn}.`;
   if (offer.open) return `Share it. Until ${dayText(offer.lastDay)}, ${earn}.`;
   return `The launch offer, ${REFERRAL_PERCENT}% of what buyers paid through referral links, ended on ${dayText(offer.lastDay)}.`;

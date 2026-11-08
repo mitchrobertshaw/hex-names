@@ -98,13 +98,13 @@ describe("referrals", () => {
     expect(launchOffer("1 December")).toBeNull();
 
     expect(referralOfferText(offer)).toBe(
-      "Share it. Until 27 January 2027, when someone buys a name through it, you earn 10% of what they pay.",
+      "Share it. Until 27 January 2027, when someone buys or renews a name through it, you earn 10% of what they pay.",
     );
     expect(referralOfferText(launchOffer("2026-12-01", Date.UTC(2027, 1, 1)))).toBe(
       "The launch offer, 10% of what buyers paid through referral links, ended on 27 January 2027.",
     );
     expect(referralOfferText(null)).toBe(
-      "Share it. For the first 58 days after launch, when someone buys a name through it, you earn 10% of what they pay.",
+      "Share it. For the first 58 days after launch, when someone buys or renews a name through it, you earn 10% of what they pay.",
     );
   });
 
@@ -186,7 +186,7 @@ describe("coming from another chain", () => {
   it("asks LibertySwap for the price, a margin for prices moving, and at least its $10 minimum", () => {
     expect(amountToSend(10)).toBe(12);
     expect(amountToSend(20)).toBe(22);
-    expect(amountToSend(640)).toBe(661);
+    expect(amountToSend(640)).toBe(667);
     expect(amountToSend(0)).toBe(10); // just PLS for the network fee
   });
 });

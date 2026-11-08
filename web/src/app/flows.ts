@@ -3,9 +3,9 @@
 import { type Address, type ContractFunctionArgs, type Hex, zeroAddress } from "viem";
 
 import type { ChainKey, PayToken } from "../lib/tokens";
-import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, orderBookAbi, registrarAbi, registryAbi } from "./abis";
+import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, registrarAbi, registryAbi } from "./abis";
 import { clients, deployment, PAY } from "./network";
-import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR, sealFor } from "./order";
+import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR } from "./order";
 import { switchTo, walletClient } from "./wallet";
 
 export type StepStatus = "todo" | "active" | "done" | "error";
@@ -50,8 +50,14 @@ export class Progress {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const now = () => Math.floor(Date.now() / 1000);
-/** Swaps send 2% extra in case the price moves; the change comes straight back. */
-const withBuffer = (amount: bigint) => (amount * 102n) / 100n;
+/** Swaps send 2% extra in case the price moves; the change comes straight back, in USDC. */
+export const withBuffer = (amount: bigint) => (amount * 102n) / 100n;
+/**
+ * What a token is allowed for while a purchase waits out its minute: room for its price to rise
+ * about 3% before paying, which sends the quote then plus 2%. Rises beyond that ask for one more
+ * approval just before paying.
+ */
+const withRoom = (amount: bigint) => (amount * 105n) / 100n;
 export const usdcUnits = (dollars: number) => BigInt(Math.round(dollars * 1_000_000));
 
 function required() {
@@ -66,14 +72,51 @@ export function tokenAddress(key: ChainKey, token: PayToken): Address | null {
   return token.path[0] as Address;
 }
 
-/** The swap from `token` to USDC, or no swap for USDC itself. */
-function swapFor(key: ChainKey, token: PayToken, amountOutMin: bigint) {
-  return {
-    router: (token.path ? (token.router ?? PAY[key].router) : zeroAddress) as Address,
-    path: (token.path ?? []) as Address[],
-    amountOutMin,
-    deadline: BigInt(now() + 20 * 60),
-  };
+type Quote = { router: Address; path: Address[]; price: bigint; amountIn: bigint };
+
+/**
+ * The checkout's price for registering or renewing `label`, and how much of `token` pays it, asked
+ * along each of PulseChain's routers. The one needing the least wins: pools differ in depth (PLS
+ * cost up to 6.6% more on PulseX V2 than V1 in November 2026) and change over time.
+ */
+async function bestQuote(
+  fn: "quoteRegister" | "quoteRenew",
+  label: string,
+  duration: bigint,
+  token: PayToken,
+): Promise<Quote> {
+  const d = required();
+  const path = (token.path ?? []) as Address[];
+  const routers = (token.path ? PAY.pulsechain.routers : [zeroAddress]) as Address[];
+  const answers = await Promise.allSettled(
+    routers.map(async (router) => {
+      const [price, amountIn] = await clients.pulsechain.readContract({
+        address: d.pulsechain.checkout,
+        abi: checkoutAbi,
+        functionName: fn,
+        args: [label, duration, router, path],
+      });
+      return { router, path, price, amountIn };
+    }),
+  );
+  const quotes = answers.flatMap((a) => (a.status === "fulfilled" ? [a.value] : []));
+  if (quotes.length === 0) throw (answers[0] as PromiseRejectedResult).reason;
+  return quotes.reduce((best, q) => (q.amountIn < best.amountIn ? q : best));
+}
+
+/** The swap the checkout makes along `q`: at least the price in USDC, or none for USDC itself. */
+function swapOf(token: PayToken, q: Quote) {
+  return { router: q.router, path: q.path, amountOutMin: token.path ? q.price : 0n, deadline: BigInt(now() + 20 * 60) };
+}
+
+/**
+ * A payment's gas estimate plus 30%, or undefined to leave it to the wallet if it can't be estimated.
+ * Some wallets send exactly the estimate, and a payment's last step (sending the name's copy to the
+ * bridge) can then run out of gas when other transactions in the same block change what it costs.
+ * Only the gas used is paid for.
+ */
+async function withGasRoom(estimate: Promise<bigint>): Promise<bigint | undefined> {
+  return estimate.then((gas) => (gas * 13n) / 10n).catch(() => undefined);
 }
 
 async function ensureAllowance(key: ChainKey, token: Address, spender: Address, amount: bigint, progress: Progress) {
@@ -165,16 +208,27 @@ export async function buyOnPulseChain(o: {
     const registrar = d.pulsechain.registrar;
     const duration = BigInt(o.years) * SECONDS_PER_YEAR;
 
-    const purchase = loadPending(o.label, owner, duration) ?? newPurchase(o.label, owner, o.years, o.referrer);
-    const commitment = commitmentOf(purchase);
+    let purchase = loadPending(o.label, owner, duration) ?? newPurchase(o.label, owner, o.years, o.referrer);
     const [minAge, maxAge, at] = await Promise.all([
       client.readContract({ address: registrar, abi: registrarAbi, functionName: "MIN_COMMITMENT_AGE" }),
       client.readContract({ address: registrar, abi: registrarAbi, functionName: "MAX_COMMITMENT_AGE" }),
-      client.readContract({ address: registrar, abi: registrarAbi, functionName: "commitmentAt", args: [commitment] }),
+      client.readContract({
+        address: registrar,
+        abi: registrarAbi,
+        functionName: "commitmentAt",
+        args: [commitmentOf(purchase)],
+      }),
     ]);
     let committedAt = Number(at);
+    if (committedAt && now() > committedAt + Number(maxAge) - 120) {
+      // Reserved too long ago to pay for in time, and the registrar won't take the same commitment
+      // again until it lapses: reserve afresh, with a new secret.
+      purchase = newPurchase(o.label, owner, o.years, o.referrer);
+      committedAt = 0;
+    }
+    const commitment = commitmentOf(purchase);
     progress.start("commit");
-    if (!committedAt || now() > committedAt + Number(maxAge) - 120) {
+    if (!committedAt) {
       savePending(purchase);
       const hash = await wallet.writeContract({
         address: registrar,
@@ -194,22 +248,14 @@ export async function buyOnPulseChain(o: {
     progress.start("wait", { until: Date.now() + Math.max(0, readyAt - chainNow) * 1000 });
 
     const token = tokenAddress("pulsechain", o.token);
-    const route = swapFor("pulsechain", o.token, 0n);
-    const quote = async () =>
-      client.readContract({
-        address: d.pulsechain.checkout,
-        abi: checkoutAbi,
-        functionName: "quoteRegister",
-        args: [o.label, duration, route.router, route.path],
-      });
     if (token) {
       // Allow the token during the wait, so paying is one step when it's over.
-      const [, amountIn] = await quote();
+      const { amountIn } = await bestQuote("quoteRegister", o.label, duration, o.token);
       await ensureAllowance(
         "pulsechain",
         token,
         d.pulsechain.checkout,
-        o.token.path ? withBuffer(amountIn) : amountIn,
+        o.token.path ? withRoom(amountIn) : amountIn,
         progress,
       );
       progress.done("approve");
@@ -218,24 +264,51 @@ export async function buyOnPulseChain(o: {
     progress.done("wait");
 
     progress.start("pay");
-    const [price, amountIn] = await quote();
+    const q = await bestQuote("quoteRegister", o.label, duration, o.token);
+    const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
+    if (token) {
+      // The price rose more than the room allowed during the minute: allow the new amount first.
+      await ensureAllowance("pulsechain", token, d.pulsechain.checkout, pay, progress);
+      progress.done("approve");
+      progress.start("pay");
+    }
     // TypeScript 7 loses viem's type for this struct inside writeContract; RegistrationArg (below)
     // checks the purchase has exactly the shape the contract takes.
     const reg = purchase as never;
-    const swap = { ...swapFor("pulsechain", o.token, price), amountOutMin: o.token.path ? price : 0n };
+    const swap = swapOf(o.token, q);
+    const checkout = d.pulsechain.checkout;
     const hash = token
       ? await wallet.writeContract({
-          address: d.pulsechain.checkout,
+          address: checkout,
           abi: checkoutAbi,
           functionName: "registerWithToken",
-          args: [reg, token, o.token.path ? withBuffer(amountIn) : amountIn, swap],
+          args: [reg, token, pay, swap],
+          gas: await withGasRoom(
+            client.estimateContractGas({
+              address: checkout,
+              abi: checkoutAbi,
+              functionName: "registerWithToken",
+              args: [reg, token, pay, swap],
+              account: owner,
+            }),
+          ),
         })
       : await wallet.writeContract({
-          address: d.pulsechain.checkout,
+          address: checkout,
           abi: checkoutAbi,
           functionName: "registerWithPLS",
           args: [reg, swap],
-          value: withBuffer(amountIn),
+          value: pay,
+          gas: await withGasRoom(
+            client.estimateContractGas({
+              address: checkout,
+              abi: checkoutAbi,
+              functionName: "registerWithPLS",
+              args: [reg, swap],
+              value: pay,
+              account: owner,
+            }),
+          ),
         });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -247,128 +320,9 @@ export async function buyOnPulseChain(o: {
   }
 }
 
-/**
- * Buys a name from Ethereum: one order holding the payment, with the name sealed so only the bot
- * can read it. The bot registers it on PulseChain within about a minute and a half; if it can't,
- * the money comes back over the bridge.
- */
-export async function buyFromEthereum(o: {
-  label: string;
-  years: number;
-  token: PayToken;
-  referrer: Hex;
-  report: Report;
-}) {
-  const d = required();
-  const progress = new Progress(
-    [
-      ["chain", `Switch to ${PAY.ethereum.name}`],
-      ...(o.token.native ? [] : ([["approve", `Allow ${o.token.symbol}`]] as [string, string][])),
-      ["order", "Place the order"],
-      ["fill", "Registered on PulseChain"],
-    ],
-    o.report,
-  );
-  try {
-    progress.start("chain");
-    await switchTo("ethereum");
-    progress.done("chain");
-    const wallet = walletClient("ethereum");
-    const owner = wallet.account.address;
-    const purchase = newPurchase(o.label, owner, o.years, o.referrer);
-    const commitment = commitmentOf(purchase);
-    const sealed = sealFor(purchase, d.bot.publicKey);
-
-    // The price is the registrar's, on PulseChain, plus the bot's fee.
-    const [base, premium] = await clients.pulsechain.readContract({
-      address: d.pulsechain.registrar,
-      abi: registrarAbi,
-      functionName: "getRegisterPrice",
-      args: [o.label, purchase.duration, d.pulsechain.usdc],
-    });
-    const amount = base + premium + usdcUnits(d.bot.minFee);
-    const book = d.ethereum.orderBook;
-    const token = tokenAddress("ethereum", o.token);
-    const route = swapFor("ethereum", o.token, amount);
-    const amountIn = o.token.path
-      ? withBuffer(
-          await clients.ethereum.readContract({
-            address: book,
-            abi: orderBookAbi,
-            functionName: "quote",
-            args: [amount, route.router, route.path],
-          }),
-        )
-      : amount;
-    if (token) {
-      await ensureAllowance("ethereum", token, book, amountIn, progress);
-      progress.done("approve");
-    }
-
-    progress.start("order");
-    const hash = !o.token.path
-      ? await wallet.writeContract({
-          address: book,
-          abi: orderBookAbi,
-          functionName: "placeOrder",
-          args: [commitment, amount, sealed],
-        })
-      : o.token.native
-        ? await wallet.writeContract({
-            address: book,
-            abi: orderBookAbi,
-            functionName: "placeOrderWithETH",
-            args: [commitment, amount, sealed, route],
-            value: amountIn,
-          })
-        : await wallet.writeContract({
-            address: book,
-            abi: orderBookAbi,
-            functionName: "placeOrderWithToken",
-            args: [commitment, amount, sealed, token!, amountIn, route],
-          });
-    progress.set("order", { tx: { chain: "ethereum", hash } });
-    await confirm("ethereum", hash);
-    keepOrder(purchase, hash);
-    progress.done("order");
-
-    progress.start("fill", { detail: "Usually within a minute and a half." });
-    const id = labelId(o.label);
-    const deadline = Date.now() + 35 * 60 * 1000;
-    while (Date.now() < deadline) {
-      const holder = await clients.pulsechain
-        .readContract({ address: d.pulsechain.registry, abi: registryAbi, functionName: "getOwner", args: [id] })
-        .catch(() => zeroAddress);
-      if (holder.toLowerCase() === owner.toLowerCase()) {
-        progress.done("fill", { detail: undefined });
-        return;
-      }
-      await sleep(5000);
-    }
-    progress.set("fill", {
-      status: "error",
-      detail: "It's taking longer than usual. If the name can't be registered, your money comes back automatically.",
-    });
-  } catch (error) {
-    progress.fail(errorText(error));
-    throw error;
-  }
-}
-
 /** The registration AnyTokenCheckout takes. A purchase must be exactly that. */
 type RegistrationArg = ContractFunctionArgs<typeof checkoutAbi, "nonpayable", "registerWithToken">[0];
 export const purchaseFitsTheContract = (p: Purchase): RegistrationArg => p;
-
-/** Keeps an order's details in this browser, in case the buyer ever needs them for a refund. */
-function keepOrder(p: Purchase, tx: Hex) {
-  try {
-    const orders = JSON.parse(localStorage.getItem("hexns-orders") ?? "[]");
-    orders.push({ ...p, duration: p.duration.toString(), tx, at: Date.now() });
-    localStorage.setItem("hexns-orders", JSON.stringify(orders.slice(-50)));
-  } catch {
-    // Not essential: the order is on-chain either way.
-  }
-}
 
 /** Renews a name on PulseChain for `years` more. Anyone can renew any name; it stays its owner's. */
 export async function renew(o: { label: string; years: number; token: PayToken; referrer: Hex; report: Report }) {
@@ -387,14 +341,8 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     progress.done("chain");
     const wallet = walletClient("pulsechain");
     const duration = BigInt(o.years) * SECONDS_PER_YEAR;
-    const route = swapFor("pulsechain", o.token, 0n);
-    const [price, amountIn] = await clients.pulsechain.readContract({
-      address: d.pulsechain.checkout,
-      abi: checkoutAbi,
-      functionName: "quoteRenew",
-      args: [o.label, duration, route.router, route.path],
-    });
-    const pay = o.token.path ? withBuffer(amountIn) : amountIn;
+    const q = await bestQuote("quoteRenew", o.label, duration, o.token);
+    const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
     const token = tokenAddress("pulsechain", o.token);
     if (token) {
       await ensureAllowance("pulsechain", token, d.pulsechain.checkout, pay, progress);
@@ -402,20 +350,41 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     }
     progress.start("pay");
     const ren = { label: o.label, duration, referrer: o.referrer };
-    const swap = { ...swapFor("pulsechain", o.token, price), amountOutMin: o.token.path ? price : 0n };
+    const swap = swapOf(o.token, q);
+    const checkout = d.pulsechain.checkout;
+    const account = wallet.account.address;
     const hash = token
       ? await wallet.writeContract({
-          address: d.pulsechain.checkout,
+          address: checkout,
           abi: checkoutAbi,
           functionName: "renewWithToken",
           args: [ren, token, pay, swap],
+          gas: await withGasRoom(
+            clients.pulsechain.estimateContractGas({
+              address: checkout,
+              abi: checkoutAbi,
+              functionName: "renewWithToken",
+              args: [ren, token, pay, swap],
+              account,
+            }),
+          ),
         })
       : await wallet.writeContract({
-          address: d.pulsechain.checkout,
+          address: checkout,
           abi: checkoutAbi,
           functionName: "renewWithPLS",
           args: [ren, swap],
           value: pay,
+          gas: await withGasRoom(
+            clients.pulsechain.estimateContractGas({
+              address: checkout,
+              abi: checkoutAbi,
+              functionName: "renewWithPLS",
+              args: [ren, swap],
+              value: pay,
+              account,
+            }),
+          ),
         });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
