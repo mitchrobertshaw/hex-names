@@ -8,7 +8,7 @@
 // Every order ends either filled or refunded: if the bot cannot fill it (the name is taken, the
 // details are invalid, it is underpaid), it reports it so the buyer gets their money back.
 
-import { type Hex, encodeAbiParameters, getAbiItem, keccak256, maxUint256 } from "viem";
+import { type Hex, type TransactionReceipt, encodeAbiParameters, getAbiItem, keccak256, maxUint256 } from "viem";
 
 import { ORDER_STATUS, OUTCOME, erc20Abi, orderBookAbi, orderFillerAbi, registrarAbi } from "./abis.ts";
 import { assertNormalizedLabel } from "./buy.ts";
@@ -120,6 +120,7 @@ async function processOrder(ctx: Context, order: OrderRecord, now: bigint, minAg
     }
     const at = await ctx.pls.readContract({ address: config.registrar, abi: registrarAbi, functionName: "commitmentAt", args: [order.commitment] });
     order.committedAt = at.toString();
+    order.price = price.toString();
     order.status = "committed";
     ctx.log(`order ${order.orderId}: committed for ${reveal.label}.hex, filling in about ${minAge} seconds`);
     return;
@@ -128,9 +129,11 @@ async function processOrder(ctx: Context, order: OrderRecord, now: bigint, minAg
   if (order.status === "committed") {
     if (now < BigInt(order.committedAt!) + minAge + 2n) return;
     await ensureFloat(ctx, price);
-    const tx = await send(ctx, "pls", { address: config.orderFiller, abi: orderFillerAbi, functionName: "fill", args: [orderId, deadline, r, config.pulsechainUsdc, ctx.payee] });
+    // The order repays the bot's own wallet on Ethereum, which sends the money home to its float.
+    const tx = await send(ctx, "pls", { address: config.orderFiller, abi: orderFillerAbi, functionName: "fill", args: [orderId, deadline, r, config.pulsechainUsdc, ctx.account.address] });
     order.txs.push(tx);
     order.status = "filled";
+    order.advanced = price.toString();
     ctx.log(`order ${order.orderId}: ${reveal.label}.hex registered to ${reveal.owner} (${tx}); payment follows over the bridge`);
   }
 }
@@ -161,15 +164,22 @@ function revealArg(r: Reveal) {
   return { label: r.label, owner: r.owner, secret: r.secret, subregistry: r.subregistry, resolver: r.resolver, duration: r.duration, referrer: r.referrer };
 }
 
+type Call = Parameters<Context["pls"]["simulateContract"]>[0] & { gas?: bigint };
+
 /** Simulates, sends and waits for a transaction; throws if it would revert or did. */
-export async function send(ctx: Context, chain: "pls" | "eth", call: Parameters<Context["pls"]["simulateContract"]>[0] & { gas?: bigint }): Promise<Hex> {
+export async function send(ctx: Context, chain: "pls" | "eth", call: Call): Promise<Hex> {
+  return (await sendForReceipt(ctx, chain, call)).transactionHash;
+}
+
+/** The same, returning the receipt, for reading what the transaction logged. */
+export async function sendForReceipt(ctx: Context, chain: "pls" | "eth", call: Call): Promise<TransactionReceipt> {
   const client = chain === "pls" ? ctx.pls : ctx.eth;
   const wallet = chain === "pls" ? ctx.plsWallet : ctx.ethWallet;
   const { request } = await client.simulateContract({ ...call, account: ctx.account } as never);
   const hash = await wallet.writeContract(request as never);
   const receipt = await client.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error(`transaction ${hash} reverted`);
-  return hash;
+  return receipt;
 }
 
 export function usdc(units: bigint): string {

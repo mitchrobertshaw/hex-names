@@ -197,7 +197,12 @@ export function NamePage({ label }: { label: string }) {
             ) : null}
           </section>
           {mine ? <OwnerPanel label={label} onChanged={() => setVersion((v) => v + 1)} /> : null}
-          <RenewPanel label={label} length={[...label].length} onChanged={() => setVersion((v) => v + 1)} />
+          <RenewPanel
+            label={label}
+            length={[...label].length}
+            expiry={info.expiry}
+            onChanged={() => setVersion((v) => v + 1)}
+          />
         </>
       ) : info.kind === "reserved" ? (
         <p className="card name-page__note">

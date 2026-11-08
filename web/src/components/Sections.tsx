@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { PRICES, YEARLY_PRICE } from "../lib/names";
+import { MAX_YEARS, PRICES, priceFor, YEARLY_PRICE } from "../lib/names";
 import { appUrl } from "../site";
 import { AddPulseChain } from "./AddPulseChain";
 import { ChainLogo } from "./ChainLogo";
@@ -197,8 +197,8 @@ const STEPS = [
     text: `Find a name you like. Names of 5 characters or more are ${PRICE} a year, for both chains.`,
   },
   {
-    title: "Buy it in one go",
-    text: "Pay from PulseChain or Ethereum with whatever you hold. No bridging, no swapping first.",
+    title: "Buy it on PulseChain",
+    text: "Pay with PLS, HEX, PLSX or USDC. Money on another chain? LibertySwap brings it over in a few minutes.",
   },
   {
     title: "Use it everywhere",
@@ -261,36 +261,41 @@ export function Pricing() {
             registered, it&rsquo;s taken for as long as its owner renews it.
           </p>
           <details className="price-more">
-            <summary>Shorter names and multi-year discounts</summary>
+            <summary>Shorter names, and 5 years for the price of 2</summary>
             <table className="price-table">
               <caption className="visually-hidden">Yearly price by name length, covering both chains</caption>
               <thead>
                 <tr>
                   <th scope="col">Name length</th>
                   <th scope="col">A year</th>
+                  <th scope="col">5 years</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <th scope="row">5 characters or more</th>
                   <td>${PRICES.fivePlus}</td>
+                  <td>${priceFor(5, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">4 characters</th>
                   <td>${PRICES.four}</td>
+                  <td>${priceFor(4, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">3 characters</th>
                   <td>${PRICES.three}</td>
+                  <td>${priceFor(3, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">1 or 2 characters</th>
-                  <td>Not for sale</td>
+                  <td colSpan={2}>Not for sale</td>
                 </tr>
               </tbody>
             </table>
             <p className="price-more__note">
-              Pay for longer and save: 12.5% on 2 years, 31.25% on 3, and 43.75% on 6 or more.
+              Pay for longer and save: 2 years cost 1.5 years&rsquo; price, and 5 years the same as 2. A name can
+              be paid for up to 5 years ahead.
             </p>
           </details>
         </div>
@@ -318,7 +323,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "What can I pay with?",
-    a: "On PulseChain: PLS, HEX, PLSX, USDC from Ethereum or any token with a PulseX pool. On Ethereum: ETH, USDC or any token with a Uniswap pool. It's swapped into USDC at checkout, so the price stays in dollars. On PulseChain that's USDC bridged from Ethereum (\u201cUSD Coin from Ethereum\u201d in your wallet), as there's no native USDC there yet.",
+    a: "Names are bought on PulseChain, with PLS, HEX, PLSX, USDC from Ethereum or any token with a PulseX pool. It's swapped into USDC at checkout, so the price stays in dollars. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee, and the PLS pays for your name and the network fee.",
   },
   {
     q: "What happens if I forget to renew?",

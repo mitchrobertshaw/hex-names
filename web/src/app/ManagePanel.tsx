@@ -3,13 +3,24 @@ import { type Address, isAddress } from "viem";
 
 import { formatUsd } from "../lib/quotes";
 import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
-import { priceFor } from "../lib/names";
+import { MAX_YEARS, priceFor } from "../lib/names";
 import { renew, send, type Step } from "./flows";
 import { deployment, PAY } from "./network";
 import { referralTag } from "./order";
 import { Steps } from "./Steps";
 
 const yearsText = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
+const YEAR = 365 * 86_400;
+const dayText = (unix: number) =>
+  new Date(unix * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+/**
+ * How many whole years a name expiring at `expiry` can be renewed for now: a name can be paid for
+ * at most 5 years ahead (HexNameRules), so a name with 4½ years left can't add a whole year yet.
+ */
+export function renewableYears(expiry: number, now = Math.floor(Date.now() / 1000)): number {
+  return Math.max(0, Math.min(MAX_YEARS, Math.floor((now + MAX_YEARS * YEAR - expiry) / YEAR)));
+}
 
 /** Copies text, and says so for a moment. */
 export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
@@ -33,9 +44,22 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
   );
 }
 
-/** Renew a name for more years. Anyone may; it stays its owner's. */
-export function RenewPanel({ label, length, onChanged }: { label: string; length: number; onChanged?: () => void }) {
-  const [years, setYears] = useState(1);
+/** Renew a name for more years, up to 5 years ahead. Anyone may; it stays its owner's. */
+export function RenewPanel({
+  label,
+  length,
+  expiry,
+  onChanged,
+}: {
+  label: string;
+  length: number;
+  /** When the name expires now, in unix seconds. */
+  expiry: number;
+  onChanged?: () => void;
+}) {
+  const most = renewableYears(expiry);
+  const [chosen, setYears] = useState(1);
+  const years = Math.max(1, Math.min(chosen, most));
   const tokens = PAY.pulsechain.tokens;
   const [symbol, setSymbol] = useState(tokens[0].symbol);
   const token = tokens.find((t) => t.symbol === symbol) ?? tokens[0];
@@ -61,8 +85,8 @@ export function RenewPanel({ label, length, onChanged }: { label: string; length
           <output>{yearsText(years)}</output>
           <button
             type="button"
-            onClick={() => setYears(Math.min(10, years + 1))}
-            disabled={years >= 10 || busy}
+            onClick={() => setYears(Math.min(most, years + 1))}
+            disabled={years >= most || busy}
             aria-label="One year more"
           >
             +
@@ -83,11 +107,17 @@ export function RenewPanel({ label, length, onChanged }: { label: string; length
           ))}
         </div>
       </div>
+      {most === 0 ? (
+        <p className="manage__note">
+          It&rsquo;s paid up 5 years ahead, the most a name can be. It can be renewed again from{" "}
+          {dayText(expiry - (MAX_YEARS - 1) * YEAR)}.
+        </p>
+      ) : null}
       {steps ? <Steps steps={steps} /> : null}
       <button
         type="button"
         className="button button--primary"
-        disabled={busy}
+        disabled={busy || most === 0}
         onClick={async () => {
           setBusy(true);
           try {

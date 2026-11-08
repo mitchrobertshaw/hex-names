@@ -112,10 +112,16 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   demos. A name typed into the chat shows on the card too.
 - **The search** on the homepage checks a name as it's typed, and its Register button opens that
   name in the app. A name over 63 characters shows as too long, with no Register button, as the
-  contracts refuse it (emoji and accented letters count as two to four each). Prices and discounts are in [`src/lib/names.ts`](src/lib/names.ts), and the
-  tests check them against `script/HexDeployer.sol` and the bot's order fee. Tokens and the swap
-  routes are in [`src/lib/tokens.ts`](src/lib/tokens.ts), for mainnet and the testnets; live
-  quotes ask PulseX and Uniswap through public RPCs ([`src/lib/quotes.ts`](src/lib/quotes.ts)).
+  contracts refuse it (emoji and accented letters count as two to four each). Prices, the 5-year
+  limit and the multi-year prices are in [`src/lib/names.ts`](src/lib/names.ts), and the tests check
+  them against `script/HexDeployer.sol` and `src/pulsechain/HexNameRules.sol`. Tokens and the swap
+  routes are in [`src/lib/tokens.ts`](src/lib/tokens.ts), for mainnet and the testnets; live quotes
+  ask PulseX through public RPCs ([`src/lib/quotes.ts`](src/lib/quotes.ts)).
+- **Buying** happens on PulseChain only ([`src/app/BuyPanel.tsx`](src/app/BuyPanel.tsx)). The app
+  checks the connected wallet holds enough on PulseChain, including a little PLS for the network
+  fee. If it doesn't, it shows how to bring money over with LibertySwap, a separate service, linking
+  only to its official site, libertyswap.finance: send USDC from Ethereum or another chain and
+  choose PLS on PulseChain to receive.
 - **Light and dark**: the moon and sun button in the top bar switches between them and remembers
   the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts

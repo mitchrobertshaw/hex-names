@@ -55,7 +55,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
       }
       const signed = await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "numMessagesSigned", args: [message.hash] });
       if (!isFullySigned(signed, required)) continue;
-      const skip = await reasonToSkip(ctx, message, waiting);
+      const skip = message.own ? null : await reasonToSkip(ctx, message, waiting);
       if (skip) {
         message.status = "skipped";
         message.note = skip;
@@ -75,7 +75,8 @@ export async function claimMessages(ctx: Context): Promise<void> {
       });
       message.status = "claimed";
       message.tx = tx;
-      ctx.log(`bridge message ${message.messageId} from ${message.sender === ctx.config.orderFiller ? "HexOrderFiller" : "HexMirrorSync"} claimed on Ethereum (${tx})`);
+      const from = message.own ? "the bot's own USDC, for gas" : message.sender === ctx.config.orderFiller ? "HexOrderFiller" : "HexMirrorSync";
+      ctx.log(`bridge message ${message.messageId} (${from}) claimed on Ethereum (${tx})`);
     } catch (error) {
       ctx.log(`bridge message ${message.messageId}: ${short(error)} (will retry)`);
     }

@@ -30,7 +30,7 @@ import {IAMB} from "../src/interfaces/IAMB.sol";
 import {IHexMirrorSync} from "../src/interfaces/IHexBridge.sol";
 import {AnyTokenCheckout} from "../src/pulsechain/AnyTokenCheckout.sol";
 import {HexMirrorSync} from "../src/pulsechain/HexMirrorSync.sol";
-import {HexNameLengthCap} from "../src/pulsechain/HexNameLengthCap.sol";
+import {HexNameRules} from "../src/pulsechain/HexNameRules.sol";
 import {HexOrderFiller} from "../src/pulsechain/HexOrderFiller.sol";
 import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 
@@ -53,7 +53,7 @@ abstract contract HexDeployer {
     uint256 internal constant PRICE_SCALE = 1e12;
     uint256 internal constant SEC_PER_YEAR = 365 days;
     /// @dev Dollars a year by length. Names of 1 or 2 characters are not for sale.
-    uint256 internal constant YEARLY_PRICE_3 = 640;
+    uint256 internal constant YEARLY_PRICE_3 = 320;
     uint256 internal constant YEARLY_PRICE_4 = 160;
     uint256 internal constant YEARLY_PRICE_5_PLUS = 10; // one price for PulseChain and Ethereum
     /// @dev A name that just expired starts at $100 million and halves daily for 21 days, so
@@ -61,7 +61,8 @@ abstract contract HexDeployer {
     uint256 internal constant PREMIUM_PRICE_INITIAL = PRICE_SCALE * 100_000_000;
     uint64 internal constant PREMIUM_HALVING_PERIOD = 1 days;
     uint64 internal constant PREMIUM_PERIOD = 21 days;
-    /// @dev Multi-year discounts: 12.5% from 2 years, 31.25% from 3, 43.75% from 6.
+    /// @dev Multi-year prices, as a share of the full price: 2 years cost 1.5 years' price, 3 cost
+    ///      1.75, 4 cost 1.875 and 5 cost 2, so 5 years cost the same as 2. HexNameRules stops at 5.
     uint128 internal constant DISCOUNT_DENOMINATOR = 1e38;
 
     /// @dev How long reserved names last from deployment. A held name can't be bought for that
@@ -94,7 +95,7 @@ abstract contract HexDeployer {
     struct Hub {
         Core core;
         StandardRentPriceOracle oracle; // prices; the admin manages it
-        HexNameLengthCap lengthCap; // between the registrar and the oracle: new names at most 63 bytes
+        HexNameRules rules; // between the registrar and the oracle: names of 63 bytes at most, 5 years ahead at most
         ETHRegistrar registrar;
         HexMirrorSync mirrorSync;
         HexOrderFiller orderFiller;
@@ -164,21 +165,21 @@ abstract contract HexDeployer {
             PREMIUM_PERIOD,
             _paymentRatios(cfg.usdc, cfg.dai)
         );
-        hub.lengthCap = new HexNameLengthCap(IRentPriceOracle(address(hub.oracle)));
+        hub.rules = new HexNameRules(IRentPriceOracle(address(hub.oracle)));
         hub.registrar = new ETHRegistrar(
             cfg.deployer,
             hexRegistry,
             cfg.beneficiary,
-            IRentPriceOracle(address(hub.lengthCap)),
+            IRentPriceOracle(address(hub.rules)),
             GRACE_PERIOD,
             MIN_COMMITMENT_AGE,
             MAX_COMMITMENT_AGE,
             MIN_REGISTER_DURATION
         );
         // The registrar's one owner power is swapping its price list (`setRentPriceOracle`). Nobody
-        // keeps it, so the price of each length, the multi-year discounts, the premium for expired
-        // names and the 63-character cap are fixed for good. The admin can still raise or lower
-        // all prices together, on the oracle.
+        // keeps it, so the price of each length, the multi-year prices, the premium for expired names,
+        // the 63-character cap and the 5-year limit are fixed for good. The admin can still raise or
+        // lower all prices together, on the oracle.
         hub.registrar.renounceOwnership();
         hexRegistry.grantRootRoles(
             RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_RENEW, address(hub.registrar)
@@ -329,10 +330,13 @@ abstract contract HexDeployer {
     }
 
     function _discountPoints() internal pure returns (DiscountPoint[] memory points) {
-        points = new DiscountPoint[](3);
-        points[0] = DiscountPoint({duration: uint64(2 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 8 * 7});
-        points[1] = DiscountPoint({duration: uint64(3 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 16 * 11});
-        points[2] = DiscountPoint({duration: uint64(6 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 16 * 9});
+        // From 2 years the whole price is 3/4 of full (1.5 years' price), from 3 years 7/12 (1.75),
+        // from 4 years 15/32 (1.875), and at 5 years 2/5 (2): 5 years for the price of 2.
+        points = new DiscountPoint[](4);
+        points[0] = DiscountPoint({duration: uint64(2 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 4 * 3});
+        points[1] = DiscountPoint({duration: uint64(3 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 12 * 7});
+        points[2] = DiscountPoint({duration: uint64(4 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 32 * 15});
+        points[3] = DiscountPoint({duration: uint64(5 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 5 * 2});
     }
 
     /// @dev Exchange rates from standard units (12 decimals) to each stablecoin's own decimals.

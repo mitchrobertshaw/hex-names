@@ -89,7 +89,8 @@ test("settings parse, with defaults", () => {
   });
   assert.equal(config.minFee, 500_000n);
   assert.equal(config.relay, false);
-  assert.equal(config.fill, true);
+  assert.equal(config.fill, false, "names are bought on PulseChain: filling Ethereum orders is off unless FILL=true");
+  assert.equal(config.sync, true);
   assert.equal(config.homeAmb, "0x6ef79FD6f9f840264332884240539Ed7A2dA8b2b");
   assert.equal(config.foreignAmb, "0xd0764FAe29E0a6a96fF685f71CfC685456D5636c");
   assert.throws(() => loadConfig({}), /BOT_PRIVATE_KEY is not set/);

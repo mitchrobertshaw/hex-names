@@ -5,6 +5,8 @@ import { parseAbi } from "viem";
 export const orderBookAbi = parseAbi([
   "event OrderPlaced(uint256 indexed orderId, address indexed buyer, bytes32 indexed commitment, uint256 amount, uint64 deadline, bytes encryptedReveal)",
   "function orders(uint256 orderId) view returns (address buyer, uint96 amount, bytes32 commitment, uint64 deadline, uint8 status)",
+  "function owed(address account) view returns (uint256)",
+  "function withdraw()",
 ]);
 
 export const ORDER_STATUS = { NONE: 0, OPEN: 1, FILLED: 2, REFUNDED: 3, RECLAIMED: 4 } as const;
@@ -27,6 +29,7 @@ export const registrarAbi = parseAbi([
   "function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
   "function MIN_COMMITMENT_AGE() view returns (uint64)",
   "function MAX_COMMITMENT_AGE() view returns (uint64)",
+  "function BENEFICIARY() view returns (address)",
 ]);
 
 export const registryAbi = parseAbi([
@@ -49,10 +52,24 @@ export const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+]);
+
+/** PulseX and Uniswap V2 routers (PulseX names PLS "ETH", as Uniswap does ETH). */
+export const routerAbi = parseAbi([
+  "function getAmountsOut(uint256 amountIn, address[] path) view returns (uint256[] amounts)",
+  "function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)",
+]);
+
+/** The official bridge's token contracts (OmniBridge): on PulseChain and on Ethereum. */
+export const tokenBridgeAbi = parseAbi([
+  "function relayTokens(address token, address receiver, uint256 value)",
 ]);
 
 export const homeAmbAbi = parseAbi([
   "event UserRequestForSignature(bytes32 indexed messageId, bytes encodedData)",
+  "function messageCallStatus(bytes32 messageId) view returns (bool)",
   "function numMessagesSigned(bytes32 message) view returns (uint256)",
   "function signature(bytes32 hash, uint256 index) view returns (bytes)",
   "function requiredSignatures() view returns (uint256)",
@@ -77,6 +94,7 @@ export const mirrorRegistryAbi = parseAbi([
 export const REGISTERED = 2; // IPermissionedRegistry.Status.REGISTERED
 
 export const foreignAmbAbi = parseAbi([
+  "event UserRequestForAffirmation(bytes32 indexed messageId, bytes encodedData)",
   "function executeSignatures(bytes data, bytes signatures)",
   "function relayedMessages(bytes32 messageId) view returns (bool)",
   "function requiredSignatures() view returns (uint256)",

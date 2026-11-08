@@ -38,6 +38,11 @@ export interface Deployment {
     publicKey: Address;
     /** The bot's least fee per order, in dollars (MIN_FEE_USDC). */
     minFee: number;
+    /**
+     * The bot's wallet, the address it prints when it starts ("hex-names bot 0x…"). The payments
+     * page shows its balances, and the budget the payments wallet allows it.
+     */
+    address?: Address;
   };
 }
 

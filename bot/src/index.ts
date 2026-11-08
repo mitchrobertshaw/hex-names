@@ -4,6 +4,7 @@ import { loadConfig } from "./config.ts";
 import { createContext } from "./context.ts";
 import { processOrders, scanOrders, short } from "./orders.ts";
 import { claimMessages, scanMessages } from "./relay.ts";
+import { runTreasury } from "./treasury.ts";
 import { type State, loadState, saveState } from "./state.ts";
 import { syncNames } from "./sync.ts";
 
@@ -24,12 +25,19 @@ if (!state) {
 const ctx = createContext(config, state);
 
 ctx.log(`hex-names bot ${ctx.account.address} on ${config.network === "testnet" ? "the testnets (PulseChain Testnet v4 + Sepolia)" : "mainnet (PulseChain + Ethereum)"}`);
-ctx.log(`  pays out to ${ctx.payee} on Ethereum`);
+ctx.log(
+  config.fill
+    ? "  orders from Ethereum repay this wallet on Ethereum; it sends the money home to its float on PulseChain"
+    : "  buying from Ethereum is off (FILL=false): names are bought on PulseChain",
+);
 ctx.log(
   `  order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): ${ctx.encryption.publicKey}` +
     (config.encryptionKeyFromWallet ? " (made from the bot's wallet key)" : " (from BOT_ENCRYPTION_SECRET_KEY)"),
 );
-ctx.log(`  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}`);
+ctx.log(
+  `  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}, ` +
+    `pay its own gas: ${config.treasury.enabled}`,
+);
 ctx.log(`  remembers its place in ${config.stateFile}`);
 if (config.railway && !config.railway.volume) {
   ctx.log(
@@ -68,6 +76,7 @@ while (!stopping) {
     });
   }
   if (config.sync) await step("sync", () => syncNames(ctx));
+  if (config.treasury.enabled) await step("treasury", () => runTreasury(ctx));
   saveState(config.stateFile, state);
   for (let waited = 0; waited < config.pollSeconds * 10 && !stopping; waited++) {
     await new Promise((resolve) => setTimeout(resolve, 100));

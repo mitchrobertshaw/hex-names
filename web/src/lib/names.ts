@@ -6,17 +6,24 @@ import { ens_normalize } from "@adraffy/ens-normalize";
 import { type Reservation, reservedFor, reservedNames } from "./reserved";
 
 /** Dollars a year by length, covering both chains. Names of 1 or 2 characters aren't for sale. */
-export const PRICES = { three: 640, four: 160, fivePlus: 10 } as const;
+export const PRICES = { three: 320, four: 160, fivePlus: 10 } as const;
 
 /** Dollars a year for names of 5 or more characters. */
 export const YEARLY_PRICE = PRICES.fivePlus;
 
-/** Multi-year discounts: from `years`, the whole price is multiplied by `factor`. */
+/**
+ * Multi-year prices: from `years`, the whole price is multiplied by `factor`. 2 years cost 1.5
+ * years' price, 3 cost 1.75, 4 cost 1.875, and 5 cost 2: 5 years for the price of 2.
+ */
 export const DISCOUNTS = [
-  { years: 2, factor: 7 / 8 },
-  { years: 3, factor: 11 / 16 },
-  { years: 6, factor: 9 / 16 },
+  { years: 2, factor: 3 / 4 },
+  { years: 3, factor: 7 / 12 },
+  { years: 4, factor: 15 / 32 },
+  { years: 5, factor: 2 / 5 },
 ] as const;
+
+/** The longest a name can be paid for, as the contracts allow (HexNameRules.MAX_TERM). */
+export const MAX_YEARS = 5;
 
 /** The fee the hex-names bot adds to orders placed from Ethereum, in dollars. */
 export const ETHEREUM_ORDER_FEE = 0.25;
@@ -38,7 +45,7 @@ export function priceFor(length: number, years: number): { full: number; total: 
 
 /**
  * The longest name that can be registered, in bytes, as the contracts count them
- * (src/pulsechain/HexNameLengthCap.sol): the most one part of a web address can hold. Letters,
+ * (src/pulsechain/HexNameRules.sol): the most one part of a web address can hold. Letters,
  * digits and hyphens are one byte each; emoji and accented letters take two to four.
  */
 export const MAX_NAME_BYTES = 63;

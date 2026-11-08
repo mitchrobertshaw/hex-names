@@ -2,13 +2,12 @@
 
 The bot is a small program that keeps the Ethereum side of .hex running:
 
-- When someone pays on Ethereum, it buys the name on PulseChain for them, within about a minute and
-  a half.
 - It carries PulseChain's updates across the bridge, so Ethereum's copy of every name stays current.
+- It pays its own gas, out of your sales, within a budget you set ([money](#money)).
 
-If it stops, PulseChain carries on as normal, but Ethereum's copy falls behind and orders from
-Ethereum wait. An order has 30 minutes to be filled. If the bot is down for longer than that, it
-refunds the order when it's back. A restart is harmless: it picks up where it left off.
+Names are bought on PulseChain, so the bot never handles a sale. If it stops, PulseChain carries on
+as normal and Ethereum's copy falls behind until it's back. A restart is harmless: it picks up where
+it left off.
 
 [Railway](https://railway.com) runs it for you. It builds the bot from the `bot/` folder of `main`,
 starts it again if it ever stops, and updates it when `bot/` changes. Railway calls each separate
@@ -29,9 +28,11 @@ New to this? [Start here](../README.md).
 
   | | Testnet | Mainnet |
   |---|---|---|
-  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 50,000 PLS |
-  | On PulseChain, its float (to pay for names ordered from Ethereum) | 20 to 50 test USDC ([how](../pulsechain/README.md#testnets-usdc-from-sepolia)) | $100 to $500 of USDC, bridged from Ethereum |
-  | On Ethereum, to claim bridge messages | 0.01 Sepolia ETH | 0.01 ETH |
+  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 200,000 PLS, about $1 |
+  | On Ethereum, for gas (claiming bridge messages) | 0.01 Sepolia ETH | 0.01 ETH, about $22 |
+
+  That's the only time you fund it. After that it pays its own way ([money](#money)). It needs no
+  USDC from you: it draws a small working balance from your payments wallet's budget.
 
 ## 1. Set up Railway (once)
 
@@ -96,19 +97,24 @@ Within a minute you should see:
 
 ```
 hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
-  pays out to 0x… on Ethereum
+  buying from Ethereum is off (FILL=false): names are bought on PulseChain
   order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): 0x… (made from the bot's wallet key)
-  fill orders: true, claim bridge messages: true, copy name changes: true
+  fill orders: false, claim bridge messages: true, copy name changes: true, pay its own gas: true
   remembers its place in /data/state.json
 ```
 
-- **The first `0x…`** is the bot's wallet. Check it's the one you funded.
-- **Copy the public key**, the long `0x…` after "for the website". The website seals each order with
-  it (locks the order's details, so only the bot can read which name is being bought).
-  [The website guide](../website/README.md) says where it goes.
+- **The first `0x…`** is the bot's wallet. Check it's the one you funded. It goes in the website's
+  settings too, as `bot.address`, so the payments page can show its balances.
+- **Copy the public key**, the long `0x…` after "for the website", into the website's settings
+  ([the website guide](../website/README.md) says where). Buying from Ethereum is off, so nothing
+  uses it now, but it's ready if that's ever switched on.
 - **"WARNING: no volume is attached"** means the volume is missing: see 2.3.
 - **"… is not set"** means a setting is missing: check the Variables.
 - **Lines ending "(will retry)"** are passing hiccups, such as a slow RPC. It tries again by itself.
+- **"daily: working balance … PLS … ETH …"**, once a day: its balances, and its budget from your
+  payments wallet.
+- **"gas: bought …"** and **"balance: …"** are it paying its own way ([money](#money)).
+- **"WARNING: the bot is …"**, at most once a day, means it needs you: it says what for.
 
 On its first run the bot also copies the reserved names that went straight to a wallet over to
 Ethereum. You'll see "yourfriendsommi.hex changed on PulseChain; copy sent to Ethereum". About 15
@@ -123,29 +129,49 @@ After steps 1 to 3 on mainnet:
    - `NETWORK=mainnet`;
    - the **mainnet** bot wallet's private key: a different wallet from the testnet one, funded with
      real coins;
-   - `PAYEE=0x102785E63DCD7C2ba1146E96da7fE429155602C6`, so that orders from Ethereum pay your
-     wallet, the bot's fee included, rather than the bot's ([money](#money));
    - the **For the bot** lines from the mainnet runs.
-3. Check the logs, and copy its public key into the `mainnet` part of `web/src/deployment.ts`.
+3. Check the logs, and copy its wallet and public key into the `mainnet` part of
+   `web/src/deployment.ts` ([the website guide](../website/README.md)).
+4. **Give it a budget.** Once the website has the bot's wallet, open the app's payments page,
+   `app.hexns.domains/referrals`, with your payments wallet (`0x1027…02C6`). Under **The bot**, set
+   a budget, say 100 USDC, and approve it in your wallet. That's what it may draw from your
+   payments wallet if gas ever leaves it short. Do the same on the testnet site in the rehearsal.
 
 After the rehearsal you can delete the `testnet` environment (project **Settings**, then
 **Environments**) to stop paying for it, or keep it for trying changes.
 
 ## Money
 
-- **Where the money goes.** Every payment for a name, wherever it was bought, goes to your wallet
-  on PulseChain: that was fixed in step 1. An order from Ethereum also pays the name's price and
-  the bot's fee (25 cents) on Ethereum, about 15 minutes later, to `PAYEE`. On mainnet that's your
-  wallet too. Without `PAYEE` it's the bot's own wallet, which is how the testnet bot is set up.
-- **The float.** The bot pays for each name ordered from Ethereum out of its USDC on PulseChain, and
-  the order pays it back on Ethereum, to `PAYEE`. Now and then, top the bot's USDC back up on
-  PulseChain from your wallet (through the official bridge or LibertySwap), along with its PLS and
-  ETH for gas.
-- **Costs.** Railway's Hobby plan, $5 a month. Gas: a few cents for each order and bridge claim.
+The bot runs on autopilot: you fund it once with a little gas, and it pays its own way from then on.
+
+**Every sale goes straight to your payments wallet.** Names are bought on PulseChain, and the
+registrar pays each price to your payments wallet. That was fixed in step 1. The bot never touches
+a sale.
+
+**Gas comes out of revenue.** The bot keeps a small working balance of USDC on PulseChain, $20
+(`FLOAT_USDC`). When its gas runs low it buys more with it: PLS on PulseX ($2 at a time, over
+300,000 PLS) and ETH on Uniswap ($15 at a time, sent to Ethereum over the bridge first, which
+charges 0.3% in that direction). When the working balance runs low, it draws what it needs from your
+payments wallet, up to the budget you set on the app's payments page. If it ever holds more than it
+needs, the extra comes back to your payments wallet.
+
+**What you'll see in your payments wallet:** the price of every name sold, and now and then a small
+draw by the bot for gas. The app's payments page shows the bot's balances and the budget left.
+
+**How often you need to do anything:** normally never. When you pay referrers each month, glance at
+the bot on the same page. If its budget is running low, raise it. If the bot can't fix something
+itself, its log says so, once a day, starting "WARNING".
+
+**Costs.** Railway's Hobby plan, $5 a month. Gas, at 8 November 2026's prices: about 3 cents to copy
+each name, renewal or transfer to Ethereum. A $100 budget covers about 3,000 of those.
 
 ## Keeping it safe
 
-- The bot's wallet only ever holds its float. The deployer's and admin's keys never go on Railway.
+- The bot's wallet only ever holds a little gas and its $20 working balance. The deployer's and
+  admin's keys never go on Railway.
+- A stolen bot key could take those, and draw up to the budget left in your payments wallet: that's
+  why the budget has a limit. If you ever think the key has leaked, press **Stop it
+  drawing** on the payments page, then give the bot a new wallet.
 - Seal the key (2.5). Turn on two-factor sign-in for Railway and GitHub (your phone gives a code
   each time you sign in).
 - Anyone who can open the Railway project can change the bot's settings. Keep it to yourself.

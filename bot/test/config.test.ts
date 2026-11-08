@@ -40,6 +40,11 @@ test("the testnets use PulseChain Testnet v4, Sepolia and the testnet bridge", (
   assert.equal(config.foreignAmb, "0x67e190aaF39b9E05b162A78ab94189446077C694");
   assert.equal(CHAINS.testnet.pulsechain.id, 943);
   assert.equal(CHAINS.testnet.ethereum.id, 11155111);
+  // The testnet bridge's token contracts, and a smaller float.
+  assert.equal(config.treasury.homeBridge, "0x6B08a50865aDeCe6e3869D9AfbB316d0a0436B6c");
+  assert.equal(config.treasury.foreignBridge, "0x546e37DAA15cdb82fd1a717E5dEEa4AF08D4349A");
+  assert.equal(config.treasury.ethereumUsdc, "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238");
+  assert.equal(config.treasury.floatUsdc, 20_000_000n);
 });
 
 test("on the testnets the bot sets its own tip, and viem uses it", async () => {

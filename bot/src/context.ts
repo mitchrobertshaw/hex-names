@@ -1,6 +1,6 @@
 // Clients for both chains and the bot's wallet.
 
-import { type Account, type Address, type Chain, type PublicClient, type Transport, type WalletClient, createPublicClient, createWalletClient, http, parseGwei } from "viem";
+import { type Account, type Chain, type PublicClient, type Transport, type WalletClient, createPublicClient, createWalletClient, http, parseGwei } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { mainnet, pulsechain, pulsechainV4, sepolia } from "viem/chains";
 
@@ -12,7 +12,6 @@ export type Context = {
   config: Config;
   state: State;
   account: Account;
-  payee: Address;
   encryption: { publicKey: `0x${string}`; secretKey: Uint8Array };
   pls: PublicClient<Transport, Chain>;
   plsWallet: WalletClient<Transport, Chain, Account>;
@@ -44,7 +43,6 @@ export function createContext(config: Config, state: State): Context {
     config,
     state,
     account,
-    payee: config.payee ?? account.address,
     encryption: encryptionKeyPair(config.encryptionSecretKey),
     pls: createPublicClient({ chain: chains.pulsechain, transport: plsTransport }),
     plsWallet: createWalletClient({ account, chain: chains.pulsechain, transport: plsTransport }),

@@ -62,6 +62,7 @@ themselves.
     bot: {
       publicKey: "0x…", // from the bot's log on Railway
       minFee: 0.25, // the bot's fee per order, in dollars
+      address: "0x…", // the bot's wallet: the first 0x… in its log
     },
   },
 ```
@@ -97,6 +98,7 @@ until when.
        bot: {
          publicKey: "0x…", // from the production bot's log
          minFee: 0.25,
+         address: "0x…", // the production bot's wallet
        },
      },
    ```

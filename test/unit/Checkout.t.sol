@@ -293,7 +293,7 @@ contract CheckoutTest is HexTestBase {
     }
 
     function testFuzz_register_accounting(uint256 amountIn, uint64 duration) public {
-        duration = uint64(bound(duration, MIN_REGISTER_DURATION, 10 * ONE_YEAR));
+        duration = uint64(bound(duration, MIN_REGISTER_DURATION, 5 * ONE_YEAR)); // the longest a name can be paid for
         AnyTokenCheckout.Registration memory reg = _registration("fuzzed", alice);
         reg.duration = duration;
         _commitReg(reg);

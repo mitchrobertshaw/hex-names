@@ -25,15 +25,10 @@ either.
 
 ## Buying a name
 
-| From | Clicks | The name is yours | On the other chain |
-|---|---|---|---|
-| PulseChain | 2–3 (approve, commit, register) | about 1–2 minutes | on Ethereum about 15 minutes later |
-| Ethereum | 1–2 (approve if paying in a token, place order) | about 1½ minutes | it lives on PulseChain from the start |
-
-Either way the buyer can pay with any token that has a pool (PLS, HEX, PLSX, ETH, USDC, DAI, ...).
-It is swapped into a dollar stablecoin, so prices stay in dollars without a price oracle.
-
-### From PulseChain
+Names are bought on PulseChain: 2–3 clicks (approve if paying with a token, commit, register), and
+the name is yours in about 1–2 minutes, on Ethereum about 15 minutes later. The buyer can pay with
+PLS or any token with a PulseX pool (HEX, PLSX, USDC, DAI, ...). It is swapped into a dollar
+stablecoin, so prices stay in dollars without a price oracle.
 
 1. **Commit.** The wallet commits to the name with a hash of its details. Nothing is paid yet, and
    nobody watching can see which name it is.
@@ -41,35 +36,34 @@ It is swapped into a dollar stablecoin, so prices stay in dollars without a pric
 3. **Register** through `AnyTokenCheckout` with any token or PLS. It swaps to USDC on PulseX, pays the
    registrar exactly the price, returns the change, and sends the name to Ethereum.
 
-### From Ethereum
+### Coming from Ethereum or another chain
 
-1. **Place an order** in `HexOrderBook`, paying in USDC, ETH, HEX or any token with a Uniswap pool.
-   The order holds only the commitment, plus the name's details sealed so only the bot can read
-   them. Nobody watching Ethereum can see which name it is and take it first.
-2. **The bot registers the name** on PulseChain to the buyer within about a minute and a half,
-   paying from its own float of stablecoins.
-3. **The bridge settles.** About 15 minutes later the official PulseChain bridge confirms the
-   registration on Ethereum, and the order's money goes to the bot. Nobody waits on this step.
+The app checks the buyer's wallet on PulseChain. If it doesn't hold enough, the app sends them to
+[LibertySwap](https://libertyswap.finance), a separate service: they send USDC from Ethereum, Base,
+Arbitrum or another chain, and choose PLS on PulseChain to receive. It arrives in a few minutes, for
+a 0.3% fee (minimum $10), and the PLS pays for the name and the network fee.
 
-If the name can't be registered (someone took it first, or it isn't for sale), or the bot doesn't
-fill it within the 30-minute fill window, the bot refunds the order over the bridge. If the bot
-isn't running at all, the buyer can take the money back themselves, 6 hours after the fill window
-closes.
+### Buying from Ethereum directly (switched off)
+
+The contracts for it are deployed but unused: an order placed in `HexOrderBook` on Ethereum, filled
+on PulseChain through `HexOrderFiller` by a bot paying from its own float, and settled over the
+bridge, with a refund if it can't be filled. The website doesn't offer it, and the bot leaves it off
+(`FILL=false`), so no float is needed. Turning it back on needs the website's Ethereum checkout and
+a bot with `FILL=true` and a float.
 
 ### Why there's a bot
 
-The official bridge waits until the sending chain has made a transaction irreversible. That takes
-about 13 minutes on Ethereum and 11 on PulseChain. Timed over its last 25 messages each way on
-5 November 2026:
+The official bridge carries every change to Ethereum, but someone has to claim each message on
+Ethereum and pay its gas. The bot does that, and also sends renewals and transfers across. The bridge
+waits until the sending chain has made a transaction irreversible, about 11 minutes on PulseChain.
+Timed over its last 25 messages each way on 5 November 2026:
 
 | Direction | Fastest | Typical | Slowest |
 |---|---|---|---|
 | Ethereum → PulseChain | 13.5 min | 17.4 min | 19.8 min |
 | PulseChain → Ethereum (until it can be claimed) | 10.8 min | 13.3 min | 15.2 min |
 
-So the bot does what LibertySwap does: it acts within seconds and lets the bridge catch up. Unlike
-LibertySwap, it gets no special powers. It buys names like anyone else, and the money it is owed
-is released only by the bridge.
+The bot gets no special powers: it can only deliver what the bridge has signed.
 
 ## How names work on both chains
 
@@ -92,19 +86,25 @@ can't hold ERC-1155 tokens: their Ethereum copy is skipped, but the name still w
 
 ## Prices
 
-| Length | A year |
-|---|---|
-| 5 to 63 characters | $10, for both chains |
-| 4 | $160 |
-| 3 | $640 |
-| 1–2 | not for sale |
-| 64 or more | too long |
+| Length | 1 year | 2 years | 3 years | 4 years | 5 years |
+|---|---|---|---|---|---|
+| 5 to 63 characters | $10 | $15 | $17.50 | $18.75 | $20 |
+| 4 | $160 | $240 | $280 | $300 | $320 |
+| 3 | $320 | $480 | $560 | $600 | $640 |
+| 1–2 | not for sale | | | | |
+| 64 or more | too long | | | | |
 
+Each covers the name on both chains.
+
+- **5 years for the price of 2.** Each extra year costs less than the one before: 2 years cost 1.5
+  years' price, 3 cost 1.75, 4 cost 1.875 and 5 cost 2. Renewals are priced the same way.
+- **Up to 5 years ahead.** A name can be bought for at most 5 years, and renewed only as far as 5
+  years from today. Its owner can always renew it back up to 5 years.
 - **Up to 63 characters**, the most one part of a web address can hold, so every `.hex` name can
   also work as one. Letters, digits and hyphens count as one each; emoji and accented letters take
-  two to four (63 bytes in all). `HexNameLengthCap` sits in front of the prices and turns longer
-  names away. Renewals aren't capped.
-- **Multi-year discounts** (ENS's): 12.5% off from 2 years, 31.25% from 3, 43.75% from 6.
+  two to four (63 bytes in all). Renewals of longer names, should any exist, aren't refused.
+- [`HexNameRules`](src/pulsechain/HexNameRules.sol) sits in front of the prices and keeps both
+  limits.
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
   so nobody can snipe a name the moment it lapses.
@@ -157,20 +157,21 @@ roles at all.
 
 **The admin** (PulseChain only) can raise or lower all prices together, change the accepted
 stablecoins, add registrars and renewers, hand held reserved names to their owners, and add other
-endings to the root. It can't change the price of one length, the multi-year discounts, the
-premium for expired names or the 63-character limit. The registrar is deployed with them and gives
-up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests check it.
-A new registrar can only register names nobody owns. Keep it in a wallet used for nothing else, with its recovery phrase
-offline, or give these powers up once things are settled. (A multisig such as a Safe would be
-stronger, but Safe's own app doesn't support PulseChain.)
+endings to the root. It can't change the price of one length, the multi-year prices, the premium for
+expired names, the 63-character limit or the 5-year limit. The registrar is deployed with them and
+gives up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests
+check it. A new registrar can only register names nobody owns. Keep it in a wallet used for nothing
+else, with its recovery phrase offline, or give these powers up once things are settled. (A multisig
+such as a Safe would be stronger, but Safe's own app doesn't support PulseChain.)
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
 releasing money held by Ethereum orders. If they were compromised they could write a false Ethereum
 copy, or redirect money held by open orders. They could never touch the real names on PulseChain.
 Every token bridged to PulseChain relies on the same validators.
 
-**The bot** affects only speed. A stolen bot key loses only the bot's own float. If the bot stops,
-orders from Ethereum are refunded instead of filled.
+**The bot** affects only how soon Ethereum's copy is current. A stolen bot key loses only the bot's
+own gas and working balance, and what's left of the budget the payments wallet allows it. If the bot
+stops, names still work on PulseChain, and Ethereum's copy catches up when it's back.
 
 **Nothing else has an owner.** `AnyTokenCheckout`, `HexOrderFiller`, `HexMirrorSync`,
 `HexOrderBook` and `HexMirrorRegistrar` have no admin functions, no upgrades and no pause. Each
@@ -183,7 +184,7 @@ nothing can change.
 |---|---|
 | ENSv2 `PermissionedRegistry` ×2 | the root registry, and the `.hex` registry where names live |
 | ENSv2 `ETHRegistrar` + `StandardRentPriceOracle` | the `.hex` registrar and its prices |
-| [`HexNameLengthCap`](src/pulsechain/HexNameLengthCap.sol) | between the registrar and its prices: new names can be up to 63 characters |
+| [`HexNameRules`](src/pulsechain/HexNameRules.sol) | between the registrar and its prices: new names can be up to 63 characters, paid for up to 5 years ahead |
 | ENSv2 `UniversalResolverV2`, `PermissionedResolver`, `VerifiableFactory`, `LabelStore`, `ContractNamer` | lookups, owners' own resolvers, and supporting contracts |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
 | [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai |
@@ -213,10 +214,10 @@ The compiled contracts were scanned and contain none of the missing opcodes.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 101 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 104 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
-  - prices and roles, the 63-character cap, and that nobody can change the price rules or take a
-    name;
+  - prices and roles, the 63-character and 5-year limits, and that nobody can change the price
+    rules or take a name;
   - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;
   - the whole Ethereum order flow, and every way it can be refunded;
@@ -226,7 +227,7 @@ workflow **test**).
   - forged and out-of-order bridge messages.
 - **Fork tests** (`test/fork/`): 8 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
-- **Bot tests** (`bot/test/`): 20 tests, including hashes checked against the deployed contracts, a
+- **Bot tests** (`bot/test/`): 36 tests, including hashes checked against the deployed contracts, a
   real bridge message, and each network's settings.
 
 With [Foundry](https://getfoundry.sh) and git:
@@ -264,20 +265,22 @@ something doesn't match.
 
 ## Running the bot
 
-The bot in [`bot/`](bot) fills Ethereum orders, claims bridge messages on Ethereum, and copies name
-changes to Ethereum. It needs to run all the time. It runs on [Railway](https://railway.com), set up
-in a browser, with a `testnet` environment for the rehearsal and `production` for mainnet. Step by
-step: [the bot, on Railway](deploy/bot/README.md).
+The bot in [`bot/`](bot) claims bridge messages on Ethereum, copies name changes to Ethereum, and
+pays its own gas. It needs to run all the time. It runs on
+[Railway](https://railway.com), set up in a browser, with a `testnet` environment for the rehearsal
+and `production` for mainnet. Step by step: [the bot, on Railway](deploy/bot/README.md).
 
-1. Give it a wallet with PLS for gas and a float of USDC on PulseChain (say $100–$500), plus a
-   little ETH on Ethereum for claims (a few cents each at today's gas prices).
+1. Give it a wallet with a little PLS on PulseChain and ETH on Ethereum, for gas (a few cents a
+   claim at today's gas prices). That's the only funding it needs.
 2. Paste its settings into Railway: `NETWORK`, its private key (sealed), and the **For the bot**
    lines from the deploy run summaries. Its order encryption key is made from its wallet key, and it
    prints the public key, for websites, when it starts.
 3. Give it a Railway volume, where it remembers its place between restarts.
+4. Let it draw from the payments wallet, up to a budget, on the app's payments page.
 
-The money from orders arrives in USDC on Ethereum, while the float is spent on PulseChain. Move it
-back across now and then, through the official bridge or LibertySwap.
+It runs on autopilot. It keeps a small working balance of USDC ($20), buys PLS and ETH with it when
+they run low, and tops the balance up from the payments wallet, within the budget. So its gas comes
+out of revenue, and nobody tops it up by hand: [money](deploy/bot/README.md#money).
 
 `npm run check-claim` checks the bot can claim real bridge messages. It finds one on the live bridge
 that has been signed but not yet claimed, and simulates claiming it. Nothing is sent.
@@ -288,7 +291,7 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
   1. Get the price with `AnyTokenCheckout.quoteRegister`.
   2. Commit with `registrar.commit(registrar.makeCommitment(...))`.
   3. After a minute, call `registerWithToken` or `registerWithPLS` with a 2% buffer.
-- **On Ethereum:**
+- **On Ethereum** (only with a bot that fills orders, `FILL=true`; the official site and bot don't):
   1. Call `prepareOrder` from [`bot/src/buy.ts`](bot/src/buy.ts) with the bot's public key.
   2. Read the price from the PulseChain registrar.
   3. Call `HexOrderBook.placeOrder` (or `placeOrderWithETH` or `placeOrderWithToken`) for the price

@@ -77,11 +77,23 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          # 1.9.0 knows Sepolia's new gas costs (creating a contract there costs about 7 times what
-          # it does on Ethereum). Older versions give step 2 too little gas on Sepolia.
-          version: v1.9.0
+        # Foundry 1.9.0, which knows Sepolia's new gas costs: creating a contract there costs about 7
+        # times what it does on Ethereum, and older versions give step 2 too little gas on Sepolia.
+        # Straight from its release and checked against its SHA-256, rather than through the
+        # foundryup installer, whose 2.0.0 release couldn't be downloaded on 8 November 2026. To
+        # move to a newer Foundry, change FOUNDRY_VERSION and FOUNDRY_SHA256 together.
+        env:
+          FOUNDRY_VERSION: v1.9.0
+          FOUNDRY_SHA256: 8d17599b42e3139f1a9c171be3798c4ed8e743ae17b84cc3435e57bf2a51ae99
+        run: |
+          curl -sSfL --retry 20 --retry-delay 15 --retry-max-time 600 --retry-all-errors -o foundry.tar.gz \
+            "https://github.com/foundry-rs/foundry/releases/download/$FOUNDRY_VERSION/foundry_${FOUNDRY_VERSION}_linux_amd64.tar.gz"
+          echo "$FOUNDRY_SHA256  foundry.tar.gz" | sha256sum -c -
+          mkdir -p "$HOME/.foundry/bin"
+          tar -xzf foundry.tar.gz -C "$HOME/.foundry/bin"
+          rm foundry.tar.gz
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+          "$HOME/.foundry/bin/forge" --version
 
       - name: Cache ENSv2 and its libraries
         uses: actions/cache@v4
@@ -166,7 +178,7 @@ jobs:
             echo "$NETWORK"
             if [ "$BROADCAST" = "true" ]; then echo "Sent for real."; else echo "Dry run: nothing was sent."; fi
             echo '```'
-            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|Payments go to|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Name length|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
+            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|Payments go to|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Name rules|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
             # What it costs, and whether every transaction went through.
             grep -E "^(Estimated (total gas used|amount required)|ONCHAIN EXECUTION)" output.txt || true
             echo '```'

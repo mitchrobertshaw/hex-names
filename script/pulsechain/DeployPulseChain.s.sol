@@ -83,7 +83,7 @@ contract DeployPulseChain is DeployScript {
         console.log("Root registry            ", address(hub.core.rootRegistry));
         console.log("Default resolver         ", address(hub.core.ownerResolver));
         console.log("Price oracle             ", address(hub.oracle));
-        console.log("Name length cap (63)     ", address(hub.lengthCap));
+        console.log("Name rules (63, 5 years) ", address(hub.rules));
         console.log("Price rules locked       ", hub.registrar.owner() == address(0) ? "yes, for good" : "NO");
         console.log("Resolver factory         ", address(hub.core.verifiableFactory));
         console.log("Resolver implementation  ", address(hub.core.resolverImplementation));

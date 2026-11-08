@@ -60,7 +60,7 @@ function required() {
 }
 
 /** The token a payment pulls, or null for the chain's own coin. */
-function tokenAddress(key: ChainKey, token: PayToken): Address | null {
+export function tokenAddress(key: ChainKey, token: PayToken): Address | null {
   if (token.native) return null;
   if (!token.path) return required()[key].usdc;
   return token.path[0] as Address;
@@ -502,6 +502,40 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
     progress.done("pay");
+    return hash;
+  } catch (error) {
+    progress.fail(errorText(error));
+    throw error;
+  }
+}
+
+/**
+ * Sets how much USDC the bot may draw from this wallet (the payments wallet) on PulseChain, for when
+ * gas leaves its float short: an allowance, which only this wallet can change. 0 stops it.
+ */
+export async function setBotBudget(o: { bot: Address; usdc: bigint; report: Report }): Promise<Hex> {
+  const d = required();
+  const progress = new Progress(
+    [
+      ["chain", `Switch to ${PAY.pulsechain.name}`],
+      ["budget", o.usdc === 0n ? "Stop the bot drawing from this wallet" : "Set the bot's budget"],
+    ],
+    o.report,
+  );
+  try {
+    progress.start("chain");
+    await switchTo("pulsechain");
+    progress.done("chain");
+    progress.start("budget");
+    const hash = await walletClient("pulsechain").writeContract({
+      address: d.pulsechain.usdc,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [o.bot, o.usdc],
+    });
+    progress.set("budget", { tx: { chain: "pulsechain", hash } });
+    await confirm("pulsechain", hash);
+    progress.done("budget");
     return hash;
   } catch (error) {
     progress.fail(errorText(error));
