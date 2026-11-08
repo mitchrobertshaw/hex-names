@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { PRICES, YEARLY_PRICE } from "../lib/names";
+import { MAX_YEARS, PRICES, priceFor, YEARLY_PRICE } from "../lib/names";
 import { appUrl } from "../site";
 import { AddPulseChain } from "./AddPulseChain";
 import { ChainLogo } from "./ChainLogo";
@@ -261,36 +261,41 @@ export function Pricing() {
             registered, it&rsquo;s taken for as long as its owner renews it.
           </p>
           <details className="price-more">
-            <summary>Shorter names and multi-year discounts</summary>
+            <summary>Shorter names, and 5 years for the price of 2</summary>
             <table className="price-table">
               <caption className="visually-hidden">Yearly price by name length, covering both chains</caption>
               <thead>
                 <tr>
                   <th scope="col">Name length</th>
                   <th scope="col">A year</th>
+                  <th scope="col">5 years</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <th scope="row">5 characters or more</th>
                   <td>${PRICES.fivePlus}</td>
+                  <td>${priceFor(5, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">4 characters</th>
                   <td>${PRICES.four}</td>
+                  <td>${priceFor(4, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">3 characters</th>
                   <td>${PRICES.three}</td>
+                  <td>${priceFor(3, MAX_YEARS).total}</td>
                 </tr>
                 <tr>
                   <th scope="row">1 or 2 characters</th>
-                  <td>Not for sale</td>
+                  <td colSpan={2}>Not for sale</td>
                 </tr>
               </tbody>
             </table>
             <p className="price-more__note">
-              Pay for longer and save: 12.5% on 2 years, 31.25% on 3, and 43.75% on 6 or more.
+              Pay for longer and save: 2 years cost 1.5 years&rsquo; price, and 5 years the same as 2. A name can
+              be paid for up to 5 years ahead.
             </p>
           </details>
         </div>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import botConfig from "../../../bot/src/config.ts?raw";
 import deployer from "../../../script/HexDeployer.sol?raw";
-import lengthCap from "../../../src/pulsechain/HexNameLengthCap.sol?raw";
+import nameRules from "../../../src/pulsechain/HexNameRules.sol?raw";
 import page from "../../index.html?raw";
 
 import {
@@ -10,6 +10,7 @@ import {
   DISCOUNTS,
   ETHEREUM_ORDER_FEE,
   MAX_NAME_BYTES,
+  MAX_YEARS,
   nameLength,
   PRICES,
   priceFor,
@@ -36,7 +37,7 @@ describe("checkName", () => {
   });
 
   it("prices 3 and 4 characters as premium and refuses 1 and 2", () => {
-    expect(check("abc")).toMatchObject({ kind: "premium", length: 3, yearlyPrice: 640 });
+    expect(check("abc")).toMatchObject({ kind: "premium", length: 3, yearlyPrice: 320 });
     expect(check("abcd")).toMatchObject({ kind: "premium", length: 4, yearlyPrice: 160 });
     expect(check("ab")).toEqual({ kind: "too-short", name: "ab.hex" });
     expect(check("a")).toMatchObject({ kind: "too-short" });
@@ -99,16 +100,20 @@ describe("checkName", () => {
 });
 
 describe("priceFor", () => {
-  it("applies the multi-year discount to the whole price", () => {
+  it("applies the multi-year price to the whole price", () => {
     expect(priceFor(5, 1)).toEqual({ full: 10, total: 10, discount: 0 });
-    expect(priceFor(5, 2)).toEqual({ full: 20, total: 17.5, discount: 0.125 });
-    expect(priceFor(5, 3).total).toBeCloseTo(20.625);
-    expect(priceFor(3, 1).total).toBe(640);
+    expect(priceFor(5, 2)).toEqual({ full: 20, total: 15, discount: 0.25 });
+    expect(priceFor(5, 3).total).toBeCloseTo(17.5);
+    expect(priceFor(5, 4).total).toBeCloseTo(18.75);
+    expect(priceFor(3, 1).total).toBe(320);
   });
 
-  it("follows the contracts even where 6 years costs less than 5", () => {
-    expect(priceFor(5, 5).total).toBeCloseTo(34.375);
-    expect(priceFor(5, 6).total).toBeCloseTo(33.75);
+  it("makes 5 years cost the same as 2, and more years always cost more in all", () => {
+    expect([1, 2, 3, 4, 5].map((y) => Math.round(priceFor(3, y).total))).toEqual([320, 480, 560, 600, 640]);
+    expect(priceFor(4, 5).total).toBeCloseTo(320);
+    expect(priceFor(5, 5).total).toBeCloseTo(20);
+    expect(priceFor(5, 5).total).toBeCloseTo(priceFor(5, 1).full * 2);
+    for (let y = 2; y <= MAX_YEARS; y++) expect(priceFor(3, y).total).toBeGreaterThan(priceFor(3, y - 1).total);
   });
 });
 
@@ -130,8 +135,9 @@ describe("the prices", () => {
     );
   });
 
-  it("cap names at the length the contracts do", () => {
-    expect(lengthCap).toMatch(new RegExp(`MAX_LENGTH = ${MAX_NAME_BYTES};`));
+  it("cap names at the length and the years the contracts do", () => {
+    expect(nameRules).toMatch(new RegExp(`MAX_LENGTH = ${MAX_NAME_BYTES};`));
+    expect(nameRules).toMatch(new RegExp(`MAX_TERM = ${MAX_YEARS} \\* 365 days;`));
   });
 
   it("add the bot's Ethereum order fee", () => {

@@ -545,6 +545,12 @@ body {
   color: var(--muted);
 }
 
+.manage__note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .manage__row {
   display: flex;
   flex-wrap: wrap;

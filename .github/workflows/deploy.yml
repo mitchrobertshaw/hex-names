@@ -166,7 +166,7 @@ jobs:
             echo "$NETWORK"
             if [ "$BROADCAST" = "true" ]; then echo "Sent for real."; else echo "Dry run: nothing was sent."; fi
             echo '```'
-            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|Payments go to|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Name length|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
+            grep -E "^\s+(Network|PULSECHAIN_|ETHEREUM_|START_BLOCK_|Payments go to|AnyTokenCheckout|UniversalResolver|\.hex|Root|Default|Price|Name rules|Resolver|Label|Reserved|Deployer|Linked)" output.txt || true
             # What it costs, and whether every transaction went through.
             grep -E "^(Estimated (total gas used|amount required)|ONCHAIN EXECUTION)" output.txt || true
             echo '```'

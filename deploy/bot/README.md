@@ -167,10 +167,11 @@ some there over the bridge, which charges 0.3% in that direction.
 **Settling up with your payments wallet.** The bot keeps a float of $150 (`FLOAT_USDC`). Once it
 holds $30 more than that (its fees, less its gas), it sends the extra to your payments wallet. If gas
 leaves it $30 or more short, it draws the difference from your payments wallet, up to the budget you
-set on the app's payments page. An order bigger than the float, a 4-character name ($160) or a
-3-character one ($640), is covered the same way: it draws the difference if the budget allows, and
-sends it back once the buyer's payment is home. If the budget doesn't cover it, the buyer is
-refunded, and they can still buy that name on PulseChain.
+set on the app's payments page. An order bigger than the float, such as a 4-character name ($160
+to $320) or a 3-character one ($320 to $640, the biggest order there can be), is covered the same
+way: it draws the difference if the budget allows, and sends it back once the buyer's payment is
+home. If the budget doesn't cover it, the buyer is refunded, and they can still buy that name on
+PulseChain.
 
 **What you'll see in your payments wallet:** the price of every name sold, wherever it was
 bought; now and then a payment from the bot (its fees, less gas); and, if gas ever costs more than

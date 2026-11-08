@@ -14,6 +14,7 @@ import {
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
 import { usdcText } from "../lib/payouts";
 import { localInfo } from "./lookup";
+import { renewableYears } from "./ManagePanel";
 import { hrefOf, modeOf, parse, type Place } from "./router";
 
 const purchase: Purchase = {
@@ -152,6 +153,18 @@ describe("a name's page", () => {
     expect(localInfo(`${"a".repeat(63)}.hex`)).toMatchObject({ kind: "available", length: 63 });
     expect(localInfo("a".repeat(64))).toEqual({ kind: "too-long", label: "a".repeat(64), length: 64, bytes: 64 });
     expect(localInfo("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
+  });
+});
+
+describe("renewing", () => {
+  it("goes up to 5 years ahead, the most a name can be paid for", () => {
+    const now = 1_800_000_000;
+    const year = 365 * 86_400;
+    expect(renewableYears(now + year, now)).toBe(4);
+    expect(renewableYears(now + 4 * year, now)).toBe(1);
+    expect(renewableYears(now + 4.5 * year, now)).toBe(0); // half a year more to wait
+    expect(renewableYears(now + 5 * year, now)).toBe(0);
+    expect(renewableYears(now - 10 * 86_400, now)).toBe(5); // expired, in its grace period
   });
 });
 

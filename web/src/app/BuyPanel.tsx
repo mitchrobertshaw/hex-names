@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { CheckIcon } from "../components/icons";
+import { MAX_YEARS } from "../lib/names";
 import { formatToken, formatUsd, quoteIn } from "../lib/quotes";
 import { captureReferral, referralLink } from "../lib/referral";
 import type { ChainKey, PayToken } from "../lib/tokens";
@@ -148,14 +149,14 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
             <output aria-live="polite">{yearsText(years)}</output>
             <button
               type="button"
-              onClick={() => setYears(Math.min(10, years + 1))}
-              disabled={years >= 10}
+              onClick={() => setYears(Math.min(MAX_YEARS, years + 1))}
+              disabled={years >= MAX_YEARS}
               aria-label="One year more"
             >
               +
             </button>
           </div>
-          <p className="checkout__hint">Save 12.5% from 2 years, 31.25% from 3 and 43.75% from 6.</p>
+          <p className="checkout__hint">5 years for the price of 2. Up to 5 years at a time.</p>
         </div>
 
         <div className="checkout__field">

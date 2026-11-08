@@ -25,9 +25,9 @@ contract DeploymentTest is HexTestBase {
         (uint256 base4,) = hub.registrar.getRegisterPrice("four", ONE_YEAR, plsUsdc);
         (uint256 base3,) = hub.registrar.getRegisterPrice("abc", ONE_YEAR, plsUsdc);
         // ENS rounds the per-second rate up, so a year costs a few millionths of a dollar more.
-        assertApproxEqAbs(base5, 10e6, 10, "5+ letters: $10 a year");
-        assertApproxEqAbs(base4, 160e6, 10, "4 letters: $160 a year");
-        assertApproxEqAbs(base3, 640e6, 10, "3 letters: $640 a year");
+        assertApproxEqAbs(base5, 10e6, 50, "5+ letters: $10 a year");
+        assertApproxEqAbs(base4, 160e6, 50, "4 letters: $160 a year");
+        assertApproxEqAbs(base3, 320e6, 50, "3 letters: $320 a year");
     }
 
     function test_prices_sameInDai() public view {
@@ -43,10 +43,20 @@ contract DeploymentTest is HexTestBase {
         hub.registrar.getRegisterPrice("a", ONE_YEAR, plsUsdc);
     }
 
-    function test_prices_multiYearDiscount() public view {
-        (uint256 one,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
-        (uint256 two,) = hub.registrar.getRegisterPrice("alice", 2 * ONE_YEAR, plsUsdc);
-        assertApproxEqAbs(two, one * 2 * 7 / 8, 2, "12.5% off from 2 years");
+    function test_prices_multiYear_fiveForThePriceOfTwo() public view {
+        // In dollars, for a 3-character name ($320 a year): 320, 480, 560, 600, 640.
+        uint256[6] memory expected = [uint256(0), 320e6, 480e6, 560e6, 600e6, 640e6];
+        uint256 previous;
+        for (uint64 y = 1; y <= 5; ++y) {
+            (uint256 base,) = hub.registrar.getRegisterPrice("abc", y * ONE_YEAR, plsUsdc);
+            assertApproxEqAbs(base, expected[y], 50, "3 characters");
+            assertGt(base, previous, "more years always cost more in all");
+            previous = base;
+        }
+        (uint256 five5,) = hub.registrar.getRegisterPrice("alice", 5 * ONE_YEAR, plsUsdc);
+        (uint256 five4,) = hub.registrar.getRegisterPrice("four", 5 * ONE_YEAR, plsUsdc);
+        assertApproxEqAbs(five5, 20e6, 50, "5+ characters: $20 for 5 years");
+        assertApproxEqAbs(five4, 320e6, 50, "4 characters: $320 for 5 years");
     }
 
     function test_prices_onlyStablecoinsAccepted() public {
@@ -97,7 +107,7 @@ contract DeploymentTest is HexTestBase {
             vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, tried[i]));
             hub.registrar.setRentPriceOracle(IRentPriceOracle(address(hub.oracle)));
         }
-        assertEq(address(hub.registrar.rentPriceOracle()), address(hub.lengthCap));
+        assertEq(address(hub.registrar.rentPriceOracle()), address(hub.rules));
     }
 
     function test_roles_ethereumCopyHasNoAdmin() public view {
