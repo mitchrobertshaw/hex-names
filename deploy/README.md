@@ -75,11 +75,12 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 |---|---|---|
 | Deployer, on PulseChain (steps 1 and 3) | 10 tPLS, free from the [faucet](https://faucet.v4.testnet.pulsechain.com) (a site that gives out test coins) | 50,000 PLS. Step 1 would have cost about 15,000 at 7 November 2026's gas prices; the rest is in case gas rises |
 | Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.02 ETH |
-| Bot, on PulseChain | 10 tPLS for gas, and 20 to 50 test USDC as its float | 50,000 PLS, and $100 to $500 of USDC as its float |
+| Bot, on PulseChain | 10 tPLS for gas, and 20 test USDC as its float | 200,000 PLS for gas (about $1), and $150 of USDC as its float |
 | Bot, on Ethereum | 0.01 Sepolia ETH | 0.01 ETH |
 
-The bot's **float** is money it pays for names ordered from Ethereum. Each order pays it back on
-Ethereum about 15 minutes later. Send what's left in the deployer wallet back to yourself afterwards.
+You fund the bot once. Its **float** is money it lends to buy names ordered from Ethereum: each
+buyer pays it back, and the bot brings that home by itself. It buys its own gas, and settles up with
+your payments wallet within a budget you set in the app ([how](bot/README.md#money)). Send what's left in the deployer wallet back to yourself afterwards.
 
 ## Part 1: rehearse on the testnets
 
@@ -199,7 +200,7 @@ stopped run deployed is simply never used.
 | Deploy | Put contracts on a blockchain |
 | Bridge | Moves coins and messages between PulseChain and Ethereum, in about 15 to 20 minutes |
 | USDC | A dollar stablecoin: 1 USDC is worth about $1 |
-| Float | The bot's working money for names ordered from Ethereum |
+| Float | The bot's working money for names ordered from Ethereum, which the buyers pay back |
 | Address | A wallet's or contract's public number, starting `0x`. Safe to share |
 | Private key | The secret that controls a wallet. Never share it |
 | Recovery phrase (seed phrase) | The 12 or 24 words that restore a wallet. Whoever has them has the wallet |

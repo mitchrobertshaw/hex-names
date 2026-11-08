@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
-import type { Address, Hex } from "viem";
+import { type Address, formatUnits, type Hex } from "viem";
 
 import {
   dollarsText,
@@ -14,7 +14,7 @@ import {
 } from "../lib/payouts";
 import { LAUNCH_OFFER_DAYS, launchOffer, REFERRAL_PERCENT } from "../lib/referral";
 import { erc20Abi, registrarAbi } from "./abis";
-import { payReferrers, type Step } from "./flows";
+import { payReferrers, setBotBudget, type Step, usdcUnits } from "./flows";
 import { CopyButton } from "./ManagePanel";
 import { addressUrl, clients, deployment, network, txUrl } from "./network";
 import { readPayoutTransfers, readReferredPayments, readReferrers, readTokens } from "./payouts";
@@ -258,6 +258,8 @@ function Payouts() {
       ) : null}
 
       {state.status === "done" ? <Report key={`${state.from}:${state.to}`} {...state} /> : null}
+
+      <BotCard />
     </Shell>
   );
 }
@@ -403,6 +405,135 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
         </section>
       ) : null}
     </>
+  );
+}
+
+interface BotBalances {
+  float: bigint;
+  pls: bigint;
+  eth: bigint;
+  ethUsdc: bigint;
+  budget: bigint;
+}
+
+/**
+ * The bot: its balances on both chains, and the budget this wallet allows it. It buys its own gas
+ * and keeps a float that buyers from Ethereum pay back; it sends anything over the float here, and
+ * draws from here, up to the budget, only when gas leaves it short.
+ */
+function BotCard() {
+  const d = deployment!;
+  const bot = d.bot.address;
+  const owner = useWallet().connected?.account;
+  const [balances, setBalances] = useState<BotBalances | "failed" | null>(null);
+  const [amount, setAmount] = useState("100");
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    if (!bot || !owner) return;
+    let alive = true;
+    Promise.all([
+      clients.pulsechain.readContract({ address: d.pulsechain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
+      clients.pulsechain.getBalance({ address: bot }),
+      clients.ethereum.getBalance({ address: bot }),
+      clients.ethereum.readContract({ address: d.ethereum.usdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
+      clients.pulsechain.readContract({ address: d.pulsechain.usdc, abi: erc20Abi, functionName: "allowance", args: [owner, bot] }),
+    ])
+      .then(([float, pls, eth, ethUsdc, budget]) => alive && setBalances({ float, pls, eth, ethUsdc, budget }))
+      .catch(() => alive && setBalances("failed"));
+    return () => {
+      alive = false;
+    };
+  }, [bot, owner, version, d]);
+
+  async function setBudget(usdc: bigint) {
+    if (!bot) return;
+    setBusy(true);
+    try {
+      await setBotBudget({ bot, usdc, report: setSteps });
+      setVersion((v) => v + 1);
+    } catch {
+      // The steps show what went wrong.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="card payouts__card" aria-labelledby="bot-title">
+      <h2 id="bot-title" className="payouts__title">
+        The bot
+      </h2>
+      <p className="payouts__how">
+        It buys its own gas, and keeps a float to pay for names ordered from Ethereum, which the buyers pay back.
+        Anything over its float comes back to this wallet. If gas ever leaves it short, it draws what it needs from this
+        wallet, up to the budget you set here. Only this wallet can change the budget.
+      </p>
+      {!bot ? (
+        <p>
+          Its balances show here once its address is in <code>web/src/deployment.ts</code>: <code>bot.address</code>, the
+          address it prints when it starts.
+        </p>
+      ) : (
+        <>
+          {balances === "failed" ? (
+            <p>Couldn&rsquo;t read the bot&rsquo;s balances just now. Reload the page in a minute.</p>
+          ) : balances ? (
+            <dl className="bot__balances">
+              <div>
+                <dt>Float, on PulseChain</dt>
+                <dd>{usdcText(balances.float)} USDC</dd>
+              </div>
+              <div>
+                <dt>Gas, on PulseChain</dt>
+                <dd>{Math.round(Number(formatUnits(balances.pls, 18))).toLocaleString("en-US")} PLS</dd>
+              </div>
+              <div>
+                <dt>Gas, on Ethereum</dt>
+                <dd>{Number(formatUnits(balances.eth, 18)).toFixed(4)} ETH</dd>
+              </div>
+              <div>
+                <dt>Buyers&rsquo; payments on Ethereum</dt>
+                <dd>{usdcText(balances.ethUsdc)} USDC</dd>
+              </div>
+              <div>
+                <dt>Budget left</dt>
+                <dd>{usdcText(balances.budget)} USDC</dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="name-page__loading">Reading the bot&rsquo;s balances…</p>
+          )}
+          <form
+            className="bot__form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const dollars = Number(amount);
+              if (Number.isFinite(dollars) && dollars >= 0) void setBudget(usdcUnits(dollars));
+            }}
+          >
+            <label>
+              Budget, in USDC
+              <input type="number" min="0" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            </label>
+            <button type="submit" className="button button--primary" disabled={busy}>
+              Set the budget
+            </button>
+            <button
+              type="button"
+              className="button button--ghost"
+              disabled={busy || !balances || balances === "failed" || balances.budget === 0n}
+              onClick={() => void setBudget(0n)}
+            >
+              Stop it drawing
+            </button>
+          </form>
+          {steps ? <Steps steps={steps} /> : null}
+        </>
+      )}
+    </section>
   );
 }
 

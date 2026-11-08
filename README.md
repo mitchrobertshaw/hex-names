@@ -169,7 +169,8 @@ releasing money held by Ethereum orders. If they were compromised they could wri
 copy, or redirect money held by open orders. They could never touch the real names on PulseChain.
 Every token bridged to PulseChain relies on the same validators.
 
-**The bot** affects only speed. A stolen bot key loses only the bot's own float. If the bot stops,
+**The bot** affects only speed. A stolen bot key loses only the bot's own float, and what's left
+of the budget the payments wallet allows it. If the bot stops,
 orders from Ethereum are refunded instead of filled.
 
 **Nothing else has an owner.** `AnyTokenCheckout`, `HexOrderFiller`, `HexMirrorSync`,
@@ -226,7 +227,7 @@ workflow **test**).
   - forged and out-of-order bridge messages.
 - **Fork tests** (`test/fork/`): 8 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
-- **Bot tests** (`bot/test/`): 20 tests, including hashes checked against the deployed contracts, a
+- **Bot tests** (`bot/test/`): 36 tests, including hashes checked against the deployed contracts, a
   real bridge message, and each network's settings.
 
 With [Foundry](https://getfoundry.sh) and git:
@@ -264,20 +265,25 @@ something doesn't match.
 
 ## Running the bot
 
-The bot in [`bot/`](bot) fills Ethereum orders, claims bridge messages on Ethereum, and copies name
-changes to Ethereum. It needs to run all the time. It runs on [Railway](https://railway.com), set up
-in a browser, with a `testnet` environment for the rehearsal and `production` for mainnet. Step by
-step: [the bot, on Railway](deploy/bot/README.md).
+The bot in [`bot/`](bot) fills Ethereum orders, claims bridge messages on Ethereum, copies name
+changes to Ethereum, and looks after its own money. It needs to run all the time. It runs on
+[Railway](https://railway.com), set up in a browser, with a `testnet` environment for the rehearsal
+and `production` for mainnet. Step by step: [the bot, on Railway](deploy/bot/README.md).
 
-1. Give it a wallet with PLS for gas and a float of USDC on PulseChain (say $100–$500), plus a
-   little ETH on Ethereum for claims (a few cents each at today's gas prices).
+1. Give it a wallet with PLS for gas and a float of USDC on PulseChain ($150), plus a little ETH on
+   Ethereum for claims (a few cents each at today's gas prices). That's the only funding it needs.
 2. Paste its settings into Railway: `NETWORK`, its private key (sealed), and the **For the bot**
    lines from the deploy run summaries. Its order encryption key is made from its wallet key, and it
    prints the public key, for websites, when it starts.
 3. Give it a Railway volume, where it remembers its place between restarts.
+4. Let it draw from the payments wallet, up to a budget, on the app's payments page.
 
-The money from orders arrives in USDC on Ethereum, while the float is spent on PulseChain. Move it
-back across now and then, through the official bridge or LibertySwap.
+It runs on autopilot. The float lends for names ordered from Ethereum: the registrar pays the sale
+to the payments wallet, and the buyer's payment, released to the bot on Ethereum, goes home over the
+official bridge to refill the float. So every sale is counted once. It buys its own PLS and ETH with
+USDC when they run low, sends what it gains beyond its float to the payments wallet, and draws from
+the payments wallet, within the budget, if gas ever leaves it short:
+[money](deploy/bot/README.md#money).
 
 `npm run check-claim` checks the bot can claim real bridge messages. It finds one on the live bridge
 that has been signed but not yet claimed, and simulates claiming it. Nothing is sent.

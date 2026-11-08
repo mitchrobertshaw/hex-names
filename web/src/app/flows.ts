@@ -509,6 +509,40 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
   }
 }
 
+/**
+ * Sets how much USDC the bot may draw from this wallet (the payments wallet) on PulseChain, for when
+ * gas leaves its float short: an allowance, which only this wallet can change. 0 stops it.
+ */
+export async function setBotBudget(o: { bot: Address; usdc: bigint; report: Report }): Promise<Hex> {
+  const d = required();
+  const progress = new Progress(
+    [
+      ["chain", `Switch to ${PAY.pulsechain.name}`],
+      ["budget", o.usdc === 0n ? "Stop the bot drawing from this wallet" : "Set the bot's budget"],
+    ],
+    o.report,
+  );
+  try {
+    progress.start("chain");
+    await switchTo("pulsechain");
+    progress.done("chain");
+    progress.start("budget");
+    const hash = await walletClient("pulsechain").writeContract({
+      address: d.pulsechain.usdc,
+      abi: erc20Abi,
+      functionName: "approve",
+      args: [o.bot, o.usdc],
+    });
+    progress.set("budget", { tx: { chain: "pulsechain", hash } });
+    await confirm("pulsechain", hash);
+    progress.done("budget");
+    return hash;
+  } catch (error) {
+    progress.fail(errorText(error));
+    throw error;
+  }
+}
+
 /** A failure, said plainly. */
 export function errorText(error: unknown): string {
   const e = error as { code?: number; shortMessage?: string; message?: string; cause?: { code?: number } };
