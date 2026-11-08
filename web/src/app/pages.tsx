@@ -1,15 +1,15 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { useLiveStats } from "../components/LiveStrip";
-import { shortName, tooLongText } from "../lib/names";
+import { Card, Result } from "../components/NameSearch";
+import { checkName, type NameCheck, shortName, tooLongText } from "../lib/names";
 import { reservedNames } from "../lib/reserved";
-import { formatUsd } from "../lib/quotes";
 import { referralLink } from "../lib/referral";
 import { timeAgo } from "../lib/stats";
 import { NETWORK } from "../site";
-import { SearchIcon } from "../components/icons";
+import { AlertIcon, LockIcon, SearchIcon } from "../components/icons";
 import { BuyPanel } from "./BuyPanel";
-import { localInfo, lookUp, type NameInfo } from "./lookup";
+import { lookUp, type NameInfo } from "./lookup";
 import { CopyButton, OwnerPanel, RenewPanel } from "./ManagePanel";
 import { addressUrl, deployment } from "./network";
 import { linkProps, navigate } from "./router";
@@ -19,16 +19,92 @@ import { WalletChoices } from "./WalletButton";
 const dateText = (unix: number) =>
   new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" }).format(unix * 1000);
 
-/** The front page of the app: find a name. */
+/** The label a check is about (the .hex one, for a .eth name), or null if there's no name in it. */
+function labelOf(check: NameCheck): string | null {
+  if (check.kind === "eth") return labelOf(check.hex);
+  return check.kind === "empty" || check.kind === "invalid" ? null : check.name.replace(/\.hex$/, "");
+}
+
+type Taken = Extract<NameInfo, { kind: "registered" | "reserved" }>;
+
+/**
+ * Once the contracts are deployed, whether PulseChain says someone already owns (or the registry
+ * holds) a name the rules allow. Asked a moment after typing stops, for the latest name only; until
+ * the answer comes, the rules' own answer shows.
+ */
+function useTaken(check: NameCheck): Taken | null {
+  const target = check.kind === "eth" ? check.hex : check;
+  const label = target.kind === "available" || target.kind === "premium" ? labelOf(target) : null;
+  const [found, setFound] = useState<{ label: string; info: NameInfo } | null>(null);
+  useEffect(() => {
+    if (!deployment || !label) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      lookUp(label)
+        .then((info) => alive && setFound({ label, info }))
+        .catch(() => {
+          // Can't tell just now: the rules' answer stays, and the name's page checks again.
+        });
+    }, 300);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [label]);
+  if (!label || found?.label !== label) return null;
+  return found.info.kind === "registered" || found.info.kind === "reserved" ? found.info : null;
+}
+
+/** A name the rules allow, but that someone owns, or the registry holds, on PulseChain. */
+function TakenCard({ info }: { info: Taken }) {
+  const name = shortName(`${info.label}.hex`);
+  const see = (
+    <a className="button button--ghost button--small" {...linkProps({ page: "name", label: info.label })}>
+      See it
+    </a>
+  );
+  if (info.kind === "reserved") {
+    return (
+      <Card tone="neutral" icon={<LockIcon />} title={<><b>{name}</b> is reserved</>}>
+        <p>Held for {info.reservedFor}.</p>
+        {see}
+      </Card>
+    );
+  }
+  return info.inGrace ? (
+    <Card tone="warn" icon={<AlertIcon />} title={<><b>{name}</b> has just expired</>}>
+      <p>
+        Its owner can still renew it until {dateText(info.expiry + 28 * 86400)}. After that anyone can buy it.
+      </p>
+      {see}
+    </Card>
+  ) : (
+    <Card tone="neutral" icon={<LockIcon />} title={<><b>{name}</b> is taken</>}>
+      <p>Paid until {dateText(info.expiry)}.</p>
+      {see}
+    </Card>
+  );
+}
+
+/** Buying happens on the name's own page. */
+const registerHere = (name: string) => (
+  <a className="button button--primary button--small" {...linkProps({ page: "name", label: name.replace(/\.hex$/, "") })}>
+    Register
+  </a>
+);
+
+/** The front page of the app: find a name, with an answer as you type. */
 export function SearchPage() {
   const [query, setQuery] = useState("");
-  const info = useMemo(() => (query.trim() ? localInfo(query) : null), [query]);
+  const check = useMemo(() => checkName(query), [query]);
+  const taken = useTaken(check);
   const stats = useLiveStats();
   const wallet = useWallet();
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (info && "label" in info) navigate({ page: "name", label: info.label });
+    const label = labelOf(check);
+    if (label) navigate({ page: "name", label });
   }
 
   return (
@@ -62,22 +138,10 @@ export function SearchPage() {
             Search
           </button>
         </form>
+        <div className="search__results" aria-live="polite">
+          <Result check={check} action={registerHere} taken={taken ? <TakenCard info={taken} /> : undefined} />
+        </div>
       </div>
-      {info ? (
-        <p className="app-search__hint" aria-live="polite">
-          {info.kind === "invalid"
-            ? info.reason
-            : info.kind === "too-short"
-              ? "Names need at least 3 characters."
-              : info.kind === "too-long"
-                ? `${shortName(`${info.label}.hex`)} is too long. ${tooLongText(info)}`
-                : info.kind === "reserved"
-                  ? `${info.label}.hex is reserved for ${info.reservedFor}.`
-                  : info.kind === "available"
-                    ? `${info.label}.hex: ${formatUsd(info.yearlyPrice)} a year, for both chains. Press Search to see it.`
-                    : null}
-        </p>
-      ) : null}
 
       {wallet.connected ? (
         <p className="app-search__mine">
