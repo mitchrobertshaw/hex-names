@@ -103,7 +103,7 @@ abstract contract HexDeployer {
 
     struct HubConfig {
         address deployer; // the account sending the deployment; gives up its roles at the end
-        address admin; // may change prices and payment tokens and add registrars; cannot take names
+        address admin; // may raise or lower all prices, change payment tokens and add registrars; can't take names
         address beneficiary; // receives every registration and renewal payment
         IAMB amb; // the bridge's message contract on PulseChain
         uint256 ethereumChainId; // where the Ethereum copy lives: Ethereum (1), or Sepolia on the testnet
@@ -166,7 +166,7 @@ abstract contract HexDeployer {
         );
         hub.lengthCap = new HexNameLengthCap(IRentPriceOracle(address(hub.oracle)));
         hub.registrar = new ETHRegistrar(
-            cfg.admin,
+            cfg.deployer,
             hexRegistry,
             cfg.beneficiary,
             IRentPriceOracle(address(hub.lengthCap)),
@@ -175,6 +175,11 @@ abstract contract HexDeployer {
             MAX_COMMITMENT_AGE,
             MIN_REGISTER_DURATION
         );
+        // The registrar's one owner power is swapping its price list (`setRentPriceOracle`). Nobody
+        // keeps it, so the price of each length, the multi-year discounts, the premium for expired
+        // names and the 63-character cap are fixed for good. The admin can still raise or lower
+        // all prices together, on the oracle.
+        hub.registrar.renounceOwnership();
         hexRegistry.grantRootRoles(
             RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_RENEW, address(hub.registrar)
         );

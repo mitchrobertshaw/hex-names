@@ -7,7 +7,7 @@ a separate ask. The list below is what to have ready first, then who to approach
 
 - [ ] The contracts are live on PulseChain and Ethereum, and verified on both block explorers.
 - [ ] The admin is a multisig, or has given up its powers. Nobody can take a name either way, but
-      wallets will ask who can change prices and add registrars.
+      wallets will ask who can raise prices and add registrars.
 - [ ] The `UniversalResolverV2` addresses on both chains are published. A wallet that already looks
       up ENS names can then add `.hex` mostly by pointing those lookups at them.
 - [ ] Primary names work (address to name), so wallets can show `alice.hex` instead of `0x…`. Not

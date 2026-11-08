@@ -74,6 +74,7 @@ takes 5 to 10 minutes.
 |---|---|
 | `PULSECHAIN_MIRROR_SYNC`, `PULSECHAIN_ORDER_FILLER` | into the step 2 and step 3 forms |
 | `Payments go to` | nowhere: check it's your wallet, `0x102785E63DCD7C2ba1146E96da7fE429155602C6`. The dry run shows it before anything is sent |
+| `Price rules locked` | nowhere: check it says `yes, for good`. Nobody, you included, can then change the price of one length, the discounts or the 63-character limit |
 | the **For the bot** block | into the bot's settings on Railway ([the bot guide](../bot/README.md)) |
 | `PULSECHAIN_HEX_REGISTRY`, `PULSECHAIN_REGISTRAR`, `AnyTokenCheckout`, `PULSECHAIN_USDC`, `START_BLOCK_PULSECHAIN` | into `web/src/deployment.ts` ([the website guide](../website/README.md)) |
 | `UniversalResolver` | for wallets that add .hex: where they look names up |
