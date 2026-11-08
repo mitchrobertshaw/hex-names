@@ -1,9 +1,9 @@
 # The .hex bot
 
-Fills `.hex` orders placed on Ethereum within about a minute and a half, claims the bridge messages
-the `.hex` contracts send to Ethereum, copies name changes on PulseChain over to Ethereum, and looks
-after its own money: it buys its own gas, brings buyers' payments home, and settles up with the
-payments wallet ([how](../deploy/bot/README.md#money)).
+Claims the bridge messages the `.hex` contracts send to Ethereum, copies name changes on PulseChain
+over to Ethereum, and pays its own gas out of the payments wallet's budget
+([how](../deploy/bot/README.md#money)). It can also fill `.hex` orders placed on Ethereum, but that's
+off unless `FILL=true`: names are bought on PulseChain.
 
 **It runs on Railway**, set up in a browser: [deploy/bot/README.md](../deploy/bot/README.md), with
 what to fund it with on each network.
@@ -37,7 +37,7 @@ Sepolia" address step 1 printed. On Railway, the state file goes on the attached
 | `src/orders.ts` | reads orders on Ethereum, commits and fills them on PulseChain, refunds the ones it can't fill |
 | `src/relay.ts` | claims signed bridge messages on Ethereum, skipping ones that would change nothing |
 | `src/sync.ts` | copies registrations, renewals and transfers made outside the checkouts |
-| `src/treasury.ts` | its money: buys PLS and ETH for gas, sends buyers' payments home, keeps the float, settles up with the payments wallet |
+| `src/treasury.ts` | its money: buys PLS and ETH for gas, keeps a small working balance, draws from the payments wallet's budget and returns any extra |
 | `src/reveal.ts` | the sealed order details, their registrar commitment, and the bot's encryption key |
 | `src/buy.ts` | for websites: everything needed to place an order from Ethereum |
 | `src/amb.ts` | the bridge's message and signature formats |

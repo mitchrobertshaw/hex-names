@@ -2,15 +2,12 @@
 
 The bot is a small program that keeps the Ethereum side of .hex running:
 
-- When someone pays on Ethereum, it buys the name on PulseChain for them, within about a minute and
-  a half.
 - It carries PulseChain's updates across the bridge, so Ethereum's copy of every name stays current.
-- It looks after its own money: it buys its own gas, brings buyers' payments home, and settles up
-  with your payments wallet by itself ([money](#money)).
+- It pays its own gas, out of your sales, within a budget you set ([money](#money)).
 
-If it stops, PulseChain carries on as normal, but Ethereum's copy falls behind and orders from
-Ethereum wait. An order has 30 minutes to be filled. If the bot is down for longer than that, it
-refunds the order when it's back. A restart is harmless: it picks up where it left off.
+Names are bought on PulseChain, so the bot never handles a sale. If it stops, PulseChain carries on
+as normal and Ethereum's copy falls behind until it's back. A restart is harmless: it picks up where
+it left off.
 
 [Railway](https://railway.com) runs it for you. It builds the bot from the `bot/` folder of `main`,
 starts it again if it ever stops, and updates it when `bot/` changes. Railway calls each separate
@@ -31,11 +28,11 @@ New to this? [Start here](../README.md).
 
   | | Testnet | Mainnet |
   |---|---|---|
-  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 200,000 PLS, about $1. It buys more itself |
-  | On PulseChain, its float (it lends this for names ordered from Ethereum, and the buyers pay it back) | 20 test USDC ([how](../pulsechain/README.md#testnets-usdc-from-sepolia)) | $150 of USDC, bridged from Ethereum |
-  | On Ethereum, for gas (claiming bridge messages) | 0.01 Sepolia ETH | 0.01 ETH. It buys more itself |
+  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 200,000 PLS, about $1 |
+  | On Ethereum, for gas (claiming bridge messages) | 0.01 Sepolia ETH | 0.01 ETH, about $22 |
 
-  That's the only time you fund it. After that it pays its own way ([money](#money)).
+  That's the only time you fund it. After that it pays its own way ([money](#money)). It needs no
+  USDC from you: it draws a small working balance from your payments wallet's budget.
 
 ## 1. Set up Railway (once)
 
@@ -100,22 +97,23 @@ Within a minute you should see:
 
 ```
 hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
-  orders from Ethereum repay this wallet on Ethereum; it sends the money home to its float on PulseChain
+  buying from Ethereum is off (FILL=false): names are bought on PulseChain
   order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): 0x… (made from the bot's wallet key)
-  fill orders: true, claim bridge messages: true, copy name changes: true, look after its own float and gas: true
+  fill orders: false, claim bridge messages: true, copy name changes: true, pay its own gas: true
   remembers its place in /data/state.json
 ```
 
 - **The first `0x…`** is the bot's wallet. Check it's the one you funded. It goes in the website's
   settings too, as `bot.address`, so the payments page can show its balances.
-- **Copy the public key**, the long `0x…` after "for the website". The website seals each order with
-  it (locks the order's details, so only the bot can read which name is being bought).
-  [The website guide](../website/README.md) says where it goes.
+- **Copy the public key**, the long `0x…` after "for the website", into the website's settings
+  ([the website guide](../website/README.md) says where). Buying from Ethereum is off, so nothing
+  uses it now, but it's ready if that's ever switched on.
 - **"WARNING: no volume is attached"** means the volume is missing: see 2.3.
 - **"… is not set"** means a setting is missing: check the Variables.
 - **Lines ending "(will retry)"** are passing hiccups, such as a slow RPC. It tries again by itself.
-- **"daily: float … PLS … ETH …"**, once a day: its balances, and its budget from your payments wallet.
-- **"gas: bought …"** and **"float: …"** are it looking after its money ([money](#money)).
+- **"daily: working balance … PLS … ETH …"**, once a day: its balances, and its budget from your
+  payments wallet.
+- **"gas: bought …"** and **"balance: …"** are it paying its own way ([money](#money)).
 - **"WARNING: the bot is …"**, at most once a day, means it needs you: it says what for.
 
 On its first run the bot also copies the reserved names that went straight to a wallet over to
@@ -144,53 +142,35 @@ After the rehearsal you can delete the `testnet` environment (project **Settings
 
 ## Money
 
-The bot runs on autopilot: you fund it once, and it pays its own way from then on.
+The bot runs on autopilot: you fund it once with a little gas, and it pays its own way from then on.
 
-**Every sale is counted once, in your payments wallet.** Wherever a name is bought, the registrar
-pays its price straight to your payments wallet on PulseChain. That was fixed in step 1.
+**Every sale goes straight to your payments wallet.** Names are bought on PulseChain, and the
+registrar pays each price to your payments wallet. That was fixed in step 1. The bot never touches
+a sale.
 
-**The float only lends.** For a name ordered from Ethereum:
+**Gas comes out of revenue.** The bot keeps a small working balance of USDC on PulseChain, $20
+(`FLOAT_USDC`). When its gas runs low it buys more with it: PLS on PulseX ($2 at a time, over
+300,000 PLS) and ETH on Uniswap ($15 at a time, sent to Ethereum over the bridge first, which
+charges 0.3% in that direction). When the working balance runs low, it draws what it needs from your
+payments wallet, up to the budget you set on the app's payments page. If it ever holds more than it
+needs, the extra comes back to your payments wallet.
 
-1. The bot pays for the name on PulseChain out of its float. That payment goes to your payments
-   wallet: the sale.
-2. About 15 minutes later the bridge confirms it, and the buyer's money (the price and the bot's
-   25-cent fee) is released to the bot on Ethereum.
-3. The bot sends it home over the official bridge, which is free in that direction. About 20
-   minutes later it's back in the float.
-
-So the buyer pays the float back. The float is never revenue, and nothing is paid twice.
-
-**Gas pays for itself.** When it runs low, the bot buys PLS on PulseX ($2 at a time, over 300,000
-PLS) and ETH on Uniswap ($15 at a time) with its USDC. With no USDC on Ethereum, it first sends
-some there over the bridge, which charges 0.3% in that direction.
-
-**Settling up with your payments wallet.** The bot keeps a float of $150 (`FLOAT_USDC`). Once it
-holds $30 more than that (its fees, less its gas), it sends the extra to your payments wallet. If gas
-leaves it $30 or more short, it draws the difference from your payments wallet, up to the budget you
-set on the app's payments page. An order bigger than the float, such as a 4-character name ($160
-to $320) or a 3-character one ($320 to $640, the biggest order there can be), is covered the same
-way: it draws the difference if the budget allows, and sends it back once the buyer's payment is
-home. If the budget doesn't cover it, the buyer is refunded, and they can still buy that name on
-PulseChain.
-
-**What you'll see in your payments wallet:** the price of every name sold, wherever it was
-bought; now and then a payment from the bot (its fees, less gas); and, if gas ever costs more than
-its fees, a draw by the bot. The app's payments page shows the bot's balances and the budget left.
+**What you'll see in your payments wallet:** the price of every name sold, and now and then a small
+draw by the bot for gas. The app's payments page shows the bot's balances and the budget left.
 
 **How often you need to do anything:** normally never. When you pay referrers each month, glance at
 the bot on the same page. If its budget is running low, raise it. If the bot can't fix something
 itself, its log says so, once a day, starting "WARNING".
 
 **Costs.** Railway's Hobby plan, $5 a month. Gas, at 8 November 2026's prices: about 3 cents to copy
-each name to Ethereum, and a few cents more for an order from Ethereum, which its 25-cent fee
-covers. About 1 cent each time it sends money home.
+each name, renewal or transfer to Ethereum. A $100 budget covers about 3,000 of those.
 
 ## Keeping it safe
 
-- The bot's wallet only ever holds its float and a little gas. The deployer's and admin's keys never
-  go on Railway.
-- A stolen bot key could take the bot's float, and draw up to the budget left in your payments
-  wallet: that's why the budget has a limit. If you ever think the key has leaked, press **Stop it
+- The bot's wallet only ever holds a little gas and its $20 working balance. The deployer's and
+  admin's keys never go on Railway.
+- A stolen bot key could take those, and draw up to the budget left in your payments wallet: that's
+  why the budget has a limit. If you ever think the key has leaked, press **Stop it
   drawing** on the payments page, then give the bot a new wallet.
 - Seal the key (2.5). Turn on two-factor sign-in for Railway and GitHub (your phone gives a code
   each time you sign in).

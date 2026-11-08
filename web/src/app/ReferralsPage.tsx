@@ -418,8 +418,8 @@ interface BotBalances {
 
 /**
  * The bot: its balances on both chains, and the budget this wallet allows it. It buys its own gas
- * and keeps a float that buyers from Ethereum pay back; it sends anything over the float here, and
- * draws from here, up to the budget, only when gas leaves it short.
+ * with a small working balance of USDC, which it tops up from here, up to the budget; anything over
+ * its working balance comes back here.
  */
 function BotCard() {
   const d = deployment!;
@@ -467,9 +467,9 @@ function BotCard() {
         The bot
       </h2>
       <p className="payouts__how">
-        It buys its own gas, and keeps a float to pay for names ordered from Ethereum, which the buyers pay back.
-        Anything over its float comes back to this wallet. If gas ever leaves it short, it draws what it needs from this
-        wallet, up to the budget you set here. Only this wallet can change the budget.
+        It copies every name to Ethereum and pays its own gas, buying PLS and ETH with a small working balance of
+        USDC. When that runs low, it draws what it needs from this wallet, up to the budget you set here; anything
+        extra comes back. Only this wallet can change the budget.
       </p>
       {!bot ? (
         <p>
@@ -483,7 +483,7 @@ function BotCard() {
           ) : balances ? (
             <dl className="bot__balances">
               <div>
-                <dt>Float, on PulseChain</dt>
+                <dt>Working balance, on PulseChain</dt>
                 <dd>{usdcText(balances.float)} USDC</dd>
               </div>
               <div>
@@ -493,10 +493,6 @@ function BotCard() {
               <div>
                 <dt>Gas, on Ethereum</dt>
                 <dd>{Number(formatUnits(balances.eth, 18)).toFixed(4)} ETH</dd>
-              </div>
-              <div>
-                <dt>Buyers&rsquo; payments on Ethereum</dt>
-                <dd>{usdcText(balances.ethUsdc)} USDC</dd>
               </div>
               <div>
                 <dt>Budget left</dt>

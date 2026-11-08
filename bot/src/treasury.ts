@@ -135,7 +135,7 @@ export function plan(b: Balances, p: Pending, t: Pick<Treasury, "floatUsdc" | "p
       actions.push({
         kind: "warn",
         key: "budget",
-        message: `short of its float by ${usdcText(need - usdc)} USDC, and the payments wallet's budget for it has run out: raise it in the app`,
+        message: `short of its working balance by ${usdcText(need - usdc)} USDC, and the payments wallet's budget for it has run out: raise it in the app`,
       });
     }
   }
@@ -173,7 +173,7 @@ export async function runTreasury(ctx: Context): Promise<void> {
       state.home.filter((h) => !h.arrived).reduce((sum, h) => sum + BigInt(h.usdc), 0n) +
       Object.values(ctx.state.messages).reduce((sum, m) => sum + (m.own && m.status === "waiting" ? BigInt(m.own.usdc) : 0n), 0n);
     ctx.log(
-      `daily: float ${usdcText(after.float)} USDC (keeps ${usdcText(t.floatUsdc)}), ${plsText(after.pls)} PLS, ` +
+      `daily: working balance ${usdcText(after.float)} USDC (keeps ${usdcText(t.floatUsdc)}), ${plsText(after.pls)} PLS, ` +
         `${formatUnits(after.eth, 18)} ETH, ${usdcText(after.ethUsdc)} USDC on Ethereum; ` +
         `owed back by orders ${usdcText(pending.repayments)}, on the bridge ${usdcText(bridging)}; ` +
         `budget from the payments wallet ${usdcText(after.budget)} USDC`,
@@ -218,10 +218,10 @@ async function readPending(ctx: Context, state: TreasuryState, now: bigint): Pro
     const arrived = await ctx.pls.readContract({ address: config.homeAmb, abi: homeAmbAbi, functionName: "messageCallStatus", args: [transfer.messageId] });
     if (arrived) {
       transfer.arrived = true;
-      ctx.log(`float: ${usdcText(BigInt(transfer.usdc))} USDC arrived home from Ethereum`);
+      ctx.log(`balance: ${usdcText(BigInt(transfer.usdc))} USDC arrived home from Ethereum`);
     } else if (now - BigInt(transfer.sentAt) > HOME_TIMEOUT) {
       transfer.arrived = true; // stop counting on it, and say so
-      ctx.log(`float: ${usdcText(BigInt(transfer.usdc))} USDC sent home in ${transfer.tx} hasn't arrived after 6 hours; check the bridge`);
+      ctx.log(`balance: ${usdcText(BigInt(transfer.usdc))} USDC sent home in ${transfer.tx} hasn't arrived after 6 hours; check the bridge`);
     } else {
       home += BigInt(transfer.usdc);
     }
@@ -240,7 +240,7 @@ async function collectOwed(ctx: Context): Promise<void> {
   const owed = await ctx.eth.readContract({ address: ctx.config.orderBook, abi: orderBookAbi, functionName: "owed", args: [ctx.account.address] });
   if (owed === 0n) return;
   const tx = await send(ctx, "eth", { address: ctx.config.orderBook, abi: orderBookAbi, functionName: "withdraw" });
-  ctx.log(`float: collected ${usdcText(owed)} USDC the order book was holding for the bot (${tx})`);
+  ctx.log(`balance: collected ${usdcText(owed)} USDC the order book was holding for the bot (${tx})`);
 }
 
 async function act(ctx: Context, action: Exclude<Action, { kind: "warn" }>, payments: Address, state: TreasuryState, now: bigint): Promise<void> {
@@ -268,7 +268,7 @@ async function act(ctx: Context, action: Exclude<Action, { kind: "warn" }>, paym
       const [sent] = parseEventLogs({ abi: foreignAmbAbi, eventName: "UserRequestForAffirmation", logs: receipt.logs }).filter((l) => isAddressEqual(l.address, config.foreignAmb));
       if (!sent) throw new Error(`the bridge took the USDC but sent no message (${receipt.transactionHash})`);
       state.home.push({ messageId: sent.args.messageId, usdc: action.usdc.toString(), tx: receipt.transactionHash, sentAt: now.toString() });
-      ctx.log(`float: sent ${usdcText(action.usdc)} USDC of buyers' payments home over the bridge; it arrives in about 20 minutes (${receipt.transactionHash})`);
+      ctx.log(`balance: sent ${usdcText(action.usdc)} USDC home from Ethereum over the bridge; it arrives in about 20 minutes (${receipt.transactionHash})`);
       return;
     }
     case "send-out": {
@@ -292,12 +292,12 @@ async function act(ctx: Context, action: Exclude<Action, { kind: "warn" }>, paym
     }
     case "return": {
       const tx = await send(ctx, "pls", { address: config.pulsechainUsdc, abi: erc20Abi, functionName: "transfer", args: [payments, action.usdc] });
-      ctx.log(`float: ${usdcText(action.usdc)} USDC over its ${usdcText(t.floatUsdc)}, sent to the payments wallet ${payments} (${tx})`);
+      ctx.log(`balance: ${usdcText(action.usdc)} USDC over the ${usdcText(t.floatUsdc)} it keeps, sent to the payments wallet ${payments} (${tx})`);
       return;
     }
     case "draw": {
       const tx = await send(ctx, "pls", { address: config.pulsechainUsdc, abi: erc20Abi, functionName: "transferFrom", args: [payments, bot, action.usdc] });
-      ctx.log(`float: drew ${usdcText(action.usdc)} USDC from the payments wallet's budget for the bot (${tx})`);
+      ctx.log(`balance: drew ${usdcText(action.usdc)} USDC from the payments wallet's budget, for gas (${tx})`);
       return;
     }
   }

@@ -67,7 +67,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | **Deployer**: pays for deploying, and has no powers once step 3 is done | a new one | another new one | GitHub, as a repository secret |
 | **Admin**: can raise or lower all prices together, change payment tokens, and hand held names to their owners. It can't take anyone's name, or change the price of one length | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
 | **Payments**: receives every payment for a name, for good | your wallet, `0x1027…02C6` | your wallet, `0x1027…02C6` | nowhere: step 1's form already has its address |
-| **Bot**: the bot's own wallet, with its float | a new one | another new one | Railway, as a sealed variable |
+| **Bot**: the bot's own wallet, with a little gas | a new one | another new one | Railway, as a sealed variable |
 
 **Coins** (gas is the fee a chain charges for each transaction, paid in its own coin):
 
@@ -75,12 +75,12 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 |---|---|---|
 | Deployer, on PulseChain (steps 1 and 3) | 10 tPLS, free from the [faucet](https://faucet.v4.testnet.pulsechain.com) (a site that gives out test coins) | 50,000 PLS. Step 1 would have cost about 15,000 at 7 November 2026's gas prices; the rest is in case gas rises |
 | Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.02 ETH |
-| Bot, on PulseChain | 10 tPLS for gas, and 20 test USDC as its float | 200,000 PLS for gas (about $1), and $150 of USDC as its float |
+| Bot, on PulseChain | 10 tPLS for gas | 200,000 PLS for gas (about $1) |
 | Bot, on Ethereum | 0.01 Sepolia ETH | 0.01 ETH |
 
-You fund the bot once. Its **float** is money it lends to buy names ordered from Ethereum: each
-buyer pays it back, and the bot brings that home by itself. It buys its own gas, and settles up with
-your payments wallet within a budget you set in the app ([how](bot/README.md#money)). Send what's left in the deployer wallet back to yourself afterwards.
+You fund the bot once. After that it pays its own gas out of your sales, within a budget you set in
+the app ([how](bot/README.md#money)). Send what's left in the deployer wallet back to yourself
+afterwards.
 
 ## Part 1: rehearse on the testnets
 
@@ -125,16 +125,16 @@ your payments wallet within a budget you set in the app ([how](bot/README.md#mon
 
    - [ ] Buy a name on PulseChain Testnet v4 with USDC. It's yours in about two minutes, and on
          Sepolia about 15 minutes later.
-   - [ ] Order a name from Sepolia, paying in USDC or Sepolia ETH. The bot registers it on
-         PulseChain within about a minute and a half. It's paid back on Sepolia about 15 minutes
-         later.
-   - [ ] Order a name someone already has. The bot refunds it over the bridge.
+   - [ ] Connect a wallet with nothing on PulseChain Testnet v4, and check the app says so and
+         points to LibertySwap. (LibertySwap itself only works on mainnet.)
+   - [ ] Renew a name, and check the app won't go past 5 years ahead.
    - [ ] Look names up on both chains. Then send one to another wallet on PulseChain, and watch
          Sepolia follow.
-   - [ ] Order a name from Sepolia, and restart the bot straight away (on Railway, the ⋮ menu of
-         its latest deployment, then **Restart**). It picks up where it left off and still fills the
-         order. Each order has 30 minutes. If the bot is down for longer, it refunds the order when
-         it's back.
+   - [ ] Buy a name, and restart the bot straight away (on Railway, the ⋮ menu of its latest
+         deployment, then **Restart**). It picks up where it left off, and the name still reaches
+         Sepolia.
+   - [ ] On the testnet app's payments page (`/app/referrals`), give the bot a budget, and check
+         its balances show.
 
 ## Part 2: mainnet
 
@@ -200,7 +200,7 @@ stopped run deployed is simply never used.
 | Deploy | Put contracts on a blockchain |
 | Bridge | Moves coins and messages between PulseChain and Ethereum, in about 15 to 20 minutes |
 | USDC | A dollar stablecoin: 1 USDC is worth about $1 |
-| Float | The bot's working money for names ordered from Ethereum, which the buyers pay back |
+| Working balance | The bit of USDC the bot keeps to buy its own gas with, topped up from your budget |
 | Address | A wallet's or contract's public number, starting `0x`. Safe to share |
 | Private key | The secret that controls a wallet. Never share it |
 | Recovery phrase (seed phrase) | The 12 or 24 words that restore a wallet. Whoever has them has the wallet |

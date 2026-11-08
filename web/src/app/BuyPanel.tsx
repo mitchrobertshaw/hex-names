@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
+import type { Address } from "viem";
 
 import { CheckIcon } from "../components/icons";
 import { MAX_YEARS } from "../lib/names";
 import { formatToken, formatUsd, quoteIn } from "../lib/quotes";
 import { captureReferral, referralLink } from "../lib/referral";
 import type { ChainKey, PayToken } from "../lib/tokens";
-import { buyFromEthereum, buyOnPulseChain, type Step } from "./flows";
+import { erc20Abi } from "./abis";
+import { buyOnPulseChain, type Step, tokenAddress } from "./flows";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
-import { deployment, PAY } from "./network";
+import { clients, deployment, PAY } from "./network";
 import { referralTag } from "./order";
 import { linkProps } from "./router";
 import { Steps } from "./Steps";
 import { WalletChoices } from "./WalletButton";
 import { useWallet } from "./wallet";
 
-type Quote = { status: "loading" } | { status: "ok"; text: string } | { status: "error" };
+type Quote = { status: "loading" } | { status: "ok"; text: string; amount: bigint } | { status: "error" };
 const yearsText = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
 
 /** The live price of `dollars` in `token` on `chain`, refreshed as the choices change. */
@@ -25,7 +27,7 @@ function useQuote(chainKey: ChainKey, token: PayToken, dollars: number): Quote {
     const chain = PAY[chainKey];
     const usdc = BigInt(Math.ceil(dollars * 1e6));
     if (!token.path) {
-      setQuote({ status: "ok", text: `= ${formatToken(usdc, 6)} ${token.label ?? token.symbol}` });
+      setQuote({ status: "ok", text: `= ${formatToken(usdc, 6)} ${token.label ?? token.symbol}`, amount: usdc });
       return;
     }
     const controller = new AbortController();
@@ -36,6 +38,7 @@ function useQuote(chainKey: ChainKey, token: PayToken, dollars: number): Quote {
           setQuote({
             status: "ok",
             text: `≈ ${formatToken(amount, token.decimals)} ${token.symbol} on ${chain.dex} right now`,
+            amount,
           }),
         )
         .catch(() => !controller.signal.aborted && setQuote({ status: "error" }));
@@ -49,23 +52,15 @@ function useQuote(chainKey: ChainKey, token: PayToken, dollars: number): Quote {
 }
 
 /** Before the contracts are deployed: the steps of a purchase, played through without sending anything. */
-async function walkthrough(chainKey: ChainKey, token: PayToken, report: (steps: Step[]) => void) {
+async function walkthrough(token: PayToken, report: (steps: Step[]) => void) {
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-  const titles: [string, string][] =
-    chainKey === "pulsechain"
-      ? [
-          ["chain", `Switch to ${PAY.pulsechain.name}`],
-          ["commit", "Reserve the name"],
-          ...(token.native ? [] : ([["approve", `Allow ${token.label ?? token.symbol}`]] as [string, string][])),
-          ["wait", "Wait a minute"],
-          ["pay", "Pay and register"],
-        ]
-      : [
-          ["chain", `Switch to ${PAY.ethereum.name}`],
-          ...(token.native ? [] : ([["approve", `Allow ${token.symbol}`]] as [string, string][])),
-          ["order", "Place the order"],
-          ["fill", "Registered on PulseChain"],
-        ];
+  const titles: [string, string][] = [
+    ["chain", `Switch to ${PAY.pulsechain.name}`],
+    ["commit", "Reserve the name"],
+    ...(token.native ? [] : ([["approve", `Allow ${token.label ?? token.symbol}`]] as [string, string][])),
+    ["wait", "Wait a minute"],
+    ["pay", "Pay and register"],
+  ];
   let steps: Step[] = titles.map(([key, title]) => ({ key, title, status: "todo" }));
   const set = (key: string, patch: Partial<Step>) => {
     steps = steps.map((s) => (s.key === key ? { ...s, ...patch } : s));
@@ -73,20 +68,136 @@ async function walkthrough(chainKey: ChainKey, token: PayToken, report: (steps: 
   };
   report(steps);
   for (const [key] of titles) {
-    const wait = key === "wait" ? 6000 : key === "fill" ? 4000 : 1300;
+    const wait = key === "wait" ? 6000 : 1300;
     set(key, {
       status: "active",
       until: key === "wait" ? Date.now() + wait : undefined,
-      detail:
-        key === "wait"
-          ? "A minute on the live site."
-          : key === "fill"
-            ? "Within about a minute and a half on the live site."
-            : undefined,
+      detail: key === "wait" ? "A minute on the live site." : undefined,
     });
     await pause(wait);
     set(key, { status: "done", detail: undefined });
   }
+}
+
+/**
+ * Gas for buying a name, with room to spare: approve, commit and register take about 850,000 gas.
+ * At November 2026's gas prices that's about 500 PLS, a fraction of a cent.
+ */
+const PURCHASE_GAS = 1_200_000n;
+/** If the gas price can't be read: about twice what a purchase took in November 2026. */
+const FALLBACK_GAS_PLS = 1_000n * 10n ** 18n;
+
+/** The official site, and the only one to link to: copycats exist. */
+export const LIBERTYSWAP_URL = "https://libertyswap.finance";
+
+type Funds = "enough" | "short" | "no-gas" | null;
+
+/**
+ * Whether the connected wallet holds enough on PulseChain to buy: `need` of `token` (from the live
+ * quote) and a little PLS for the network fee. Checked again every 20 seconds and whenever the page
+ * comes back into view, for buyers returning from LibertySwap. Null until it's known.
+ */
+function useFunds(account: Address | undefined, token: PayToken, need: bigint | null): Funds {
+  const [funds, setFunds] = useState<Funds>(null);
+  useEffect(() => {
+    setFunds(null);
+    if (!account || !deployment || need === null) return;
+    let alive = true;
+    const check = async () => {
+      try {
+        const [pls, gasPrice] = await Promise.all([
+          clients.pulsechain.getBalance({ address: account }),
+          clients.pulsechain.getGasPrice().catch(() => null),
+        ]);
+        const gas = gasPrice === null ? FALLBACK_GAS_PLS : gasPrice * PURCHASE_GAS;
+        const address = tokenAddress("pulsechain", token);
+        const held = address
+          ? await clients.pulsechain.readContract({ address, abi: erc20Abi, functionName: "balanceOf", args: [account] })
+          : pls;
+        const result: Funds = address
+          ? held < need
+            ? "short"
+            : pls < gas
+              ? "no-gas"
+              : "enough"
+          : pls < need + gas
+            ? "short"
+            : "enough";
+        if (alive) setFunds(result);
+      } catch {
+        // Can't tell just now: say nothing rather than something wrong.
+      }
+    };
+    void check();
+    const timer = setInterval(check, 20_000);
+    window.addEventListener("focus", check);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [account, token, need]);
+  return funds;
+}
+
+/** What LibertySwap should send, in dollars: the total, a margin for prices moving, and its $10 minimum. */
+export function amountToSend(total: number): number {
+  return Math.max(10, Math.ceil(total * 1.03 + 1));
+}
+
+/**
+ * Names are bought on PulseChain. For buyers whose money is on Ethereum or another chain: how to
+ * bring it over with LibertySwap, a separate service, as PLS, which also pays the network fee.
+ * Open when the connected wallet is short; a closed "Coming from another chain?" otherwise.
+ */
+function GetFunds({ funds, total }: { funds: Funds; total: number }) {
+  const short = funds === "short" || funds === "no-gas";
+  const steps = (
+    <ol className="get-funds__steps">
+      <li>
+        Open <b>libertyswap.finance</b> and connect this wallet. Check the address: copycat sites exist.
+      </li>
+      <li>
+        Send at least <b>${amountToSend(funds === "no-gas" ? 0 : total)}</b> of USDC from Ethereum, Base, Arbitrum
+        or another chain, and choose <b>PLS on PulseChain</b> to receive.
+      </li>
+      <li>
+        In a few minutes, come back here and pay with <b>PLS</b>. It covers the name and the network fee. Your name
+        works on Ethereum too.
+      </li>
+    </ol>
+  );
+  const link = (
+    <a className="button button--primary button--small" href={LIBERTYSWAP_URL} target="_blank" rel="noreferrer">
+      Open LibertySwap
+    </a>
+  );
+  if (short) {
+    return (
+      <section className="get-funds get-funds--open" aria-labelledby="get-funds-title" role="status">
+        <h3 id="get-funds-title" className="get-funds__title">
+          {funds === "no-gas" ? "You need a little PLS for the network fee" : "Not enough on PulseChain yet"}
+        </h3>
+        <p>
+          Names are bought on PulseChain. LibertySwap brings money over from other chains in a few minutes, for a
+          0.3% fee.
+        </p>
+        {steps}
+        {link}
+      </section>
+    );
+  }
+  return (
+    <details className="get-funds">
+      <summary>Coming from Ethereum or another chain?</summary>
+      <p>
+        Names are bought on PulseChain, and work on Ethereum too. LibertySwap brings money over in a few minutes, for
+        a 0.3% fee.
+      </p>
+      {steps}
+      {link}
+    </details>
+  );
 }
 
 /** Choose how long and how to pay, see exactly what it costs, and buy. */
@@ -94,31 +205,23 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const wallet = useWallet();
   const name = `${info.label}.hex`;
   const [years, setYears] = useState(1);
-  const [chainKey, setChainKey] = useState<ChainKey>("pulsechain");
-  const chain = PAY[chainKey];
+  // Names are bought on PulseChain. Coming from another chain? LibertySwap brings the money over.
+  const chain = PAY.pulsechain;
   const [symbol, setSymbol] = useState(chain.tokens[0].symbol);
   const token = chain.tokens.find((t) => t.symbol === symbol) ?? chain.tokens[0];
   const price = priceOf(info, years);
-  const subtotal = Math.round(price.total * 100) / 100;
-  const fee = chainKey === "ethereum" ? (deployment?.bot.minFee ?? chain.fee) : 0;
-  const total = subtotal + fee;
-  const quote = useQuote(chainKey, token, total);
+  const total = Math.round(price.total * 100) / 100;
+  const quote = useQuote("pulsechain", token, total);
+  const funds = useFunds(wallet.connected?.account, token, quote.status === "ok" ? quote.amount : null);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [phase, setPhase] = useState<"choose" | "buying" | "done" | "failed">("choose");
-
-  function chooseChain(key: ChainKey) {
-    setChainKey(key);
-    setSymbol(PAY[key].tokens[0].symbol);
-  }
 
   async function buy() {
     setPhase("buying");
     const referrer = referralTag(captureReferral(), info.label);
     try {
-      if (!deployment) await walkthrough(chainKey, token, setSteps);
-      else if (chainKey === "pulsechain")
-        await buyOnPulseChain({ label: info.label, years, token, referrer, report: setSteps });
-      else await buyFromEthereum({ label: info.label, years, token, referrer, report: setSteps });
+      if (!deployment) await walkthrough(token, setSteps);
+      else await buyOnPulseChain({ label: info.label, years, token, referrer, report: setSteps });
       setPhase("done");
     } catch {
       setPhase("failed");
@@ -160,27 +263,8 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
         </div>
 
         <div className="checkout__field">
-          <span className="checkout__label" id="buy-chain">
-            Pay from
-          </span>
-          <div className="segmented" role="radiogroup" aria-labelledby="buy-chain">
-            {(Object.keys(PAY) as ChainKey[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                aria-checked={key === chainKey}
-                onClick={() => chooseChain(key)}
-              >
-                {PAY[key].name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="checkout__field">
           <span className="checkout__label" id="buy-token">
-            Pay with
+            Pay with, on {chain.name}
           </span>
           <div className="chips" role="radiogroup" aria-labelledby="buy-token">
             {chain.tokens.map((t) => (
@@ -199,6 +283,8 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
         </div>
       </fieldset>
 
+      <GetFunds funds={funds} total={total} />
+
       <dl className="breakdown">
         <div>
           <dt>
@@ -216,12 +302,6 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
           <div>
             <dt>Recently expired: a premium that halves every day</dt>
             <dd>{formatUsd(info.premium)}</dd>
-          </div>
-        ) : null}
-        {fee > 0 ? (
-          <div>
-            <dt>Order fee, for registering it on PulseChain for you</dt>
-            <dd>{formatUsd(fee)}</dd>
           </div>
         ) : null}
         <div>
@@ -254,9 +334,7 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
             <p className="buy__done-title">{deployment ? `${name} is yours.` : "That's the whole purchase."}</p>
             <p>
               {deployment
-                ? chainKey === "pulsechain"
-                  ? "It works on PulseChain now, and on Ethereum in about 15 minutes."
-                  : "It's yours on PulseChain, and on Ethereum in about 15 minutes."
+                ? "It works on PulseChain now, and on Ethereum in about 15 minutes."
                 : "On the live site each step is a real transaction, confirmed in your wallet."}
             </p>
             {deployment ? (

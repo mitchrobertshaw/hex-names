@@ -8,7 +8,7 @@ import { type Action, type Balances, type Pending, margin, plan, usdcText } from
 
 const usdc = (dollars: number) => BigInt(Math.round(dollars * 1_000_000));
 const ADDRESS = "0x000000000000000000000000000000000000dEaD";
-const config = loadConfig({
+const DEPLOYED = {
   BOT_PRIVATE_KEY: `0x${"11".repeat(32)}`,
   PULSECHAIN_REGISTRAR: ADDRESS,
   PULSECHAIN_HEX_REGISTRY: ADDRESS,
@@ -16,14 +16,21 @@ const config = loadConfig({
   PULSECHAIN_MIRROR_SYNC: ADDRESS,
   ETHEREUM_ORDER_BOOK: ADDRESS,
   ETHEREUM_MIRROR_REGISTRAR: ADDRESS,
-});
-const t = config.treasury; // mainnet: keeps $150, buys $2 of PLS under 200,000 and $15 of ETH under 0.003
+};
+const defaults = loadConfig(DEPLOYED);
+// The plan, worked through with a $150 float, as a bot filling Ethereum orders (FILL=true) would keep:
+// it buys $2 of PLS under 200,000 and $15 of ETH under 0.003.
+const t = loadConfig({ ...DEPLOYED, FLOAT_USDC: "150" }).treasury;
 
 const healthy: Balances = { pls: parseEther("1000000"), float: usdc(150), eth: parseEther("0.01"), ethUsdc: 0n, budget: usdc(100) };
 const nothing: Pending = { repayments: 0n, home: 0n, out: 0n, reserved: 0n, reservedBack: 0n };
 const kinds = (actions: Action[]) => actions.map((a) => (a.kind === "warn" ? `warn:${a.key}` : `${a.kind} ${usdcText(a.usdc)}`));
 
-test("mainnet's defaults: a $150 float, and gas bought a little at a time", () => {
+test("mainnet's defaults: no Ethereum orders, a $20 working balance, and gas bought a little at a time", () => {
+  assert.equal(defaults.fill, false, "names are bought on PulseChain");
+  assert.equal(loadConfig({ ...DEPLOYED, FILL: "true" }).fill, true);
+  assert.equal(defaults.treasury.floatUsdc, usdc(20));
+  assert.equal(margin(defaults.treasury.floatUsdc), usdc(5));
   assert.equal(t.enabled, true);
   assert.equal(t.floatUsdc, usdc(150));
   assert.equal(t.plsLow, parseEther("200000"));

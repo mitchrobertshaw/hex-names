@@ -13,6 +13,7 @@ import {
 } from "../lib/referral";
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
 import { usdcText } from "../lib/payouts";
+import { amountToSend } from "./BuyPanel";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
 import { hrefOf, modeOf, parse, type Place } from "./router";
@@ -153,6 +154,15 @@ describe("a name's page", () => {
     expect(localInfo(`${"a".repeat(63)}.hex`)).toMatchObject({ kind: "available", length: 63 });
     expect(localInfo("a".repeat(64))).toEqual({ kind: "too-long", label: "a".repeat(64), length: 64, bytes: 64 });
     expect(localInfo("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
+  });
+});
+
+describe("coming from another chain", () => {
+  it("asks LibertySwap for the price, a margin for prices moving, and at least its $10 minimum", () => {
+    expect(amountToSend(10)).toBe(12);
+    expect(amountToSend(20)).toBe(22);
+    expect(amountToSend(640)).toBe(661);
+    expect(amountToSend(0)).toBe(10); // just PLS for the network fee
   });
 });
 

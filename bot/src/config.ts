@@ -40,7 +40,7 @@ export type Config = {
   railway: { volume: string | undefined } | undefined; // set when running on Railway
   startBlockEthereum: bigint | undefined;
   startBlockPulseChain: bigint | undefined;
-  fill: boolean; // fill Ethereum orders
+  fill: boolean; // fill Ethereum orders: off unless FILL=true, as names are bought on PulseChain
   relay: boolean; // claim bridge messages on Ethereum
   sync: boolean; // copy name changes to Ethereum
 };
@@ -48,7 +48,7 @@ export type Config = {
 /** What the bot needs to keep itself going: its float, its gas, and where to swap and bridge. */
 export type Treasury = {
   enabled: boolean; // TREASURY: buy its own gas, bring buyers' payments home, settle with the payments wallet
-  floatUsdc: bigint; // FLOAT_USDC: the USDC it keeps on PulseChain to pay for names ordered from Ethereum
+  floatUsdc: bigint; // FLOAT_USDC: the USDC it keeps on PulseChain, to buy gas with (and, with FILL, for orders)
   plsLow: bigint; // PLS_LOW: below this much PLS (in wei), it buys more
   plsBuyUsdc: bigint; // PLS_BUY_USDC: how much USDC of PLS it buys at a time
   ethLow: bigint; // ETH_LOW: below this much ETH (in wei), it buys more
@@ -99,8 +99,8 @@ export const NETWORK_DEFAULTS: Record<
     pulsexRouters: ["0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02", "0x165C3410fC91EF562C50559f7d2289fEbed552d9"],
     weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     uniswapRouter: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-    floatUsdc: "150",
-    plsLow: "200000", // about 350 orders' gas, and about $1 on 8 November 2026
+    floatUsdc: "20", // a working balance for buying gas; with FILL=true, it pays for orders too
+    plsLow: "200000", // about $1 on 8 November 2026
     plsBuyUsdc: "2",
     ethLow: "0.003", // about 250 claims at 8 November 2026's gas prices
     ethBuyUsdc: "15",
@@ -147,7 +147,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (!isHex(hex) || hex.length !== 66) throw new Error(`${name} must be 32 bytes of hex`);
     return hex;
   };
-  const flag = (name: string): boolean => (optional(name) ?? "true").toLowerCase() !== "false";
+  const flag = (name: string, fallback = true): boolean => (optional(name) ?? String(fallback)).toLowerCase() !== "false";
   const block = (name: string): bigint | undefined => {
     const value = optional(name);
     return value === undefined ? undefined : BigInt(value);
@@ -207,7 +207,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     railway,
     startBlockEthereum: block("START_BLOCK_ETHEREUM"),
     startBlockPulseChain: block("START_BLOCK_PULSECHAIN"),
-    fill: flag("FILL"),
+    fill: flag("FILL", false),
     relay: flag("RELAY"),
     sync: flag("SYNC"),
   };

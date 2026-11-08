@@ -25,14 +25,18 @@ if (!state) {
 const ctx = createContext(config, state);
 
 ctx.log(`hex-names bot ${ctx.account.address} on ${config.network === "testnet" ? "the testnets (PulseChain Testnet v4 + Sepolia)" : "mainnet (PulseChain + Ethereum)"}`);
-ctx.log("  orders from Ethereum repay this wallet on Ethereum; it sends the money home to its float on PulseChain");
+ctx.log(
+  config.fill
+    ? "  orders from Ethereum repay this wallet on Ethereum; it sends the money home to its float on PulseChain"
+    : "  buying from Ethereum is off (FILL=false): names are bought on PulseChain",
+);
 ctx.log(
   `  order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): ${ctx.encryption.publicKey}` +
     (config.encryptionKeyFromWallet ? " (made from the bot's wallet key)" : " (from BOT_ENCRYPTION_SECRET_KEY)"),
 );
 ctx.log(
   `  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}, ` +
-    `look after its own float and gas: ${config.treasury.enabled}`,
+    `pay its own gas: ${config.treasury.enabled}`,
 );
 ctx.log(`  remembers its place in ${config.stateFile}`);
 if (config.railway && !config.railway.volume) {

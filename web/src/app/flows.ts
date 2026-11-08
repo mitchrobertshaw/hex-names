@@ -60,7 +60,7 @@ function required() {
 }
 
 /** The token a payment pulls, or null for the chain's own coin. */
-function tokenAddress(key: ChainKey, token: PayToken): Address | null {
+export function tokenAddress(key: ChainKey, token: PayToken): Address | null {
   if (token.native) return null;
   if (!token.path) return required()[key].usdc;
   return token.path[0] as Address;
