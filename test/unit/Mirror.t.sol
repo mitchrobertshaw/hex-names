@@ -51,6 +51,47 @@ contract MirrorTest is HexTestBase {
         assertEq(_resolveEthAddr(mirror.core, "alice.hex"), address(0), "Ethereum");
     }
 
+    function test_mirror_renewalInGraceKeepsEthereumSettings() public {
+        uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
+        _syncAndRelay("alice");
+        uint256 ethTokenId = mirror.core.hexRegistry.findTokenId("alice");
+        vm.startPrank(alice);
+        mirror.core.hexRegistry.setResolver(ethTokenId, address(0xBEEF));
+        hub.core.hexRegistry.setResolver(tokenId, address(0xCAFE));
+        vm.stopPrank();
+
+        // It lapses for an hour, and alice renews it in its grace period.
+        vm.warp(block.timestamp + ONE_YEAR + 1 hours);
+        uint256 price = hub.registrar.getRenewPrice("alice", 5 * ONE_YEAR, plsUsdc);
+        plsUsdc.mint(alice, price);
+        vm.startPrank(alice);
+        plsUsdc.approve(address(hub.registrar), price);
+        hub.registrar.renew("alice", 5 * ONE_YEAR, plsUsdc, bytes32(0));
+        vm.stopPrank();
+        _syncAndRelay("alice");
+
+        assertEq(hub.core.hexRegistry.getResolver("alice"), address(0xCAFE));
+        assertEq(mirror.core.hexRegistry.findOwner("alice"), alice);
+        assertEq(mirror.core.hexRegistry.getResolver("alice"), address(0xBEEF), "her Ethereum settings stay");
+        assertEq(mirror.core.hexRegistry.findTokenId("alice"), ethTokenId, "the same name, extended");
+        assertEq(mirror.core.hexRegistry.findExpiry("alice"), hub.core.hexRegistry.findExpiry("alice"));
+    }
+
+    function test_mirror_newOwnerAfterLapseStartsAfresh() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _syncAndRelay("alice");
+        uint256 ethTokenId = mirror.core.hexRegistry.findTokenId("alice");
+        vm.prank(alice);
+        mirror.core.hexRegistry.setResolver(ethTokenId, address(0xBEEF));
+
+        // It lapses for good, and bob buys it: his copy has none of alice's settings.
+        vm.warp(block.timestamp + ONE_YEAR + 60 days);
+        _registerDirect("alice", bob, ONE_YEAR);
+        _syncAndRelay("alice");
+        assertEq(mirror.core.hexRegistry.findOwner("alice"), bob);
+        assertEq(mirror.core.hexRegistry.getResolver("alice"), address(0));
+    }
+
     function test_lookup_ownersOwnResolverWins() public {
         uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
         address wallet = makeAddr("alice's other wallet");

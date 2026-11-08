@@ -9,8 +9,20 @@ import {IRegistry} from "@ensv2/registry/interfaces/IRegistry.sol";
 import {RegistryRolesLib} from "@ensv2/registry/libraries/RegistryRolesLib.sol";
 import {EACBaseRolesLib} from "@ensv2/access-control/libraries/EACBaseRolesLib.sol";
 import {IEnhancedAccessControl} from "@ensv2/access-control/interfaces/IEnhancedAccessControl.sol";
+import {UUPSProxyLogic} from "@ensdomains/verifiable-factory/UUPSProxyLogic.sol";
 
 import {HexTestBase} from "../helpers/HexTestBase.sol";
+
+/// @dev What someone would try to run in place of the resolver factory's shared proxy logic.
+contract SelfDestructor {
+    function canUpgradeFrom(address) external pure returns (bool) {
+        return true;
+    }
+
+    function boom() external {
+        selfdestruct(payable(msg.sender));
+    }
+}
 
 /// @notice The deployment itself: prices, who holds which roles, and that nobody can take names.
 contract DeploymentTest is HexTestBase {
@@ -88,7 +100,7 @@ contract DeploymentTest is HexTestBase {
         assertEq(
             adminRoles,
             RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
-                | RegistryRolesLib.ROLE_REGISTER_RESERVED
+                | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN
         );
         uint256 dangerous = RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_UNREGISTER_ADMIN
             | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_RESOLVER_ADMIN
@@ -154,6 +166,46 @@ contract DeploymentTest is HexTestBase {
             vm.prank(address(this));
             vm.expectRevert();
             core.rootRegistry.setResolver(hexId, admin);
+        }
+    }
+
+    function test_roles_adminCanGiveUpEveryPower() public {
+        // Adding registrars and renewers, handing out held reserved names, and adding endings: the
+        // admin can give each of them up for good.
+        vm.startPrank(admin);
+        hub.core.hexRegistry
+            .revokeRootRoles(
+                RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
+                    | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN,
+                admin
+            );
+        hub.core.rootRegistry
+            .revokeRootRoles(RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_REGISTRAR_ADMIN, admin);
+        vm.stopPrank();
+        assertEq(hub.core.hexRegistry.roles(ROOT, admin), 0);
+        assertEq(hub.core.rootRegistry.roles(ROOT, admin), 0);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Owners' own resolvers
+    // ------------------------------------------------------------------------------------------
+
+    function test_resolverFactory_sharedLogicCantBeTakenOver() public {
+        // Every resolver the factory makes forwards to one shared logic contract. Nobody can make it
+        // run their own code (on PulseChain, code that deletes it and every resolver with it).
+        for (uint256 i = 0; i < 2; ++i) {
+            Core memory core = i == 0 ? hub.core : mirror.core;
+            address logic = core.verifiableFactory.proxyLogic();
+            SelfDestructor boom = new SelfDestructor();
+            vm.startPrank(makeAddr("attacker"));
+            vm.expectRevert(abi.encodeWithSignature("AlreadyInitialized()"));
+            UUPSProxyLogic(payable(logic)).initialize(address(boom), abi.encodeCall(SelfDestructor.boom, ()));
+            vm.expectRevert();
+            UUPSProxyLogic(payable(logic)).upgradeToAndCall(address(boom), abi.encodeCall(SelfDestructor.boom, ()));
+            (bool ok,) = logic.call(abi.encodeCall(SelfDestructor.boom, ()));
+            assertFalse(ok, "its fallback runs nothing");
+            vm.stopPrank();
+            assertGt(logic.code.length, 0);
         }
     }
 
