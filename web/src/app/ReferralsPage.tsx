@@ -16,7 +16,7 @@ import { LAUNCH_OFFER_DAYS, launchOffer, REFERRAL_PERCENT } from "../lib/referra
 import { erc20Abi, registrarAbi } from "./abis";
 import { payReferrers, setBotBudget, type Step, usdcUnits } from "./flows";
 import { CopyButton } from "./ManagePanel";
-import { addressUrl, clients, deployment, network, STABLE, txUrl } from "./network";
+import { addressUrl, clients, deployment, network, txUrl } from "./network";
 import { readPayoutTransfers, readReferredPayments, readReferrers, readTokens } from "./payouts";
 import { Steps } from "./Steps";
 import { short, useWallet } from "./wallet";
@@ -300,10 +300,7 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
           <>
             <p className="payouts__summary">
               {report.pay.length} {report.pay.length === 1 ? "referrer" : "referrers"} to pay,{" "}
-              <b>
-                {usdcText(report.total.owed)} {STABLE}
-              </b>{" "}
-              in all, {REFERRAL_PERCENT}% of the{" "}
+              <b>{usdcText(report.total.owed)} USDC</b> in all, {REFERRAL_PERCENT}% of the{" "}
               {dollarsText(report.total.paid)} their buyers paid.
             </p>
             <div className="payouts__scroll">
@@ -334,9 +331,7 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
                       <td data-label="Renewed">{row.renewals}</td>
                       <td data-label="Their buyers paid">{dollarsText(row.paid)}</td>
                       <td data-label="Owed" className="payouts__owed">
-                        <b>
-                          {usdcText(row.owed)} {STABLE}
-                        </b>
+                        <b>{usdcText(row.owed)} USDC</b>
                       </td>
                     </tr>
                   ))}
@@ -355,7 +350,7 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
             ) : sent ? (
               <p className="payouts__paid">
                 <b>Paid.</b> {transfers.length} {transfers.length === 1 ? "referrer" : "referrers"},{" "}
-                {usdcText(report.total.owed)} {STABLE}, in{" "}
+                {usdcText(report.total.owed)} USDC, in{" "}
                 <a href={txUrl("pulsechain", sent)} target="_blank" rel="noreferrer">
                   one transaction
                 </a>
@@ -364,11 +359,11 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
             ) : transfers.length ? (
               <div className="payouts__pay">
                 <p className="payouts__how">
-                  <b>Pay all</b> sends every referrer their amount in {STABLE} on PulseChain, from this wallet, in one
+                  <b>Pay all</b> sends every referrer their amount in USDC on PulseChain, from this wallet, in one
                   transaction. Your wallet asks twice: to allow the exact total, then to send it.
                 </p>
                 <button type="button" className="button button--primary" onClick={payAll} disabled={busy}>
-                  {busy ? "Paying…" : `Pay all: ${usdcText(report.total.owed)} ${STABLE}`}
+                  {busy ? "Paying…" : `Pay all: ${usdcText(report.total.owed)} USDC`}
                 </button>
               </div>
             ) : null}
@@ -480,8 +475,8 @@ function BotCard() {
         The bot
       </h2>
       <p className="payouts__how">
-        It copies every name to Ethereum and pays its own gas, buying PLS and ETH with a small working balance
-        of {STABLE}. When that runs low, it draws what it needs from this wallet, up to the budget you set here; anything
+        It copies every name to Ethereum and pays its own gas, buying PLS and ETH with a small working balance of
+        USDC. When that runs low, it draws what it needs from this wallet, up to the budget you set here; anything
         extra comes back. Only this wallet can change the budget.
       </p>
       {!bot ? (
@@ -497,9 +492,7 @@ function BotCard() {
             <dl className="bot__balances">
               <div>
                 <dt>Working balance, on PulseChain</dt>
-                <dd>
-                  {usdcText(balances.float)} {STABLE}
-                </dd>
+                <dd>{usdcText(balances.float)} USDC</dd>
               </div>
               <div>
                 <dt>Gas, on PulseChain</dt>
@@ -511,9 +504,7 @@ function BotCard() {
               </div>
               <div>
                 <dt>Budget left</dt>
-                <dd>
-                  {usdcText(balances.budget)} {STABLE}
-                </dd>
+                <dd>{usdcText(balances.budget)} USDC</dd>
               </div>
             </dl>
           ) : (
@@ -528,7 +519,7 @@ function BotCard() {
             }}
           >
             <label>
-              Budget, in {STABLE}
+              Budget, in USDC
               <input type="number" min="0" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </label>
             <button type="submit" className="button button--primary" disabled={busy}>

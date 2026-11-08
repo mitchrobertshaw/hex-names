@@ -24,7 +24,7 @@ describe("the checkout's tokens match the deployment", () => {
       if (token.path) expect(lower(token.path[token.path.length - 1])).toBe(pulsechain.USDC);
     }
     const usdc = PAY_CHAINS.pulsechain.tokens.find((token) => !token.path);
-    expect(usdc?.symbol).toBe("eUSDC"); // as PulseChain users call it: never the USDC copied at the fork
+    expect(usdc?.label).toBe("USDC from Ethereum");
     expect(usdc?.note).toMatch(/bridged from Ethereum/);
   });
 

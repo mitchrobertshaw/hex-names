@@ -98,7 +98,7 @@ describe("the referral payout report", () => {
 
   it("makes a spreadsheet of every referrer, paid or not", () => {
     expect(payoutCsv(report).split("\n")).toEqual([
-      "referrer,pay_to,purchases,renewals,buyers_paid_usd,owed_eusdc,status",
+      "referrer,pay_to,purchases,renewals,buyers_paid_usd,owed_usdc,status",
       "mick.hex,0x00000000000000000000000000000000000000AA,2,1,30.000000,3.000000,pay",
       `sommi.hex,${B},1,0,2.500000,0.250000,pay`,
       "mick.hex,,1,0,10.000000,0.000000,not paid: self-referral",

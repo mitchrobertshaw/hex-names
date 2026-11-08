@@ -4,7 +4,7 @@ import { type Address, type ContractFunctionArgs, type Hex, zeroAddress } from "
 
 import type { ChainKey, PayToken } from "../lib/tokens";
 import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, registrarAbi, registryAbi } from "./abis";
-import { clients, deployment, PAY, STABLE } from "./network";
+import { clients, deployment, PAY } from "./network";
 import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR } from "./order";
 import { switchTo, walletClient } from "./wallet";
 
@@ -442,7 +442,7 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
   const progress = new Progress(
     [
       ["chain", `Switch to ${PAY.pulsechain.name}`],
-      ["approve", `Allow the total in ${STABLE}`],
+      ["approve", "Allow the total in USDC"],
       ["pay", `Pay ${o.payments.length} ${o.payments.length === 1 ? "referrer" : "referrers"}`],
     ],
     o.report,
@@ -458,7 +458,7 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
       functionName: "balanceOf",
       args: [wallet.account.address],
     });
-    if (balance < total) throw new Error(`This wallet doesn't hold enough ${STABLE} on PulseChain to pay everyone.`);
+    if (balance < total) throw new Error("This wallet doesn't hold enough USDC on PulseChain to pay everyone.");
     await ensureAllowance("pulsechain", d.pulsechain.usdc, DISPERSE, total, progress);
     progress.done("approve");
     progress.start("pay");
