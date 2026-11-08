@@ -77,6 +77,6 @@ doesn't matter for the rehearsal. The workflow uses Foundry 1.9.0 (the tool that
 which knows about it.
 
 When Ethereum itself gets the upgrade, the newer Foundry releases will know that too. Update the
-Foundry `version` in [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) to a
-release from after the upgrade before running step 2 on mainnet, or step 2 will run out of gas.
-Until then, 1.9.0 is right.
+Foundry version in [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+(`FOUNDRY_VERSION`, with its `FOUNDRY_SHA256`) to a release from after the upgrade before running
+step 2 on mainnet, or step 2 will run out of gas. Until then, 1.9.0 is right.
