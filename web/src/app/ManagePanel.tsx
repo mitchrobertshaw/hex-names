@@ -5,7 +5,7 @@ import { formatUsd } from "../lib/quotes";
 import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
 import { MAX_YEARS, priceFor } from "../lib/names";
 import { renew, send, type Step } from "./flows";
-import { deployment, PAY } from "./network";
+import { addressUrl, deployment, PAY } from "./network";
 import { referralTag } from "./order";
 import { Steps } from "./Steps";
 
@@ -143,13 +143,16 @@ export function RenewPanel({
   );
 }
 
-/** For the owner: send the name to another wallet, and their referral link. */
+/** For the owner: their referral link, send the name to another wallet, and how to sell it. */
 export function OwnerPanel({
   label,
+  expiry,
   canSend = true,
   onChanged,
 }: {
   label: string;
+  /** When it's paid until (unix seconds). */
+  expiry: number;
   /** False while the name is in its grace period: the registry won't move an expired name. */
   canSend?: boolean;
   onChanged?: () => void;
@@ -215,6 +218,68 @@ export function OwnerPanel({
         ) : null}
         {steps ? <Steps steps={steps} /> : null}
       </section>
+
+      <SellPanel label={label} expiry={expiry} canSell={canSend} />
     </>
+  );
+}
+
+/**
+ * How to sell a name, as ENS explains it for .eth names: there's no HexNS marketplace. Each name is
+ * an NFT (ERC-1155) in the .hex registry, so it sells on PulseChain NFT marketplaces, which show its
+ * card (HexNameCard). None is named: they come and go.
+ */
+function SellPanel({ label, expiry, canSell }: { label: string; expiry: number; canSell: boolean }) {
+  const registry = deployment?.pulsechain.registry;
+  return (
+    <section className="card manage" aria-labelledby="sell-title">
+      <h2 id="sell-title" className="manage__title">
+        Sell it
+      </h2>
+      {canSell ? (
+        <>
+          <p className="manage__text">
+            Your name is an NFT on PulseChain, so you can sell it on a PulseChain NFT marketplace, the way .eth names
+            sell on Ethereum&rsquo;s. Connect this wallet there, pick {label}.hex from your NFTs and set a price: when
+            someone buys it, the marketplace swaps the name for their payment in one go.
+          </p>
+          <ul className="manage__list">
+            <li>
+              The buyer gets it paid for until {dayText(expiry)}, and its Ethereum copy follows them by itself.
+            </li>
+            <li>HexNS takes no cut. The marketplace may charge a fee.</li>
+            <li>
+              To list it, your wallet asks you to let the marketplace move your .hex names. Only say yes to a marketplace
+              you trust.
+            </li>
+            <li>
+              An expired name can&rsquo;t change hands, so renew it before {dayText(expiry)} if it might not sell by
+              then.
+            </li>
+            <li>
+              Selling to someone you know? A marketplace still protects you both: neither of you has to pay or send
+              first.
+            </li>
+          </ul>
+          {registry ? (
+            <>
+              <p className="manage__note">
+                Buyers can check it&rsquo;s a real .hex name: it comes from{" "}
+                <a href={addressUrl("pulsechain", registry)} target="_blank" rel="noreferrer">
+                  this contract
+                </a>
+                .
+              </p>
+              <div className="manage__row manage__row--after-note">
+                <code className="manage__link">{registry}</code>
+                <CopyButton text={registry} />
+              </div>
+            </>
+          ) : null}
+        </>
+      ) : (
+        <p className="manage__text">Renew it first: an expired name can&rsquo;t be sold.</p>
+      )}
+    </section>
   );
 }

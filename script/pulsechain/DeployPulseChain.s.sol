@@ -88,6 +88,7 @@ contract DeployPulseChain is DeployScript {
         console.log("Resolver factory         ", address(hub.core.verifiableFactory));
         console.log("Resolver implementation  ", address(hub.core.resolverImplementation));
         console.log("Label store              ", address(hub.core.labelStore));
+        console.log("Name cards               ", address(hub.core.nameCard));
         console.log("Reserved names given     ", given);
         console.log("Reserved names held      ", reserved.length - given);
         console.log("Next: step 2 (Ethereum side) with PULSECHAIN_MIRROR_SYNC and PULSECHAIN_ORDER_FILLER.");
