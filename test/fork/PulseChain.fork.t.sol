@@ -106,6 +106,39 @@ contract PulseChainForkTest is Test, HexDeployer {
         assertEq(IERC20(P.USDC).balanceOf(address(hub.checkout)), 0);
     }
 
+    /// @dev WETH and HEX bridged from Ethereum, along the routes the app quotes: through WPLS, on
+    ///      the PulseX router with the deeper pools for each (checked on 8 November 2026).
+    function test_fork_buyWithWETHFromEthereum() public {
+        _buyWithBridgedToken("hexnamesweth", P.WETH_FROM_ETHEREUM, P.PULSEX_V1_ROUTER);
+    }
+
+    function test_fork_buyWithHEXFromEthereum() public {
+        _buyWithBridgedToken("hexnamesehex", P.HEX_FROM_ETHEREUM, P.PULSEX_V2_ROUTER);
+    }
+
+    function _buyWithBridgedToken(string memory label, address token, address router) internal {
+        AnyTokenCheckout.Registration memory reg = _registration(label, alice);
+        _commit(reg);
+        address[] memory path = new address[](3);
+        path[0] = token;
+        path[1] = P.WPLS;
+        path[2] = P.USDC;
+        (uint256 price, uint256 amountIn) = hub.checkout.quoteRegister(reg.label, reg.duration, router, path);
+        amountIn = amountIn * 103 / 100;
+        deal(token, alice, amountIn);
+
+        vm.startPrank(alice);
+        IERC20(token).approve(address(hub.checkout), amountIn);
+        (, uint256 change) = hub.checkout
+            .registerWithToken(reg, IERC20(token), amountIn, SwapPayments.Swap(router, path, price, block.timestamp));
+        vm.stopPrank();
+
+        assertEq(hub.core.hexRegistry.findOwner(label), alice);
+        assertEq(IERC20(P.USDC).balanceOf(alice), change);
+        assertEq(IERC20(token).balanceOf(address(hub.checkout)), 0);
+        assertEq(IERC20(P.USDC).balanceOf(address(hub.checkout)), 0);
+    }
+
     function test_fork_fillAnEthereumOrder() public {
         HexOrderFiller.Reveal memory r = HexOrderFiller.Reveal({
             label: "hexnamesorder",

@@ -27,8 +27,8 @@ either.
 
 Names are bought on PulseChain: 2–3 clicks (approve if paying with a token, commit, register), and
 the name is yours in about 1–2 minutes, on Ethereum about 15 minutes later. The buyer can pay with
-PLS or any token with a PulseX pool (HEX, PLSX, USDC, DAI, ...). It is swapped into a dollar
-stablecoin, so prices stay in dollars without a price oracle.
+PLS or any token with a PulseX pool (HEX, PLSX, and USDC, DAI, WETH or HEX bridged from Ethereum,
+...). It is swapped into a dollar stablecoin, so prices stay in dollars without a price oracle.
 
 1. **Commit.** The wallet commits to the name with a hash of its details. Nothing is paid yet, and
    nobody watching can see which name it is.
@@ -225,7 +225,7 @@ workflow **test**).
     order;
   - the Ethereum copy following transfers, renewals and expiry;
   - forged and out-of-order bridge messages.
-- **Fork tests** (`test/fork/`): 8 tests against live copies of PulseChain and Ethereum. They use the
+- **Fork tests** (`test/fork/`): 10 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
 - **Bot tests** (`bot/test/`): 36 tests, including hashes checked against the deployed contracts, a
   real bridge message, and each network's settings.

@@ -405,6 +405,11 @@ body {
   background: #22c55e;
 }
 
+/* Connected, but on another network than PulseChain. */
+.wallet-button__dot--away {
+  background: #f59e0b;
+}
+
 .wallet-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -892,4 +897,79 @@ body {
 
 .get-funds .button {
   justify-self: start;
+}
+
+/* The connected wallet is on another network than PulseChain. */
+.network-notice {
+  border-bottom: 1px solid var(--border);
+  background: var(--warn-soft);
+}
+
+.network-notice__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.network-notice__text {
+  flex: 1 1 320px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.network-notice__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  vertical-align: middle;
+}
+
+.network-notice__error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 14px;
+  color: var(--bad, #b42318);
+}
+
+.network-notice__manual {
+  flex-basis: 100%;
+  font-size: 14px;
+}
+
+.network-notice__manual summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.network-notice__manual p {
+  margin: 8px 0;
+}
+
+.network-notice__manual dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.network-notice__manual dl div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.network-notice__manual dt {
+  min-width: 130px;
+  color: var(--muted);
+}
+
+.network-notice__manual dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }

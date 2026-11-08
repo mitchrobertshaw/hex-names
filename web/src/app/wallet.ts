@@ -14,7 +14,7 @@ import {
   getAddress,
 } from "viem";
 
-import { addChainParams, CHAINS } from "./network";
+import { addChainParams, chainName, CHAINS } from "./network";
 import type { ChainKey } from "../lib/tokens";
 
 export interface Eip1193 {
@@ -35,10 +35,12 @@ export interface WalletState {
   connected: { option: WalletOption; account: Address; chainId: number } | null;
   connecting: boolean;
   error: string | null;
+  /** A network the connected wallet turned out not to have, and didn't add when asked. */
+  missing: ChainKey | null;
 }
 
 const LAST = "hexns-wallet";
-let state: WalletState = { options: [], connected: null, connecting: false, error: null };
+let state: WalletState = { options: [], connected: null, connecting: false, error: null, missing: null };
 const listeners = new Set<() => void>();
 
 function set(next: Partial<WalletState>) {
@@ -78,6 +80,11 @@ function start() {
     if (!state.connected && recalled() === info.rdns) void connect(info.rdns, true);
   }) as EventListener);
   window.dispatchEvent(new Event("eip6963:requestProvider"));
+  // Wallets say when they change network, but not always while the page is in the background:
+  // ask again whenever it comes back into view.
+  const recheck = () => void refreshChain();
+  window.addEventListener("focus", recheck);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && recheck());
   // Older wallets don't announce themselves.
   setTimeout(() => {
     const injected = (window as unknown as { ethereum?: Eip1193 }).ethereum;
@@ -129,23 +136,73 @@ export function disconnect() {
   unsubscribe?.();
   unsubscribe = null;
   remember(null);
-  set({ connected: null });
+  set({ connected: null, missing: null });
 }
 
-/** Asks the wallet to move to PulseChain or Ethereum (adding it first if it doesn't know it). */
+/** Reads which network the connected wallet is on now. */
+async function refreshChain(): Promise<number | null> {
+  const connected = state.connected;
+  if (!connected) return null;
+  try {
+    const chainId = Number(await connected.option.provider.request({ method: "eth_chainId" }));
+    if (state.connected && state.connected.chainId !== chainId) set({ connected: { ...state.connected, chainId } });
+    return chainId;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the wallet's network until it's `id`, for up to a second and a half: a few wallets confirm a
+ * switch a moment before they make it.
+ */
+async function settle(id: number): Promise<number | null> {
+  let now = await refreshChain();
+  for (let tries = 0; now !== null && now !== id && tries < 6; tries++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    now = await refreshChain();
+  }
+  return now;
+}
+
+/**
+ * Whether a wallet refused to switch because it doesn't have the network. Wallets say so with code
+ * 4902, some wrapped inside another error, and a few only in words.
+ */
+export function isUnknownChain(error: unknown): boolean {
+  const e = error as { code?: number; data?: { originalError?: { code?: number } }; message?: string };
+  if (e?.code === 4902 || e?.data?.originalError?.code === 4902) return true;
+  return /unrecognized chain|unknown chain|chain .*(not been added|not added|not found|isn't added)|add (the|this) (network|chain)/i.test(
+    e?.message ?? "",
+  );
+}
+
+/**
+ * Asks the wallet to move to PulseChain or Ethereum. If the wallet doesn't have it, it asks the
+ * wallet to add it, then to switch, for wallets that add a network without moving to it.
+ */
 export async function switchTo(key: ChainKey): Promise<void> {
   const connected = state.connected;
   if (!connected) throw new Error("Connect a wallet first.");
   const chain = CHAINS[key];
   if (connected.chainId === chain.id) return;
+  const provider = connected.option.provider;
   const chainId = `0x${chain.id.toString(16)}`;
   try {
-    await connected.option.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
   } catch (error) {
-    if ((error as { code?: number }).code !== 4902) throw error;
-    await connected.option.provider.request({ method: "wallet_addEthereumChain", params: [addChainParams(key)] });
+    if (!isUnknownChain(error)) throw error;
+    set({ missing: key });
+    await provider.request({ method: "wallet_addEthereumChain", params: [addChainParams(key)] });
+    set({ missing: null });
+    // Most wallets move to a network as they add it; ask the rest to.
+    if ((await refreshChain()) !== chain.id) {
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+    }
   }
-  set({ connected: { ...connected, chainId: chain.id } });
+  const now = await settle(chain.id);
+  if (now !== null && now !== chain.id) throw new Error(`Your wallet is still on ${chainName(now)}.`);
+  set({ missing: null, ...(now === null && state.connected ? { connected: { ...state.connected, chainId: chain.id } } : {}) });
 }
 
 /** A client that asks the connected wallet to sign on `key`'s chain. */

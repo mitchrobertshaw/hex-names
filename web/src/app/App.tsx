@@ -1,6 +1,7 @@
 import { Brand } from "../components/Brand";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { deployment, network } from "./network";
+import { NetworkNotice } from "./NetworkNotice";
 import { MyNamesPage, NamePage, SearchPage } from "./pages";
 import { ReferralsPage } from "./ReferralsPage";
 import { linkProps, useRoute } from "./router";
@@ -48,6 +49,8 @@ export function App() {
           <b>Testnet.</b> PulseChain Testnet v4 and Sepolia, with test coins. Nothing here costs real money.
         </p>
       ) : null}
+
+      <NetworkNotice />
 
       <main id="main" className="container app-main">
         {route.page === "name" ? (

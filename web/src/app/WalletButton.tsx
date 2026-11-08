@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { CHAINS, PAY } from "./network";
+import { chainName, CHAINS, PAY } from "./network";
 import { linkProps } from "./router";
 import { connect, disconnect, short, switchTo, useWallet } from "./wallet";
 
@@ -75,8 +75,13 @@ export function WalletButton() {
       >
         {wallet.connected ? (
           <>
-            <span className="wallet-button__dot" aria-hidden="true" />
+            <span
+              className={`wallet-button__dot${wallet.connected.chainId === CHAINS.pulsechain.id ? "" : " wallet-button__dot--away"}`}
+              title={`On ${chainName(wallet.connected.chainId)}`}
+              aria-hidden="true"
+            />
             {short(wallet.connected.account)}
+            <span className="visually-hidden">, on {chainName(wallet.connected.chainId)}</span>
           </>
         ) : (
           <>
@@ -91,12 +96,7 @@ export function WalletButton() {
               <p className="wallet-menu__who">
                 {wallet.connected.option.name}
                 <span>
-                  {short(wallet.connected.account)} · on{" "}
-                  {wallet.connected.chainId === CHAINS.pulsechain.id
-                    ? PAY.pulsechain.name
-                    : wallet.connected.chainId === CHAINS.ethereum.id
-                      ? PAY.ethereum.name
-                      : "another network"}
+                  {short(wallet.connected.account)} · on {chainName(wallet.connected.chainId)}
                 </span>
               </p>
               {wallet.connected.chainId !== CHAINS.pulsechain.id ? (
