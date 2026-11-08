@@ -17,7 +17,7 @@ import { short, useWallet } from "./wallet";
 import { WalletChoices } from "./WalletButton";
 
 const dateText = (unix: number) =>
-  new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" }).format(unix * 1000);
+  new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric" }).format(unix * 1000);
 
 /** The label a check is about (the .hex one, for a .eth name), or null if there's no name in it. */
 function labelOf(check: NameCheck): string | null {
@@ -262,7 +262,12 @@ export function NamePage({ label }: { label: string }) {
             ) : null}
           </section>
           {mine ? (
-            <OwnerPanel label={info.label} canSend={!info.inGrace} onChanged={() => setVersion((v) => v + 1)} />
+            <OwnerPanel
+              label={info.label}
+              expiry={info.expiry}
+              canSend={!info.inGrace}
+              onChanged={() => setVersion((v) => v + 1)}
+            />
           ) : null}
           <RenewPanel
             label={info.label}

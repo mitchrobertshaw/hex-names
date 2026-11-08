@@ -25,6 +25,7 @@ import {ILabelStore} from "@ensv2/utils/interfaces/ILabelStore.sol";
 
 import {OwnerResolver} from "../src/common/OwnerResolver.sol";
 import {SafeVerifiableFactory} from "../src/common/SafeVerifiableFactory.sol";
+import {HexNameCard} from "../src/common/HexNameCard.sol";
 import {HexMirrorRegistrar} from "../src/ethereum/HexMirrorRegistrar.sol";
 import {HexOrderBook} from "../src/ethereum/HexOrderBook.sol";
 import {IAMB} from "../src/interfaces/IAMB.sol";
@@ -90,6 +91,7 @@ abstract contract HexDeployer {
         UniversalResolverV2 universalResolver; // what wallets and apps look names up through
         VerifiableFactory verifiableFactory; // deploys owners' own resolvers
         PermissionedResolver resolverImplementation;
+        HexNameCard nameCard; // what wallets and marketplaces show for each name
     }
 
     /// @notice PulseChain: where names live and are sold.
@@ -149,8 +151,9 @@ abstract contract HexDeployer {
         // transfer, or change the resolver of someone else's name.
         uint256 hexRegistryRoles = RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
             | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN | RegistryRolesLib.ROLE_SET_PARENT
-            | RegistryRolesLib.ROLE_SET_PARENT_ADMIN;
-        hub.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles);
+            | RegistryRolesLib.ROLE_SET_PARENT_ADMIN | RegistryRolesLib.ROLE_SET_URI
+            | RegistryRolesLib.ROLE_SET_URI_ADMIN;
+        hub.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles, false);
         PermissionedRegistry hexRegistry = hub.core.hexRegistry;
 
         // Before the registrar exists, so nobody can buy a reserved name first.
@@ -202,11 +205,13 @@ abstract contract HexDeployer {
 
         // Hand over: the admin may add registrars and renewers later (a registrar can register a
         // name that has expired, even one still in its grace period), may hand held reserved names
-        // to their owners, and may add new endings to the root. It can give up each of these
-        // powers, handing out reserved names included. Then the deployer gives up everything.
+        // to their owners, may restyle the name cards (cosmetic: it changes no name), and may add
+        // new endings to the root. It can give up each of these powers, handing out reserved names
+        // included. Then the deployer gives up everything.
         hexRegistry.grantRootRoles(
             RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
-                | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN,
+                | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN
+                | RegistryRolesLib.ROLE_SET_URI | RegistryRolesLib.ROLE_SET_URI_ADMIN,
             cfg.admin
         );
         hub.core.rootRegistry
@@ -223,8 +228,9 @@ abstract contract HexDeployer {
     function _deployMirror(MirrorConfig memory cfg) internal returns (Mirror memory mirror) {
         uint256 hexRegistryRoles = RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_UNREGISTER_ADMIN
             | RegistryRolesLib.ROLE_RENEW_ADMIN | RegistryRolesLib.ROLE_SET_PARENT
-            | RegistryRolesLib.ROLE_SET_PARENT_ADMIN;
-        mirror.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles);
+            | RegistryRolesLib.ROLE_SET_PARENT_ADMIN | RegistryRolesLib.ROLE_SET_URI
+            | RegistryRolesLib.ROLE_SET_URI_ADMIN;
+        mirror.core = _deployCore(cfg.deployer, cfg.admin, hexRegistryRoles, true);
 
         mirror.mirrorRegistrar =
             new HexMirrorRegistrar(cfg.amb, cfg.pulsechainChainId, cfg.deployer, mirror.core.hexRegistry);
@@ -252,9 +258,15 @@ abstract contract HexDeployer {
     // Shared
     // ------------------------------------------------------------------------------------------
 
+    /// @dev The app's address for a name's page on chain `chainId`, which "<label>.hex" is added to:
+    ///      the app on PulseChain and Ethereum, the testnet copy of the site on their testnets.
+    function _appUrl(uint256 chainId) internal pure returns (string memory) {
+        return chainId == 369 || chainId == 1 ? "https://app.hexns.domains/" : "https://hexns-testnet.netlify.app/app/";
+    }
+
     /// @dev Deploys the ENSv2 contracts both chains have, with `hex` registered in the root under
     ///      no roles: nobody can ever replace the .hex registry or its default resolver.
-    function _deployCore(address deployer, address admin, uint256 hexRegistryRoles)
+    function _deployCore(address deployer, address admin, uint256 hexRegistryRoles, bool ethereumCopy)
         internal
         returns (Core memory core)
     {
@@ -269,6 +281,10 @@ abstract contract HexDeployer {
             RegistryRolesLib.ROLE_REGISTRAR | RegistryRolesLib.ROLE_REGISTRAR_ADMIN
         );
         core.hexRegistry = new PermissionedRegistry(ILabelStore(address(core.labelStore)), deployer, hexRegistryRoles);
+        // Each name's card, as ENS's metadata service gives .eth names: without one, wallets and
+        // marketplaces would show a bare token number.
+        core.nameCard = new HexNameCard(_appUrl(block.chainid), ethereumCopy);
+        core.hexRegistry.setURI("", core.nameCard);
         core.ownerResolver = new OwnerResolver(IRegistry(address(core.rootRegistry)));
 
         // The `hex` token goes to the admin with no roles: it cannot be transferred, and holding it

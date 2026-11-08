@@ -18,8 +18,8 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
   November 2026, $640 of PLS cost 6.6% more on V2 than on V1. A token is allowed during the minute,
   with about 5% to spare in case its price moves. Just before paying, the app checks the allowance
   again, and asks for one more approval only if the price rose more than that room allows. If it's
-  taken: who owns it and until when. If it's yours: renew it, send it to another wallet, and your
-  referral link.
+  taken: who owns it and until when. If it's yours: renew it, send it to another wallet, how to sell
+  it (on a PulseChain NFT marketplace, as .eth names sell on Ethereum's), and your referral link.
 - **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
 
 Wallets: any browser wallet that announces itself (MetaMask, Rabby, Internet Money and others) or

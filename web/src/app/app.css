@@ -559,6 +559,18 @@ body {
   margin-bottom: 16px;
 }
 
+.manage__row--after-note {
+  margin: 10px 0 0;
+}
+
+.manage__list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 18px;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
 .manage__link {
   padding: 8px 12px;
   border-radius: 10px;

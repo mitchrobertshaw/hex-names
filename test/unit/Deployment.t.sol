@@ -101,6 +101,7 @@ contract DeploymentTest is HexTestBase {
             adminRoles,
             RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
                 | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN
+                | RegistryRolesLib.ROLE_SET_URI | RegistryRolesLib.ROLE_SET_URI_ADMIN
         );
         uint256 dangerous = RegistryRolesLib.ROLE_UNREGISTER | RegistryRolesLib.ROLE_UNREGISTER_ADMIN
             | RegistryRolesLib.ROLE_SET_RESOLVER | RegistryRolesLib.ROLE_SET_RESOLVER_ADMIN
@@ -170,13 +171,14 @@ contract DeploymentTest is HexTestBase {
     }
 
     function test_roles_adminCanGiveUpEveryPower() public {
-        // Adding registrars and renewers, handing out held reserved names, and adding endings: the
-        // admin can give each of them up for good.
+        // Adding registrars and renewers, handing out held reserved names, restyling the name cards
+        // and adding endings: the admin can give each of them up for good.
         vm.startPrank(admin);
         hub.core.hexRegistry
             .revokeRootRoles(
                 RegistryRolesLib.ROLE_REGISTRAR_ADMIN | RegistryRolesLib.ROLE_RENEW_ADMIN
-                    | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN,
+                    | RegistryRolesLib.ROLE_REGISTER_RESERVED | RegistryRolesLib.ROLE_REGISTER_RESERVED_ADMIN
+                    | RegistryRolesLib.ROLE_SET_URI | RegistryRolesLib.ROLE_SET_URI_ADMIN,
                 admin
             );
         hub.core.rootRegistry

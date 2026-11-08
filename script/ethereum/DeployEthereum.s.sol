@@ -65,6 +65,7 @@ contract DeployEthereum is DeployScript {
         console.log("Default resolver         ", address(mirror.core.ownerResolver));
         console.log("Resolver factory         ", address(mirror.core.verifiableFactory));
         console.log("Resolver implementation  ", address(mirror.core.resolverImplementation));
+        console.log("Name cards               ", address(mirror.core.nameCard));
         console.log("Next: step 3 (link PulseChain) with all four PULSECHAIN_ and ETHEREUM_ addresses.");
     }
 

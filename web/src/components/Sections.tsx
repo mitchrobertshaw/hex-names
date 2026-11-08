@@ -51,7 +51,10 @@ export function BothChains() {
               <p className="chain__badge">Where your name lives</p>
             </div>
             <h3>PulseChain</h3>
-            <p>Buy, renew, sell and manage your name here. Changes show up straight away.</p>
+            <p>
+              Buy, renew and manage your name here, and sell it on PulseChain NFT marketplaces. Changes show up straight
+              away.
+            </p>
             <Resolves chain="PulseChain" />
             <AddPulseChain />
           </article>
@@ -323,6 +326,10 @@ const FAQS: { q: string; a: ReactNode }[] = [
   {
     q: "What can I pay with?",
     a: "Names are bought on PulseChain, with PLS, HEX or PLSX, or with USDC, WETH or HEX (eHEX) bridged from Ethereum. It's swapped into USDC at checkout, so the price stays in dollars. Holding another token? Swap it for PLS on PulseX first. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee (send at least $10), and the PLS pays for your name and the network fee.",
+  },
+  {
+    q: "Can I sell my name?",
+    a: "Yes. Like a .eth name, each .hex name is an NFT, on PulseChain, where it lives. Sell it on a PulseChain NFT marketplace, which shows it as a card with its name and when it's paid until, and hands it over as the payment arrives. The buyer gets the time already paid for, and the copy on Ethereum follows them by itself (on its own, the copy can't be sold). HexNS takes no cut. Your name's page in the app has the details.",
   },
   {
     q: "What happens if I forget to renew?",

@@ -177,6 +177,8 @@ root with no roles at all.
   name that has expired, even one still in its 28-day grace period, and removing the official
   registrar's renew role would stop renewals;
 - hand held reserved names to their owners;
+- restyle the name cards wallets and marketplaces show (cosmetic: it changes no name or owner).
+  On Ethereum nobody can;
 - add new endings to the root registry.
 
 It can't unregister a live name, change a name's resolver, or move a name. Nor can it change the
@@ -197,7 +199,8 @@ own gas and working balance, and what's left of the budget the payments wallet a
 stops, names still work on PulseChain, and Ethereum's copy catches up when it's back.
 
 **Nothing else has an owner.** `AnyTokenCheckout`, `HexOrderFiller`, `HexMirrorSync`,
-`HexOrderBook` and `HexMirrorRegistrar` have no admin functions, no upgrades and no pause. Each
+`HexOrderBook`, `HexMirrorRegistrar` and `HexNameCard` have no admin functions, no upgrades and no
+pause. Each
 bridge contract is linked once, by the deployer, to its partner on the other chain. After that,
 nothing can change.
 
@@ -211,6 +214,7 @@ nothing can change.
 | ENSv2 `UniversalResolverV2`, `PermissionedResolver`, `VerifiableFactory`, `LabelStore`, `ContractNamer` | lookups, owners' own resolvers, and supporting contracts |
 | [`SafeVerifiableFactory`](src/common/SafeVerifiableFactory.sol) | deploys `VerifiableFactory` so nobody can take over the logic owners' own resolvers share (see below) |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
+| [`HexNameCard`](src/common/HexNameCard.sol) | each name's card: what wallets and NFT marketplaces show for it (see below) |
 | [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai |
 | [`HexOrderFiller`](src/pulsechain/HexOrderFiller.sol) | completes Ethereum orders and tells Ethereum over the bridge |
 | [`HexMirrorSync`](src/pulsechain/HexMirrorSync.sol) | sends a name's owner and expiry to Ethereum over the bridge |
@@ -220,6 +224,16 @@ nothing can change.
 | the same ENSv2 contracts | the Ethereum copy of `.hex` and its lookups |
 | [`HexMirrorRegistrar`](src/ethereum/HexMirrorRegistrar.sol) | the only writer of the Ethereum copy, from bridge messages |
 | [`HexOrderBook`](src/ethereum/HexOrderBook.sol) | orders from Ethereum, and the money held for them |
+| [`HexNameCard`](src/common/HexNameCard.sol) | the copies' cards, which say where each name lives |
+
+**Name cards and selling.** As with .eth names, there's no HexNS marketplace: each name is an NFT
+(ERC-1155) in the `.hex` registry, so owners sell names on PulseChain NFT marketplaces, and a name's
+page in the app explains how. What wallets and marketplaces show for a name comes from the registry
+itself, as ENS's metadata service does it for .eth names: [`HexNameCard`](src/common/HexNameCard.sol)
+makes each name's card on-chain, so nothing has to stay online. The card has the name on the HexNS
+gradient, sized to fit whichever common font a wallet draws it in (grey once expired), and the details
+give its length, when it's paid until, whether it has expired, and a link to its page in the app. The
+Ethereum copy's cards say it's a copy, which can't be sold: it follows the name on PulseChain.
 
 **Running ENSv2 on PulseChain.** PulseChain lacks the opcodes from Ethereum's March 2024 upgrade
 (`TSTORE`, `MCOPY`). So everything is compiled for the previous target, Shanghai, with the compiler
@@ -246,7 +260,7 @@ tests check it.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 108 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 119 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
   - prices and roles, the 63-character and 5-year limits, that nobody can swap the price rules or
     unregister, move or redirect a live name, and that the admin can give up every power;
@@ -258,7 +272,9 @@ workflow **test**).
     order;
   - the Ethereum copy following transfers, renewals and expiry, and keeping its owner's settings
     when a name is renewed in its grace period;
-  - forged and out-of-order bridge messages.
+  - forged and out-of-order bridge messages;
+  - the name cards: what they show, that any name fits on its card and none can break it, and who can
+    restyle them.
 - **Fork tests** (`test/fork/`): 10 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
 - **Bot tests** (`bot/test/`): 46 tests, including hashes checked against the deployed contracts, a
