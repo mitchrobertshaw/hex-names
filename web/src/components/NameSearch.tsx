@@ -7,7 +7,7 @@ import { AlertIcon, CheckIcon, CrossIcon, LockIcon, SearchIcon, StarIcon } from 
 
 type Tone = "ok" | "neutral" | "bad" | "warn";
 
-function Card({ tone, icon, title, children }: { tone: Tone; icon: ReactNode; title: ReactNode; children: ReactNode }) {
+export function Card({ tone, icon, title, children }: { tone: Tone; icon: ReactNode; title: ReactNode; children: ReactNode }) {
   return (
     <div className={`result result--${tone}`}>
       <span className="result__icon">{icon}</span>
@@ -28,28 +28,47 @@ function RegisterLink({ name }: { name: string }) {
   );
 }
 
-function Result({ check }: { check: NameCheck }) {
+const registerLink = (name: string) => <RegisterLink name={name} />;
+
+/**
+ * What a name check says, as a card. `action` is the button on a name that can be bought (on the
+ * homepage, a link into the app); `taken`, when given, replaces that card: in the app, PulseChain
+ * may say someone owns the name already.
+ */
+export function Result({
+  check,
+  action = registerLink,
+  taken,
+}: {
+  check: NameCheck;
+  action?: (name: string) => ReactNode;
+  taken?: ReactNode;
+}) {
   switch (check.kind) {
     case "empty":
       return null;
     case "available":
       return (
-        <Card tone="ok" icon={<CheckIcon />} title={<><b>{check.name}</b> is available</>}>
-          <p>
-            ${check.yearlyPrice} a year for both chains. Pay on PulseChain, with PLS, HEX and more.
-          </p>
-          <RegisterLink name={check.name} />
-        </Card>
+        taken ?? (
+          <Card tone="ok" icon={<CheckIcon />} title={<><b>{check.name}</b> is available</>}>
+            <p>
+              ${check.yearlyPrice} a year for both chains. Pay on PulseChain, with PLS, HEX and more.
+            </p>
+            {action(check.name)}
+          </Card>
+        )
       );
     case "premium":
       // Green like any name that can be bought; the star marks it as premium.
       return (
-        <Card tone="ok" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
-          <p>
-            Names of {check.length} characters are rarer, so they cost ${check.yearlyPrice} a year for both chains.
-          </p>
-          <RegisterLink name={check.name} />
-        </Card>
+        taken ?? (
+          <Card tone="ok" icon={<StarIcon />} title={<><b>{check.name}</b> is a premium name</>}>
+            <p>
+              Names of {check.length} characters are rarer, so they cost ${check.yearlyPrice} a year for both chains.
+            </p>
+            {action(check.name)}
+          </Card>
+        )
       );
     case "reserved":
       return (
@@ -85,7 +104,7 @@ function Result({ check }: { check: NameCheck }) {
           <Card tone="warn" icon={<AlertIcon />} title={<><b>{check.name}</b> is a .eth name</>}>
             <p>.hex names never end in .eth. Here&rsquo;s the .hex one:</p>
           </Card>
-          <Result check={check.hex} />
+          <Result check={check.hex} action={action} taken={taken} />
         </>
       );
   }

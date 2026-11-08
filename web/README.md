@@ -7,7 +7,11 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
 
 [`app/index.html`](app/index.html) and [`src/app`](src/app). One page with three views:
 
-- **Search** (`/`): find a name, and see the names just registered.
+- **Search** (`/`): find a name, with an answer as you type, the same card as the homepage's: free
+  (with its price and a Register button that opens its page), premium, reserved, too short or too
+  long. Once the contracts are deployed it also asks PulseChain a moment after typing stops, so a
+  name someone owns shows as taken (or just expired, in its grace period). Below, the names just
+  registered.
 - **A name** (`/alice.hex`): if it's free, choose how long and which token, see exactly what it
   costs, and buy it on PulseChain: reserve it, wait a minute, pay ([`flows.ts`](src/app/flows.ts)).
   Each payment is quoted on both PulseX routers (V1 and V2) and paid along whichever needs less: in
