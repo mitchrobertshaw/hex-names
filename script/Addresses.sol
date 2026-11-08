@@ -12,6 +12,11 @@ library PulseChainAddresses {
     address internal constant WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
     /// @dev HEX on PulseChain (8 decimals), the same address as on Ethereum.
     address internal constant HEX = 0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39;
+    /// @dev WETH bridged from Ethereum ("Wrapped Ether from Ethereum", 18 decimals), as the
+    ///      official bridge's bridgedTokenAddress gives it. Not the copy of WETH made at the fork.
+    address internal constant WETH_FROM_ETHEREUM = 0x02DcdD04e3F455D838cd1249292C58f3B79e3C3C;
+    /// @dev HEX bridged from Ethereum ("HEX from Ethereum", eHEX, 8 decimals). Not PulseChain's HEX.
+    address internal constant HEX_FROM_ETHEREUM = 0x57fde0a71132198BBeC939B98976993d8D89D225;
     address internal constant PULSEX_V1_ROUTER = 0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02;
     address internal constant PULSEX_V2_ROUTER = 0x165C3410fC91EF562C50559f7d2289fEbed552d9;
 }

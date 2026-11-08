@@ -16,7 +16,9 @@ import { usdcText } from "../lib/payouts";
 import { amountToSend } from "./BuyPanel";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
+import { chainName } from "./network";
 import { hrefOf, modeOf, parse, type Place } from "./router";
+import { isUnknownChain } from "./wallet";
 
 const purchase: Purchase = {
   label: "alice",
@@ -154,6 +156,29 @@ describe("a name's page", () => {
     expect(localInfo(`${"a".repeat(63)}.hex`)).toMatchObject({ kind: "available", length: 63 });
     expect(localInfo("a".repeat(64))).toEqual({ kind: "too-long", label: "a".repeat(64), length: 64, bytes: 64 });
     expect(localInfo("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
+  });
+});
+
+describe("the wallet's network", () => {
+  it("is named in plain words", () => {
+    expect(chainName(1)).toBe("Ethereum");
+    expect(chainName(369)).toBe("PulseChain");
+    expect(chainName(943)).toBe("PulseChain Testnet v4");
+    expect(chainName(8453)).toBe("Base");
+    expect(chainName(999_999)).toBe("network 999999");
+  });
+
+  it("knows when a wallet doesn't have PulseChain, however the wallet says so", () => {
+    expect(isUnknownChain({ code: 4902 })).toBe(true);
+    expect(isUnknownChain({ code: -32603, data: { originalError: { code: 4902 } } })).toBe(true);
+    expect(
+      isUnknownChain({
+        code: -32603,
+        message: 'Unrecognized chain ID "0x171". Try adding the chain using wallet_addEthereumChain first.',
+      }),
+    ).toBe(true);
+    expect(isUnknownChain({ code: 4001, message: "User rejected the request." })).toBe(false);
+    expect(isUnknownChain(new Error("network error"))).toBe(false);
   });
 });
 

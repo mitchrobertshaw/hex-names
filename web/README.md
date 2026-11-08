@@ -122,6 +122,11 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
   fee. If it doesn't, it shows how to bring money over with LibertySwap, a separate service, linking
   only to its official site, libertyswap.finance: send USDC from Ethereum or another chain and
   choose PLS on PulseChain to receive.
+- **The wallet's network**: the app always knows which network the connected wallet is on (a green
+  dot in the top bar on PulseChain, amber elsewhere). On any other network, a notice under the top
+  bar names it, with one button to switch to PulseChain, or to add PulseChain if the wallet doesn't
+  have it, and the details to add it by hand
+  ([`src/app/NetworkNotice.tsx`](src/app/NetworkNotice.tsx)).
 - **Light and dark**: the moon and sun button in the top bar switches between them and remembers
   the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts

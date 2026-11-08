@@ -38,6 +38,10 @@ const PULSECHAIN = {
   USDC: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07",
   HEX: "0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39",
   PLSX: "0x95B303987A60C71504D99Aa1b13B4DA07b0790ab",
+  // Bridged from Ethereum by the official bridge (its bridgedTokenAddress), not the copies made at
+  // PulseChain's fork.
+  WETH_FROM_ETHEREUM: "0x02DcdD04e3F455D838cd1249292C58f3B79e3C3C",
+  HEX_FROM_ETHEREUM: "0x57fde0a71132198BBeC939B98976993d8D89D225",
   PULSEX_V1: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02",
   PULSEX_V2: "0x165C3410fC91EF562C50559f7d2289fEbed552d9",
 };
@@ -61,6 +65,13 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
     tokens: [
       { symbol: "PLS", decimals: 18, native: true, path: [PULSECHAIN.WPLS, PULSECHAIN.USDC] },
       { symbol: "HEX", decimals: 8, path: [PULSECHAIN.HEX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
+      {
+        symbol: "eHEX",
+        note: "HEX bridged from Ethereum, which your wallet calls \u201cHEX from Ethereum\u201d. Not the HEX made on PulseChain.",
+        decimals: 8,
+        path: [PULSECHAIN.HEX_FROM_ETHEREUM, PULSECHAIN.WPLS, PULSECHAIN.USDC],
+        router: PULSECHAIN.PULSEX_V2,
+      },
       { symbol: "PLSX", decimals: 18, path: [PULSECHAIN.PLSX, PULSECHAIN.WPLS, PULSECHAIN.USDC], router: PULSECHAIN.PULSEX_V1 },
       {
         symbol: "USDC",
@@ -68,6 +79,16 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
         note: "USDC bridged from Ethereum, which your wallet calls \u201cUSD Coin from Ethereum\u201d. There\u2019s no native USDC on PulseChain yet, and the USDC copied when PulseChain launched is a different token.",
         decimals: 6,
         path: null,
+      },
+      // Through WPLS, on the PulseX router with the deeper pools for each (checked on 8 November
+      // 2026: WETH lost 0.1% on $100 and eHEX 1% on $100, about 7% on $640).
+      {
+        symbol: "WETH",
+        label: "WETH from Ethereum",
+        note: "Ether bridged from Ethereum, which your wallet calls \u201cWrapped Ether from Ethereum\u201d.",
+        decimals: 18,
+        path: [PULSECHAIN.WETH_FROM_ETHEREUM, PULSECHAIN.WPLS, PULSECHAIN.USDC],
+        router: PULSECHAIN.PULSEX_V1,
       },
     ],
   },

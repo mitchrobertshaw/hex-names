@@ -198,7 +198,7 @@ const STEPS = [
   },
   {
     title: "Buy it on PulseChain",
-    text: "Pay with PLS, HEX, PLSX or USDC. Money on another chain? LibertySwap brings it over in a few minutes.",
+    text: "Pay with PLS, HEX, PLSX, eHEX, WETH or USDC. Money on another chain? LibertySwap brings it over in minutes.",
   },
   {
     title: "Use it everywhere",
@@ -323,7 +323,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "What can I pay with?",
-    a: "Names are bought on PulseChain, with PLS, HEX, PLSX, USDC from Ethereum or any token with a PulseX pool. It's swapped into USDC at checkout, so the price stays in dollars. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee, and the PLS pays for your name and the network fee.",
+    a: "Names are bought on PulseChain, with PLS, HEX or PLSX, with USDC, WETH or HEX bridged from Ethereum (eHEX), or with any token that has a PulseX pool. It's swapped into USDC at checkout, so the price stays in dollars. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee, and the PLS pays for your name and the network fee.",
   },
   {
     q: "What happens if I forget to renew?",

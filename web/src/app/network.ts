@@ -35,6 +35,24 @@ export function addressUrl(key: ChainKey, address: string): string {
   return `${CHAINS[key].blockExplorers?.default.url}/address/${address}`;
 }
 
+/** Networks a wallet might be on, by chain id, to say which one in plain words. */
+const NETWORK_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  10: "Optimism",
+  56: "BNB Chain",
+  137: "Polygon",
+  369: "PulseChain",
+  943: "PulseChain Testnet v4",
+  8453: "Base",
+  42161: "Arbitrum",
+  11155111: "Sepolia",
+};
+
+/** A network's name, from its chain id: "Ethereum", or "network 1234" for one it doesn't know. */
+export function chainName(id: number): string {
+  return NETWORK_NAMES[id] ?? `network ${id}`;
+}
+
 /** What wallets need to add a chain they don't know, PulseChain's testnet especially. */
 export function addChainParams(key: ChainKey) {
   const chain = CHAINS[key];
@@ -42,7 +60,9 @@ export function addChainParams(key: ChainKey) {
     chainId: `0x${chain.id.toString(16)}`,
     chainName: chain.name,
     nativeCurrency: chain.nativeCurrency,
-    rpcUrls: [rpcOf(key)],
+    // The chain's own public RPC (rpc.pulsechain.com), as the homepage's "Add PulseChain" gives
+    // wallets: not the archive RPC the app reads history from.
+    rpcUrls: [chain.rpcUrls.default.http[0] ?? rpcOf(key)],
     blockExplorerUrls: chain.blockExplorers ? [chain.blockExplorers.default.url] : [],
   };
 }

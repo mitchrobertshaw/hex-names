@@ -28,6 +28,20 @@ describe("the checkout's tokens match the deployment", () => {
     expect(usdc?.note).toMatch(/bridged from Ethereum/);
   });
 
+  it("pays with WETH and HEX bridged from Ethereum, as the bridge made them", () => {
+    const weth = PAY_CHAINS.pulsechain.tokens.find((token) => token.symbol === "WETH");
+    const eHex = PAY_CHAINS.pulsechain.tokens.find((token) => token.symbol === "eHEX");
+    expect(lower(weth!.path![0])).toBe(pulsechain.WETH_FROM_ETHEREUM);
+    expect(lower(eHex!.path![0])).toBe(pulsechain.HEX_FROM_ETHEREUM);
+    expect(pulsechain.HEX_FROM_ETHEREUM).not.toBe(pulsechain.HEX); // eHEX is not PulseChain's HEX
+    expect(weth!.label).toBe("WETH from Ethereum");
+    expect(eHex!.note).toMatch(/bridged from Ethereum/);
+    // Each pays along a route the fork tests buy names with.
+    expect(lower(weth!.router!)).toBe(pulsechain.PULSEX_V1_ROUTER);
+    expect(lower(eHex!.router!)).toBe(pulsechain.PULSEX_V2_ROUTER);
+    expect(new Set(PAY_CHAINS.pulsechain.tokens.map((token) => token.symbol)).size).toBe(PAY_CHAINS.pulsechain.tokens.length);
+  });
+
   it("never touches the copy of USDC made at PulseChain's fork", () => {
     const copy = ethereum.USDC; // the fork copied Ethereum's USDC contract to the same address
     for (const token of PAY_CHAINS.pulsechain.tokens) {
