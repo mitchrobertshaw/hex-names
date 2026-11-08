@@ -37,15 +37,29 @@ export type MessageRecord = {
   note?: string; // why it was skipped
   tx?: Hex;
   own?: { usdc: string }; // the bot's own USDC, sent to Ethereum over the bridge to buy ETH
+  claimTx?: Hex; // a claim sent and not yet mined: waited for, never sent twice
+  claimSentAt?: string; // unix seconds
 };
 
 /** USDC the bot sent home from Ethereum over the bridge, until it arrives on PulseChain. */
 export type HomeTransfer = { messageId: Hex; usdc: string; tx: Hex; sentAt: string; arrived?: boolean };
 
+/** A bridge transfer of the bot's own USDC, sent and not yet seen mined (out: to Ethereum; home: back). */
+export type Submitted = { kind: "out" | "home"; tx: Hex; usdc: string; sentAt: string };
+
+/** What the bot has spent claiming messages that copy names to Ethereum, to keep within its limits. */
+export type RelayState = {
+  day: string; // the UTC day `spent` counts, as YYYY-MM-DD
+  spent: string; // wei spent on those claims that day
+  lastClaim: Record<string, string>; // when each name was last copied, by label (unix seconds)
+  noted: Record<string, string>; // what it last said it was holding back, and when (unix seconds)
+};
+
 export type TreasuryState = {
   lastRun?: string; // unix seconds
   lastReport?: string; // unix seconds: the daily line about its balances
   home: HomeTransfer[];
+  submitted?: Submitted[];
   warned: Record<string, string>; // what it last warned about, and when (unix seconds)
 };
 
@@ -56,6 +70,7 @@ export type State = {
   orders: Record<string, OrderRecord>;
   messages: Record<string, MessageRecord>;
   treasury?: TreasuryState;
+  relay?: RelayState;
 };
 
 export function loadState(file: string): State | undefined {

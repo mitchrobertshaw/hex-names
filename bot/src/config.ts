@@ -43,6 +43,17 @@ export type Config = {
   fill: boolean; // fill Ethereum orders: off unless FILL=true, as names are bought on PulseChain
   relay: boolean; // claim bridge messages on Ethereum
   sync: boolean; // copy name changes to Ethereum
+  relayLimits: RelayLimits;
+};
+
+/**
+ * Anyone can change a name on PulseChain for a fraction of a cent (sending it back and forth, say),
+ * and each change costs the bot ETH to copy. So it copies each name at most once in a while, and
+ * spends at most so much ETH a day copying; the rest wait, and the newest change wins.
+ */
+export type RelayLimits = {
+  dailyEth: bigint; // RELAY_DAILY_ETH: the most ETH (in wei) a day it spends copying names
+  nameCooldown: bigint; // RELAY_NAME_COOLDOWN_MINUTES, in seconds: how long after copying a name it copies it again
 };
 
 /** What the bot needs to keep itself going: its float, its gas, and where to swap and bridge. */
@@ -147,7 +158,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (!isHex(hex) || hex.length !== 66) throw new Error(`${name} must be 32 bytes of hex`);
     return hex;
   };
-  const flag = (name: string, fallback = true): boolean => (optional(name) ?? String(fallback)).toLowerCase() !== "false";
+  const flag = (name: string, fallback = true): boolean => {
+    const value = optional(name)?.toLowerCase();
+    if (value === undefined) return fallback;
+    if (["true", "1", "yes", "on"].includes(value)) return true;
+    if (["false", "0", "no", "off"].includes(value)) return false;
+    throw new Error(`${name} must be true or false, not "${value}"`);
+  };
   const block = (name: string): bigint | undefined => {
     const value = optional(name);
     return value === undefined ? undefined : BigInt(value);
@@ -210,5 +227,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     fill: flag("FILL", false),
     relay: flag("RELAY"),
     sync: flag("SYNC"),
+    relayLimits: {
+      // About 1,600 copies a day at 8 November 2026's gas prices, and still a few at times of very
+      // high gas; beyond it, copies wait for the next day.
+      dailyEth: coins(optional("RELAY_DAILY_ETH") ?? "0.02"),
+      nameCooldown: BigInt(Number(optional("RELAY_NAME_COOLDOWN_MINUTES") ?? "60") * 60),
+    },
   };
 }

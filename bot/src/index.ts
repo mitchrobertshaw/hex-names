@@ -23,6 +23,8 @@ if (!state) {
   };
 }
 const ctx = createContext(config, state);
+const saved = state;
+ctx.save = () => saveState(config.stateFile, saved);
 
 ctx.log(`hex-names bot ${ctx.account.address} on ${config.network === "testnet" ? "the testnets (PulseChain Testnet v4 + Sepolia)" : "mainnet (PulseChain + Ethereum)"}`);
 ctx.log(
@@ -70,10 +72,9 @@ while (!stopping) {
     });
   }
   if (config.relay) {
-    await step("bridge", async () => {
-      await scanMessages(ctx);
-      await claimMessages(ctx);
-    });
+    // Apart, so a scan that fails (a busy RPC, say) doesn't hold up claiming what it already found.
+    await step("bridge", () => scanMessages(ctx));
+    await step("bridge claims", () => claimMessages(ctx));
   }
   if (config.sync) await step("sync", () => syncNames(ctx));
   if (config.treasury.enabled) await step("treasury", () => runTreasury(ctx));

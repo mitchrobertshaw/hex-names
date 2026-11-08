@@ -18,6 +18,8 @@ export type Context = {
   eth: PublicClient<Transport, Chain>;
   ethWallet: WalletClient<Transport, Chain, Account>;
   log: (message: string) => void;
+  /** Writes the state to its file now, as soon as a transaction it must not lose track of is sent. */
+  save: () => void;
 };
 
 /**
@@ -49,5 +51,6 @@ export function createContext(config: Config, state: State): Context {
     eth: createPublicClient({ chain: chains.ethereum, transport: ethTransport }),
     ethWallet: createWalletClient({ account, chain: chains.ethereum, transport: ethTransport }),
     log: (message) => console.log(`${new Date().toISOString()} ${message}`),
+    save: () => {},
   };
 }

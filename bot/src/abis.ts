@@ -67,6 +67,12 @@ export const tokenBridgeAbi = parseAbi([
   "function relayTokens(address token, address receiver, uint256 value)",
 ]);
 
+/** What the official bridge's token contract asks of its Ethereum side, to hand over tokens sent from PulseChain. */
+export const tokenBridgeCallsAbi = parseAbi([
+  "function handleNativeTokens(address token, address receiver, uint256 value)",
+  "function handleBridgedTokens(address token, address receiver, uint256 value)",
+]);
+
 export const homeAmbAbi = parseAbi([
   "event UserRequestForSignature(bytes32 indexed messageId, bytes encodedData)",
   "function messageCallStatus(bytes32 messageId) view returns (bool)",
