@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IRentPriceOracle} from "@ensv2/registrar/interfaces/IRentPriceOracle.sol";
 import {IPermissionedRegistry} from "@ensv2/registry/interfaces/IPermissionedRegistry.sol";
@@ -84,6 +85,19 @@ contract DeploymentTest is HexTestBase {
             | RegistryRolesLib.ROLE_SET_SUBREGISTRY | RegistryRolesLib.ROLE_SET_SUBREGISTRY_ADMIN
             | RegistryRolesLib.ROLE_CAN_TRANSFER_ADMIN;
         assertEq(adminRoles & dangerous, 0);
+    }
+
+    function test_roles_nobodyCanSwapThePrices() public {
+        // The registrar's one owner power is swapping its price list, and nobody has it: not the
+        // admin, not the deployer. Prices per length, discounts, the premium and the cap stay.
+        assertEq(hub.registrar.owner(), address(0));
+        address[2] memory tried = [admin, address(this)];
+        for (uint256 i = 0; i < tried.length; ++i) {
+            vm.prank(tried[i]);
+            vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, tried[i]));
+            hub.registrar.setRentPriceOracle(IRentPriceOracle(address(hub.oracle)));
+        }
+        assertEq(address(hub.registrar.rentPriceOracle()), address(hub.lengthCap));
     }
 
     function test_roles_ethereumCopyHasNoAdmin() public view {

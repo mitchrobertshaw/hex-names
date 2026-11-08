@@ -11,8 +11,9 @@ import {IAMB} from "../../src/interfaces/IAMB.sol";
 /// @notice Step 1 of 3: deploys .hex on PulseChain, where names live and are sold. Run it on
 ///         PulseChain Testnet v4 to rehearse with Sepolia, then on PulseChain for real.
 /// @dev Environment:
-///        ADMIN                 required. May change prices and payment tokens and add registrars
-///                              later; can never take, move or unregister a name.
+///        ADMIN                 required. May raise or lower all prices together, change payment
+///                              tokens and add registrars later; can never take, move or unregister
+///                              a name, or change the price of one length.
 ///        BENEFICIARY           optional. Receives every payment for a name, directly, for good: the
 ///                              registrar can never change it. Defaults to ADMIN.
 ///        DEPLOYER_PRIVATE_KEY  optional. Without it, run without --broadcast for a dry run.
@@ -83,6 +84,7 @@ contract DeployPulseChain is DeployScript {
         console.log("Default resolver         ", address(hub.core.ownerResolver));
         console.log("Price oracle             ", address(hub.oracle));
         console.log("Name length cap (63)     ", address(hub.lengthCap));
+        console.log("Price rules locked       ", hub.registrar.owner() == address(0) ? "yes, for good" : "NO");
         console.log("Resolver factory         ", address(hub.core.verifiableFactory));
         console.log("Resolver implementation  ", address(hub.core.resolverImplementation));
         console.log("Label store              ", address(hub.core.labelStore));

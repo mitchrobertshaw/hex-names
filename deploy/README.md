@@ -65,7 +65,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | Wallet | For the testnets | For mainnet | Its private key goes in |
 |---|---|---|---|
 | **Deployer**: pays for deploying, and has no powers once step 3 is done | a new one | another new one | GitHub, as a repository secret |
-| **Admin**: can change prices and payment tokens, and hand held names to their owners. It can't take anyone's name | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
+| **Admin**: can raise or lower all prices together, change payment tokens, and hand held names to their owners. It can't take anyone's name, or change the price of one length | any wallet of yours | a new wallet made just for this, with its own recovery phrase ([how](#part-2-mainnet)) | nowhere: you only type its address |
 | **Payments**: receives every payment for a name, for good | your wallet, `0x1027…02C6` | your wallet, `0x1027…02C6` | nowhere: step 1's form already has its address |
 | **Bot**: the bot's own wallet, with its float | a new one | another new one | Railway, as a sealed variable |
 
@@ -203,7 +203,7 @@ stopped run deployed is simply never used.
 | Address | A wallet's or contract's public number, starting `0x`. Safe to share |
 | Private key | The secret that controls a wallet. Never share it |
 | Recovery phrase (seed phrase) | The 12 or 24 words that restore a wallet. Whoever has them has the wallet |
-| Admin / deployer | The wallet that can change prices / the wallet that pays for the deploy |
+| Admin / deployer | The wallet that can raise or lower all prices together / the wallet that pays for the deploy |
 | Block, start block | The chain's numbered batches of transactions; where the bot starts reading |
 | RPC | The web address programs use to talk to a chain, for example `https://rpc.pulsechain.com` |
 | Explorer | A website for looking up transactions and contracts: scan.pulsechain.com, etherscan.io |

@@ -157,9 +157,10 @@ roles at all.
 
 **The admin** (PulseChain only) can raise or lower all prices together, change the accepted
 stablecoins, add registrars and renewers, hand held reserved names to their owners, and add other
-endings to the root. It can't change the price of one length, the multi-year discounts or the
-premium for expired names: those are fixed when the registrar is deployed. A new registrar can only
-register names nobody owns. Keep it in a wallet used for nothing else, with its recovery phrase
+endings to the root. It can't change the price of one length, the multi-year discounts, the
+premium for expired names or the 63-character limit. The registrar is deployed with them and gives
+up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests check it.
+A new registrar can only register names nobody owns. Keep it in a wallet used for nothing else, with its recovery phrase
 offline, or give these powers up once things are settled. (A multisig such as a Safe would be
 stronger, but Safe's own app doesn't support PulseChain.)
 
@@ -212,9 +213,10 @@ The compiled contracts were scanned and contain none of the missing opcodes.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 100 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 101 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
-  - prices and roles, the 63-character cap, and that nobody can take a name;
+  - prices and roles, the 63-character cap, and that nobody can change the price rules or take a
+    name;
   - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;
   - the whole Ethereum order flow, and every way it can be refunded;
