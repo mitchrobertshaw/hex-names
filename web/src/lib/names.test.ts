@@ -10,8 +10,11 @@ import {
   DISCOUNTS,
   ETHEREUM_ORDER_FEE,
   MAX_NAME_BYTES,
+  isPlain,
   MAX_YEARS,
   nameLength,
+  NO_DOUBLE_HYPHEN,
+  PLAIN_ONLY,
   PRICES,
   priceFor,
   shortName,
@@ -43,9 +46,19 @@ describe("checkName", () => {
     expect(check("a")).toMatchObject({ kind: "too-short" });
   });
 
-  it("counts characters, not bytes, like the price oracle", () => {
-    expect(nameLength("🔥🔥🔥")).toBe(3);
-    expect(check("🔥🔥")).toMatchObject({ kind: "too-short" });
+  it("sells only letters a to z, numbers and hyphens, as the contracts do", () => {
+    for (const name of ["pulse-chain", "0x123", "-abcd", "abcd-", "a--bcd"]) {
+      expect(check(name).kind, name).toBe("available");
+      expect(isPlain(name), name).toBe(true);
+    }
+    for (const name of ["🔥🔥🔥", "café", "名前名", "al_ice", "_alice", "$alice", "alice's", "аlice"]) {
+      expect(check(name), name).toEqual({ kind: "invalid", reason: PLAIN_ONLY });
+    }
+    // As ENS's rules, "--" can't be the 3rd and 4th characters: that's kept for encoded names.
+    expect(check("ab--cd")).toEqual({ kind: "invalid", reason: NO_DOUBLE_HYPHEN });
+    expect(check("xn--abc")).toEqual({ kind: "invalid", reason: NO_DOUBLE_HYPHEN });
+    expect(isPlain("ab--cd")).toBe(false);
+    expect(nameLength("alice")).toBe(5);
   });
 
   it("says who a reserved name is for", () => {
@@ -70,7 +83,7 @@ describe("checkName", () => {
   it("refuses dots, spaces and characters wallets won't accept", () => {
     expect(check("sub.alice")).toMatchObject({ kind: "invalid" });
     expect(check("two words")).toEqual({ kind: "invalid", reason: "Names can't have spaces in them." });
-    expect(check("hey!")).toMatchObject({ kind: "invalid" });
+    expect(check("hey!")).toEqual({ kind: "invalid", reason: PLAIN_ONLY });
   });
 
   it("drops invisible characters, as wallets do when they normalize a name", () => {
@@ -82,13 +95,7 @@ describe("checkName", () => {
     const tooLong = "a".repeat(64);
     expect(check(longest)).toMatchObject({ kind: "available", length: 63 });
     expect(check(tooLong)).toEqual({ kind: "too-long", name: `${tooLong}.hex`, length: 64, bytes: 64 });
-    // Emoji are 4 bytes each: 15 fit, 16 don't, though that's only 16 characters.
-    expect(check("🔥".repeat(15)).kind).toBe("available");
-    expect(check("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
-    expect(tooLongText({ length: 64, bytes: 64 })).toBe("Names can be up to 63 characters. This one has 64.");
-    expect(tooLongText({ length: 16, bytes: 64 })).toBe(
-      "Names can be up to 63 characters, and emoji and accented letters count as two to four each.",
-    );
+    expect(tooLongText({ length: 64 })).toBe("Names can be up to 63 characters. This one has 64.");
     expect(shortName(`${tooLong}.hex`)).toBe(`${"a".repeat(20)}….hex`);
     expect(shortName("alice.hex")).toBe("alice.hex");
   });
@@ -138,6 +145,11 @@ describe("the prices", () => {
   it("cap names at the length and the years the contracts do", () => {
     expect(nameRules).toMatch(new RegExp(`MAX_LENGTH = ${MAX_NAME_BYTES};`));
     expect(nameRules).toMatch(new RegExp(`MAX_TERM = ${MAX_YEARS} \\* 365 days;`));
+  });
+
+  it("allow the same characters the contracts do", () => {
+    expect(nameRules).toContain('(c >= "a" && c <= "z") || (c >= "0" && c <= "9") || c == "-"');
+    expect(nameRules).toContain('b.length >= 4 && b[2] == "-" && b[3] == "-"');
   });
 
   it("add the bot's Ethereum order fee", () => {

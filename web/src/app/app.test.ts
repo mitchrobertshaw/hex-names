@@ -155,7 +155,7 @@ describe("a name's page", () => {
   it("says a name over 63 bytes is too long, and doesn't offer it", () => {
     expect(localInfo(`${"a".repeat(63)}.hex`)).toMatchObject({ kind: "available", length: 63 });
     expect(localInfo("a".repeat(64))).toEqual({ kind: "too-long", label: "a".repeat(64), length: 64, bytes: 64 });
-    expect(localInfo("🔥".repeat(16))).toMatchObject({ kind: "too-long", length: 16, bytes: 64 });
+    expect(localInfo("🔥".repeat(16))).toMatchObject({ kind: "invalid" }); // only letters, numbers and hyphens
   });
 });
 

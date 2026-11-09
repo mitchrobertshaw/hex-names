@@ -12,7 +12,7 @@ import { labelId, SECONDS_PER_YEAR } from "./order";
 export type NameInfo =
   | { kind: "invalid"; reason: string }
   | { kind: "too-short"; label: string }
-  /** Over 63 bytes: the contracts turn it away. */
+  /** Over 63 characters: the contracts turn it away. */
   | { kind: "too-long"; label: string; length: number; bytes: number }
   | { kind: "available"; label: string; length: number; yearlyPrice: number; premium: number }
   | { kind: "reserved"; label: string; reservedFor: string }
