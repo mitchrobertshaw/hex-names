@@ -140,7 +140,8 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 - **Light and dark**: the moon and sun button in the top bar switches between them and remembers
   the choice. Until a visitor picks, the site follows their device's setting.
 - **Reserved names** come straight from `script/reserved-names.csv`, the same list the contracts
-  are deployed with, so the search marks exactly those names as reserved.
+  are deployed with, so the search marks exactly those names as reserved. Though the list is outside
+  `web/`, a change to it rebuilds the site (`netlify.toml`).
 - **Words on the page** are in [`src/components`](src/components): the top of the page in
   `Hero.tsx`, the chat in `Messages.tsx`, the name card in `Ownership.tsx`, and the other sections
   in `Sections.tsx`.
