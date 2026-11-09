@@ -44,11 +44,27 @@ export function priceFor(length: number, years: number): { full: number; total: 
 }
 
 /**
- * The longest name that can be registered, in bytes, as the contracts count them
- * (src/pulsechain/HexNameRules.sol): the most one part of a web address can hold. Letters,
- * digits and hyphens are one byte each; emoji and accented letters take two to four.
+ * The longest name that can be registered: 63 characters, the most one part of a web address can
+ * hold. The contracts (src/pulsechain/HexNameRules.sol) count bytes, and a name's letters, digits
+ * and hyphens are a byte each.
  */
 export const MAX_NAME_BYTES = 63;
+
+/** What a name can be made of, as the contracts allow (HexNameRules): letters a to z, digits and hyphens. */
+const PLAIN = /^[a-z0-9-]*$/;
+
+export const PLAIN_ONLY = "Names can only use letters a to z, numbers and hyphens.";
+
+export const NO_DOUBLE_HYPHEN = "Names can't have hyphens as both their 3rd and 4th characters.";
+
+/**
+ * Whether a (normalized) label is a name the contracts will sell: letters a to z, digits and
+ * hyphens, without "--" as its 3rd and 4th characters, which ENS's rules keep for encoded names
+ * such as "xn--". Exactly HexNameRules.isPlain.
+ */
+export function isPlain(label: string): boolean {
+  return PLAIN.test(label) && !label.startsWith("--", 2);
+}
 
 export type NameCheck =
   | { kind: "empty" }
@@ -71,10 +87,8 @@ export function nameBytes(label: string): number {
 }
 
 /** Why a name is too long, said plainly. */
-export function tooLongText(check: { length: number; bytes: number }): string {
-  return check.bytes === check.length
-    ? `Names can be up to ${MAX_NAME_BYTES} characters. This one has ${check.length}.`
-    : `Names can be up to ${MAX_NAME_BYTES} characters, and emoji and accented letters count as two to four each.`;
+export function tooLongText(check: { length: number }): string {
+  return `Names can be up to ${MAX_NAME_BYTES} characters. This one has ${check.length}.`;
 }
 
 /** A long name cut down for a heading: "averyveryverylongname….hex". */
@@ -105,6 +119,7 @@ export function checkName(input: string, reserved: Map<string, Reservation> = re
     return { kind: "invalid", reason: explain(bare, error) };
   }
   if (!label) return { kind: "empty" };
+  if (!isPlain(label)) return { kind: "invalid", reason: PLAIN_ONLY };
 
   const name = `${label}.hex`;
   const length = nameLength(label);
@@ -122,6 +137,9 @@ export function checkName(input: string, reserved: Map<string, Reservation> = re
 
 function explain(text: string, error: unknown): string {
   if (/\s/.test(text)) return "Names can't have spaces in them.";
+  const lower = text.toLowerCase();
+  if (!PLAIN.test(lower)) return PLAIN_ONLY;
+  if (lower.startsWith("--", 2)) return NO_DOUBLE_HYPHEN;
   const detail = error instanceof Error ? error.message : String(error);
   return `Wallets wouldn't accept this name (${detail}).`;
 }

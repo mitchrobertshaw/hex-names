@@ -112,11 +112,15 @@ Each covers the name on both chains.
   years' price, 3 cost 1.75, 4 cost 1.875 and 5 cost 2. Renewals are priced the same way.
 - **Up to 5 years ahead.** A name can be bought for at most 5 years, and renewed only as far as 5
   years from today. Its owner can always renew it back up to 5 years.
+- **Plain names: letters a to z, numbers and hyphens.** No capitals, spaces, symbols, emoji or
+  letters from other alphabets, so every name is one wallets look up exactly as written, and nobody
+  can register a look-alike of a name (such as "RichardHeart", or alice with a Cyrillic "а"), even
+  by going around the app. As in ENS's rules, a name can't have hyphens as both its 3rd and 4th
+  characters.
 - **Up to 63 characters**, the most one part of a web address can hold, so every `.hex` name can
-  also work as one. Letters, digits and hyphens count as one each; emoji and accented letters take
-  two to four (63 bytes in all). Renewals of longer names, should any exist, aren't refused.
-- [`HexNameRules`](src/pulsechain/HexNameRules.sol) sits in front of the prices and keeps both
-  limits.
+  also work as one.
+- [`HexNameRules`](src/pulsechain/HexNameRules.sol) sits in front of the prices and keeps these
+  rules. It never refuses a renewal, whatever the name.
 - **Expired names.** A name that expires has a 28-day grace period for its owner to renew. After
   that it can be bought again, starting at a $100 million premium that halves every day for 21 days,
   so nobody can snipe a name the moment it lapses.
@@ -182,12 +186,13 @@ root with no roles at all.
 - add new endings to the root registry.
 
 It can't unregister a live name, change a name's resolver, or move a name. Nor can it change the
-price of one length, the multi-year prices, the premium for expired names, the 63-character limit or
-the 5-year limit: the registrar is deployed with them and gives up the one power that could swap
-them (`setRentPriceOracle`), so nobody can, and the tests check it. It can give up each of its
-powers, handing out reserved names included. Keep the admin in a wallet used for nothing else, with
-its recovery phrase offline, or give these powers up once things are settled. (A multisig such as a
-Safe would be stronger, but Safe's own app doesn't support PulseChain.)
+price of one length, the multi-year prices, the premium for expired names, which characters names
+can use, the 63-character limit or the 5-year limit: the registrar is deployed with them and gives
+up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests check
+it. It can give up each of its powers, handing out reserved names included. Keep the admin in a
+wallet used for nothing else, with its recovery phrase offline, or give these powers up once things
+are settled. (A multisig such as a Safe would be stronger, but Safe's own app doesn't support
+PulseChain.)
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
 releasing money held by Ethereum orders (only if those are switched on). If they were compromised
@@ -210,7 +215,7 @@ nothing can change.
 |---|---|
 | ENSv2 `PermissionedRegistry` ×2 | the root registry, and the `.hex` registry where names live |
 | ENSv2 `ETHRegistrar` + `StandardRentPriceOracle` | the `.hex` registrar and its prices |
-| [`HexNameRules`](src/pulsechain/HexNameRules.sol) | between the registrar and its prices: new names can be up to 63 characters, paid for up to 5 years ahead |
+| [`HexNameRules`](src/pulsechain/HexNameRules.sol) | between the registrar and its prices: new names are plain (a-z, 0-9 and hyphens), up to 63 characters, paid for up to 5 years ahead |
 | ENSv2 `UniversalResolverV2`, `PermissionedResolver`, `VerifiableFactory`, `LabelStore`, `ContractNamer` | lookups, owners' own resolvers, and supporting contracts |
 | [`SafeVerifiableFactory`](src/common/SafeVerifiableFactory.sol) | deploys `VerifiableFactory` so nobody can take over the logic owners' own resolvers share (see below) |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
@@ -260,10 +265,11 @@ tests check it.
 Nothing needs installing on your own computer: GitHub runs everything on every push (Actions tab,
 workflow **test**).
 
-- **Unit tests** (`test/unit/`): 119 tests that run both chains side by side, with the real ENSv2
+- **Unit tests** (`test/unit/`): 121 tests that run both chains side by side, with the real ENSv2
   contracts and a stand-in bridge. They cover:
-  - prices and roles, the 63-character and 5-year limits, that nobody can swap the price rules or
-    unregister, move or redirect a live name, and that the admin can give up every power;
+  - prices and roles, plain names, the 63-character and 5-year limits, that nobody can swap the
+    price rules or unregister, move or redirect a live name, and that the admin can give up every
+    power;
   - that nobody can take over the logic owners' own resolvers share;
   - reserved names, given or held, handing a held one over, and the list file;
   - buying with every kind of payment;

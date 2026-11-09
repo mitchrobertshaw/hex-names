@@ -98,7 +98,7 @@ abstract contract HexDeployer {
     struct Hub {
         Core core;
         StandardRentPriceOracle oracle; // prices; the admin manages it
-        HexNameRules rules; // between the registrar and the oracle: names of 63 bytes at most, 5 years ahead at most
+        HexNameRules rules; // between the registrar and the oracle: plain names of 63 characters at most, 5 years ahead at most
         ETHRegistrar registrar;
         HexMirrorSync mirrorSync;
         HexOrderFiller orderFiller;

@@ -5,16 +5,20 @@ import {IRentPriceOracle} from "@ensv2/registrar/interfaces/IRentPriceOracle.sol
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import {HexNameRules} from "../../src/pulsechain/HexNameRules.sol";
+import {HexOrderFiller} from "../../src/pulsechain/HexOrderFiller.sol";
 import {HexTestBase} from "../helpers/HexTestBase.sol";
 
-/// @notice New .hex names are at most 63 bytes, the most one part of a web address can hold, and
-///         are paid for at most 5 years ahead.
+/// @notice New .hex names are plain (lowercase letters, digits and hyphens), at most 63
+///         characters, the most one part of a web address can hold, and are paid for at most 5 years
+///         ahead.
 contract NameRulesTest is HexTestBase {
     uint64 internal constant FIVE_YEARS = 5 * ONE_YEAR;
 
     function _name(uint256 n) internal pure returns (string memory) {
         bytes memory b = new bytes(n);
-        for (uint256 i = 0; i < n; ++i) b[i] = bytes1(uint8(97 + (i % 26))); // a-z, over and over
+        for (uint256 i = 0; i < n; ++i) {
+            b[i] = bytes1(uint8(97 + (i % 26))); // a-z, over and over
+        }
         return string(b);
     }
 
@@ -28,7 +32,7 @@ contract NameRulesTest is HexTestBase {
     }
 
     // ------------------------------------------------------------------------------------------
-    // 63 bytes
+    // 63 characters
     // ------------------------------------------------------------------------------------------
 
     function test_63IsTheLongestName() public {
@@ -48,16 +52,56 @@ contract NameRulesTest is HexTestBase {
         hub.registrar.getRegisterPrice(_name(255), ONE_YEAR, plsUsdc);
     }
 
-    function test_bytesCount_notLetters() public {
-        // 21 emoji of 4 bytes each: 84 bytes, too long, though it's 21 characters.
-        string memory emoji;
-        for (uint256 i = 0; i < 21; ++i) emoji = string.concat(emoji, unicode"🔥");
-        vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.NotValid.selector, emoji));
-        hub.registrar.getRegisterPrice(emoji, ONE_YEAR, plsUsdc);
-        // 15 of them is 60 bytes: fine.
-        string memory fifteen;
-        for (uint256 i = 0; i < 15; ++i) fifteen = string.concat(fifteen, unicode"🔥");
-        hub.registrar.getRegisterPrice(fifteen, ONE_YEAR, plsUsdc);
+    // ------------------------------------------------------------------------------------------
+    // Plain names: lowercase letters, digits and hyphens, as the app sells them
+    // ------------------------------------------------------------------------------------------
+
+    function test_plainNames_lettersDigitsAndHyphens() public {
+        string[7] memory fine = ["alice", "0x123", "pulse-chain", "a1b2c3", "-abc", "abc-", "a--bc"];
+        for (uint256 i = 0; i < fine.length; ++i) {
+            assertTrue(hub.rules.isPlain(fine[i]), fine[i]);
+            hub.registrar.getRegisterPrice(fine[i], ONE_YEAR, plsUsdc);
+        }
+        _registerDirect("pulse-chain", alice, ONE_YEAR);
+        assertEq(hub.core.hexRegistry.findOwner("pulse-chain"), alice);
+    }
+
+    function test_plainNames_nothingElse() public {
+        string[14] memory refused = [
+            "Alice", // capitals: the app makes them lowercase, so "Alice" would copy alice
+            "al ice",
+            "al_ice",
+            "_alice",
+            "$alice",
+            "alice!",
+            "al.ice",
+            unicode"café",
+            unicode"🔥🔥🔥",
+            unicode"名前名",
+            unicode"аlice", // its first letter is Cyrillic: it looks like alice
+            "ab--cd", // "--" as the 3rd and 4th characters, which ENS keeps for encoded names
+            "xn--abc",
+            string(bytes(hex"616263ff")) // not even a character
+        ];
+        for (uint256 i = 0; i < refused.length; ++i) {
+            assertFalse(hub.rules.isPlain(refused[i]), refused[i]);
+            vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.NotValid.selector, refused[i]));
+            hub.registrar.getRegisterPrice(refused[i], ONE_YEAR, plsUsdc);
+        }
+    }
+
+    function test_plainNames_goingAroundTheAppDoesntHelp() public {
+        // Someone skipping the app, committing and registering with the registrar themselves, can't
+        // buy a copy of a name that only looks like it.
+        string memory copy = "RichardHeart";
+        HexOrderFiller.Reveal memory r = _reveal(copy, alice, ONE_YEAR);
+        _commit(r);
+        plsUsdc.mint(alice, 1_000e6);
+        vm.startPrank(alice);
+        plsUsdc.approve(address(hub.registrar), type(uint256).max);
+        vm.expectRevert(abi.encodeWithSelector(IRentPriceOracle.NotValid.selector, copy));
+        hub.registrar.register(r.label, r.owner, r.secret, r.subregistry, r.resolver, r.duration, plsUsdc, r.referrer);
+        vm.stopPrank();
     }
 
     function test_renewals_anyLength() public {
@@ -67,10 +111,14 @@ contract NameRulesTest is HexTestBase {
             hub.rules.getRenewPrice("alice", expiry, ONE_YEAR, plsUsdc),
             hub.oracle.getRenewPrice("alice", expiry, ONE_YEAR, plsUsdc)
         );
-        // The length rule never refuses a renewal, whatever the name's length.
+        // The length and plain-name rules never refuse a renewal, whatever the name.
         assertEq(
             hub.rules.getRenewPrice(_name(200), expiry, ONE_YEAR, plsUsdc),
             hub.oracle.getRenewPrice(_name(200), expiry, ONE_YEAR, plsUsdc)
+        );
+        assertEq(
+            hub.rules.getRenewPrice(unicode"🔥🔥🔥", expiry, ONE_YEAR, plsUsdc),
+            hub.oracle.getRenewPrice(unicode"🔥🔥🔥", expiry, ONE_YEAR, plsUsdc)
         );
     }
 
