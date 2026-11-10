@@ -5,6 +5,7 @@ import { formatUsd } from "../lib/quotes";
 import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
 import { MAX_YEARS, priceFor } from "../lib/names";
 import { renew, send, type Step } from "./flows";
+import { usePriceLevel } from "./live";
 import { addressUrl, deployment, PAY } from "./network";
 import { referralTag } from "./order";
 import { Steps } from "./Steps";
@@ -68,6 +69,7 @@ export function RenewPanel({
   const token = tokens.find((t) => t.symbol === symbol) ?? tokens[0];
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const level = usePriceLevel();
   const price = priceFor(length, years);
 
   return (
@@ -137,7 +139,7 @@ export function RenewPanel({
           setBusy(false);
         }}
       >
-        Renew for {yearsText(years)}, {formatUsd(Math.round(price.total * 100) / 100)}
+        Renew for {yearsText(years)}, {formatUsd(Math.round(price.total * level * 100) / 100)}
       </button>
     </section>
   );

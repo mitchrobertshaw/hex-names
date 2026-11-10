@@ -28,6 +28,8 @@ import { PAY_CHAINS, type PayToken } from "../lib/tokens";
 import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
 import { amountText, errorText, shortText, testnetFees } from "./flows";
+import { anyPower, OWNER_ROLES, parseNames, powersOf } from "./admin";
+import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
 import { chainName } from "./network";
@@ -252,6 +254,93 @@ describe("paying", () => {
   it("offers PulseChain's testnet a 1 gwei tip, not the thousands of gwei it suggests", () => {
     expect(testnetFees(7n)).toEqual({ maxPriorityFeePerGas: 1_000_000_000n, maxFeePerGas: 1_000_000_014n });
     expect(testnetFees(undefined)).toEqual({ maxPriorityFeePerGas: 1_000_000_000n, maxFeePerGas: 1_000_000_000n });
+  });
+});
+
+describe("the admin page", () => {
+  const YEAR = 365n * 86_400n;
+  // The oracle's math (ENSv2 StandardRentPriceOracle): rate x duration, the multi-year discount
+  // rounded down, then the amount in a token rounded up.
+  const DEN = 10n ** 38n;
+  const points: [bigint, bigint][] = [
+    [2n * YEAR, (DEN / 4n) * 3n],
+    [3n * YEAR, (DEN / 12n) * 7n],
+    [4n * YEAR, (DEN / 32n) * 15n],
+    [5n * YEAR, (DEN / 5n) * 2n],
+  ];
+  const discount = (value: bigint, duration: bigint) => {
+    let numer = 0n;
+    for (const [at, n] of points) if (duration >= at) numer = n;
+    return numer === 0n ? value : (value * numer) / DEN;
+  };
+  const amount = (value: bigint, r: { numer: bigint; denom: bigint }) =>
+    r.numer === r.denom ? value : (value * r.numer + r.denom - 1n) / r.denom;
+  const rate = (dollars: bigint, decimals: number) => (10n ** BigInt(decimals) * dollars) / YEAR; // rounded down
+
+  it("reads the oracle's units from its rate for 5+ letter names", () => {
+    expect(priceDecimalsFrom(317_098n)).toBe(12); // the first testnet: 10^12 to the dollar, rounded up
+    expect(priceDecimalsFrom(rate(10n, 27))).toBe(27); // since: 10^27, rounded down
+  });
+
+  it("knows the list prices from the exchange rates the deploy sets", () => {
+    expect(levelOf({ numer: 1n, denom: 10n ** 6n }, 6, 12)).toBe(LIST_LEVEL); // USDC on the first testnet
+    expect(levelOf({ numer: 1n, denom: 10n ** 21n }, 6, 27)).toBe(LIST_LEVEL); // USDC since
+    expect(levelOf({ numer: 1n, denom: 10n ** 9n }, 18, 27)).toBe(LIST_LEVEL); // DAI since
+    expect(levelOf({ numer: 10n ** 6n, denom: 1n }, 18, 12)).toBe(LIST_LEVEL); // DAI on the first testnet
+    expect(baseRatio(6, 27)).toEqual({ numer: 1n, denom: 10n ** 21n });
+  });
+
+  it("sets every price exactly to the level, in USDC and DAI, for every length and term", () => {
+    const eighths = [8n, 12n, 14n, 15n, 16n]; // each term's share of a year's price
+    for (const level of [12_000n, 8_000n, 12_345n, 50_000n]) {
+      for (const [token, decimals] of [
+        ["USDC", 6],
+        ["DAI", 18],
+      ] as const) {
+        const ratio = ratioFor(level, decimals, 27);
+        expect(levelOf(ratio, decimals, 27), `${token} at ${level}`).toBe(level);
+        for (const dollars of [10n, 160n, 320n]) {
+          for (let y = 1n; y <= 5n; y++) {
+            const value = discount(rate(dollars, 27) * y * YEAR, y * YEAR);
+            const listed = (dollars * 10n ** BigInt(decimals) * eighths[Number(y) - 1]) / 8n;
+            expect(amount(value, ratio), `$${dollars} for ${y} years in ${token} at ${level}`).toBe(
+              (listed * level) / LIST_LEVEL,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it("opens for a wallet with admin powers, and shows only those it has", () => {
+    const adminOf = (role: bigint) => role << 128n;
+    // What the deploy gives the admin on the .hex registry (HexDeployer).
+    const deployed =
+      adminOf(1n) | adminOf(1n << 16n) | (1n << 4n) | adminOf(1n << 4n) | (1n << 36n) | adminOf(1n << 36n);
+    const all = { pause: true, prices: true, hold: true, handOut: true, extend: true, leftover: 0n };
+    expect(powersOf(deployed, true)).toEqual(all);
+    const none = { pause: false, prices: false, hold: false, handOut: false, extend: false, leftover: 0n };
+    expect(powersOf(0n, false)).toEqual(none);
+    expect(anyPower(powersOf(0n, false))).toBe(false);
+    expect(anyPower(powersOf(0n, true))).toBe(true); // prices only, say, with the rest given up
+    // Left holding the power to register names, by an action that didn't finish: it's offered back.
+    expect(powersOf(deployed | 1n, true).leftover).toBe(1n);
+    // The roles a buyer gets with a name (ETHRegistrar's REGISTRATION_ROLE_BITMAP).
+    expect(OWNER_ROLES).toBe((1n << 20n) | (1n << 148n) | (1n << 24n) | (1n << 152n) | (1n << 156n));
+  });
+
+  it("takes names to hold as they're typed, checked as a search checks them", () => {
+    expect(parseNames("Alice, bob\ncarol.hex  alice")).toEqual({ labels: ["alice", "bob", "carol"], problems: [] });
+    const { labels, problems } = parseNames("ab x a.b ab--cd good");
+    expect(labels).toEqual(["good"]);
+    expect(problems).toHaveLength(4);
+    expect(problems[0]).toMatch(/^ab: names of 1 or 2 characters/);
+  });
+
+  it("sits at /admin, out of the menu", () => {
+    const place = { pathname: "/app/admin", hash: "", hostname: "hexns-testnet.netlify.app", protocol: "https:" };
+    expect(parse(place)).toEqual({ page: "admin" });
+    expect(hrefOf({ page: "admin" }, place)).toBe("/app/admin");
   });
 });
 

@@ -103,8 +103,11 @@ export async function lookUp(input: string): Promise<NameInfo> {
   return { kind: "available", label, length, yearlyPrice: yearlyPriceFor(length) ?? 0, premium: Number(premium) / 1e6 };
 }
 
-/** What `years` of `info` costs in dollars, before any fee. */
-export function priceOf(info: Extract<NameInfo, { kind: "available" }>, years: number) {
+/**
+ * What `years` of `info` costs in dollars, before any fee, at the price `level` the admin has set (1
+ * is the list prices). The premium is read from the chain, so it's already at the level.
+ */
+export function priceOf(info: Extract<NameInfo, { kind: "available" }>, years: number, level = 1) {
   const price = priceFor(info.length, years);
-  return { ...price, total: price.total + info.premium };
+  return { ...price, full: price.full * level, total: price.total * level + info.premium };
 }

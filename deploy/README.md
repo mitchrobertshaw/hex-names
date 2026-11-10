@@ -139,6 +139,9 @@ afterwards.
          Sepolia.
    - [ ] On the testnet app's payments page (`/app/referrals`), give the bot a budget, and check
          its balances show.
+   - [ ] On the admin page (`/app/admin`), with the admin wallet: pause sales and check a name's
+         page says so, then restart them. Hold a name, hand it to a wallet, and add a year to
+         another held name.
 
 ## Part 2: mainnet
 

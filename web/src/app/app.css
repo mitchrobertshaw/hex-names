@@ -980,3 +980,39 @@ body {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* The admin page: the payouts page's cards and forms, with a box for several names. */
+.bot__form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.bot__form .admin__wide {
+  grid-column: 1 / -1;
+}
+
+.admin__subtitle {
+  margin: 8px 0 0;
+  font-size: 16px;
+}
+
+.admin__row-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.buy__paused {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}

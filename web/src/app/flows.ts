@@ -163,7 +163,9 @@ export function testnetFees(baseFee: bigint | null | undefined) {
  * What to offer for a transaction on `key`: the testnet fees on PulseChain's testnet, and otherwise
  * nothing, as the wallet's own suggestion is fair.
  */
-async function fees(key: ChainKey = "pulsechain"): Promise<{ maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint }> {
+type Fees = { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint };
+
+export async function fees(key: ChainKey = "pulsechain"): Promise<Fees> {
   if (network !== "testnet" || key !== "pulsechain") return {};
   try {
     return testnetFees((await clients.pulsechain.getBlock()).baseFeePerGas);
@@ -221,7 +223,7 @@ async function ensureAllowance(key: ChainKey, token: Address, spender: Address, 
   await confirm(key, hash);
 }
 
-async function confirm(key: ChainKey, hash: Hex) {
+export async function confirm(key: ChainKey, hash: Hex) {
   const receipt = await clients[key].waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error("The transaction didn't go through.");
   return receipt;
@@ -614,6 +616,12 @@ const REFUSALS: Record<string, string> = {
   CommitmentTooOld: "Its reservation ran out. Try again to reserve it afresh.",
   CommitmentTooNew: "Its minute isn't quite over. Try again in a moment.",
   TooFarAhead: "A name can be paid for at most 5 years ahead.",
+  // The admin page's actions (admin.ts).
+  LabelAlreadyRegistered: "Someone owns it.",
+  LabelAlreadyReserved: "It's already held.",
+  EACUnauthorizedAccountRoles: "This wallet isn't allowed to do that.",
+  EACCannotGrantRoles: "This wallet isn't allowed to do that.",
+  EACCannotRevokeRoles: "This wallet isn't allowed to do that.",
 };
 
 /** A failure, said plainly. */

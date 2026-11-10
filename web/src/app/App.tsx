@@ -3,6 +3,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { deployment, network } from "./network";
 import { NetworkNotice } from "./NetworkNotice";
 import { MyNamesPage, NamePage, SearchPage } from "./pages";
+import { AdminPage } from "./AdminPage";
 import { ReferralsPage } from "./ReferralsPage";
 import { linkProps, useRoute } from "./router";
 import { WalletButton } from "./WalletButton";
@@ -59,6 +60,8 @@ export function App() {
           <MyNamesPage />
         ) : route.page === "referrals" ? (
           <ReferralsPage />
+        ) : route.page === "admin" ? (
+          <AdminPage />
         ) : (
           <SearchPage />
         )}

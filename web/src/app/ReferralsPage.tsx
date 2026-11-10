@@ -128,11 +128,9 @@ export function ReferralsPage() {
   if (!account) {
     return (
       <Shell>
+        {/* It doesn't say which wallet opens it. */}
         <section className="card payouts__card">
-          <p>
-            This report is for the wallet that receives .hex&rsquo;s payments, <b>{short(payee)}</b>. Connect it to see
-            who&rsquo;s owed what, and to pay them.
-          </p>
+          <p>This page is private. Connect your wallet to continue.</p>
           <WalletChoices />
         </section>
       </Shell>
@@ -142,10 +140,7 @@ export function ReferralsPage() {
     return (
       <Shell>
         <section className="card payouts__card">
-          <p>
-            This report is for the wallet that receives .hex&rsquo;s payments, <b>{short(payee)}</b>. You&rsquo;re
-            connected with {short(account)}: switch to the other one in your wallet.
-          </p>
+          <p>This page is private, and this wallet can&rsquo;t open it.</p>
         </section>
       </Shell>
     );

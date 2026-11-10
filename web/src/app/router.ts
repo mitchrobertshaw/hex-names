@@ -1,12 +1,17 @@
 // The app's pages: "/" to search, "/alice.hex" for a name, "/names" for the names you own, and
-// "/referrals" for the referral payout report (not in the menu).
+// "/referrals" for the referral payout report and "/admin" for the admin's powers (neither in the menu).
 //
 // On app.hexns.domains they sit at the root; on a preview link, under /app. Anywhere else (a copy
 // opened from a file, or inside another page) they go after a # instead.
 
 import { useSyncExternalStore } from "react";
 
-export type Route = { page: "search" } | { page: "name"; label: string } | { page: "names" } | { page: "referrals" };
+export type Route =
+  | { page: "search" }
+  | { page: "name"; label: string }
+  | { page: "names" }
+  | { page: "referrals" }
+  | { page: "admin" };
 
 export interface Place {
   pathname: string;
@@ -29,6 +34,7 @@ export function parse(place: Place): Route {
   const path = decodeURIComponent(raw.replace(/\/+$/, "")) || "/";
   if (path === "/names") return { page: "names" };
   if (path === "/referrals") return { page: "referrals" };
+  if (path === "/admin") return { page: "admin" };
   const name = /^\/([^/]+)\.hex$/i.exec(path);
   if (name) return { page: "name", label: name[1].toLowerCase() };
   return { page: "search" };
@@ -37,6 +43,7 @@ export function parse(place: Place): Route {
 export function pathOf(route: Route): string {
   if (route.page === "names") return "/names";
   if (route.page === "referrals") return "/referrals";
+  if (route.page === "admin") return "/admin";
   if (route.page === "name") return `/${encodeURIComponent(route.label)}.hex`;
   return "/";
 }

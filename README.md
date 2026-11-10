@@ -191,7 +191,12 @@ can use, the 63-character limit or the 5-year limit: the registrar is deployed w
 up the one power that could swap them (`setRentPriceOracle`), so nobody can, and the tests check
 it. It can give up each of its powers, handing out reserved names included. Keep the admin in a
 wallet used for nothing else, with its recovery phrase offline, or give these powers up once things
-are settled. (A multisig such as a Safe would be stronger, but Safe's own app doesn't support
+are settled.
+
+The app's admin page, `app.hexns.domains/admin` (not in the menu), makes the everyday ones easy from
+the admin wallet: pause and restart sales (renewals carry on), raise or lower all prices together,
+and hold names, hand them to their owners and add time to them. It opens only for a wallet with
+admin powers, and doesn't say which wallet that is ([how](deploy/website/README.md#the-admin-page)). (A multisig such as a Safe would be stronger, but Safe's own app doesn't support
 PulseChain.)
 
 **The bridge's validators** (5 of 8 must sign) are trusted for two things: the Ethereum copy, and
