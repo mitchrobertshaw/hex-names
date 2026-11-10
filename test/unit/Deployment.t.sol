@@ -237,6 +237,13 @@ contract DeploymentTest is HexTestBase {
         }
     }
 
+    function test_roles_adminRunsTheCopyFee_whichStartsOff() public view {
+        assertEq(hub.checkout.owner(), admin, "the admin chooses the copy bot and caps the fee");
+        assertEq(hub.checkout.copyBot(), address(0), "off until the admin chooses the bot");
+        assertEq(hub.checkout.maxCopyFee(), 100e6, "at most $100 a copy");
+        assertEq(hub.checkout.copyFee(), 0);
+    }
+
     function test_roles_ownerOnPulseChainCanTransfer() public {
         uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
         vm.prank(alice);

@@ -4,6 +4,8 @@ import { type Address, isAddress } from "viem";
 import { formatUsd } from "../lib/quotes";
 import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
 import { MAX_YEARS, priceFor } from "../lib/names";
+import { feeText, useCopyFee } from "./copy";
+import { CopyChoice, FEE_TOKENS, FeeTokens } from "./CopyChoice";
 import { renew, send, type Step } from "./flows";
 import { usePriceLevel } from "./live";
 import { addressUrl, deployment, PAY } from "./network";
@@ -71,6 +73,9 @@ export function RenewPanel({
   const [busy, setBusy] = useState(false);
   const level = usePriceLevel();
   const price = priceFor(length, years);
+  const copy = useCopyFee();
+  const [copyChosen, setCopyNow] = useState(false);
+  const copyFee = copy?.kind === "offered" && copyChosen ? copy.fee : null;
 
   return (
     <section className="card manage" aria-labelledby="renew-title">
@@ -112,6 +117,9 @@ export function RenewPanel({
           ))}
         </div>
       </div>
+      <div className="manage__fee">
+        <CopyChoice copy={copy} now={copyChosen} onChange={setCopyNow} disabled={busy} what="the new date" />
+      </div>
       {!mine ? (
         <p className="manage__note">
           Anyone can renew a name, but it stays its owner&rsquo;s: this adds time for them, it doesn&rsquo;t buy it.
@@ -131,7 +139,14 @@ export function RenewPanel({
         onClick={async () => {
           setBusy(true);
           try {
-            await renew({ label, years, token, referrer: referralTag(captureReferral(), label), report: setSteps });
+            await renew({
+              label,
+              years,
+              token,
+              referrer: referralTag(captureReferral(), label),
+              copyNow: copyFee !== null,
+              report: setSteps,
+            });
             onChanged?.();
           } catch {
             // Shown in the steps.
@@ -140,6 +155,7 @@ export function RenewPanel({
         }}
       >
         Renew for {yearsText(years)}, {formatUsd(Math.round(price.total * level * 100) / 100)}
+        {copyFee !== null ? ` + ${feeText(copyFee)} to copy now` : ""}
       </button>
     </section>
   );
@@ -164,6 +180,9 @@ export function OwnerPanel({
   const [busy, setBusy] = useState(false);
   const valid = isAddress(to.trim());
   const link = referralLink(label);
+  const copy = useCopyFee();
+  const [feeToken, setFeeToken] = useState(FEE_TOKENS[0]);
+  const copyFee = copy?.kind === "offered" ? copy.fee : null;
 
   return (
     <>
@@ -183,10 +202,21 @@ export function OwnerPanel({
           Send it to another wallet
         </h2>
         <p className="manage__text">
-          {canSend
-            ? "It moves for good: only the new owner can send it back. Its Ethereum copy follows by itself, about 15 minutes later."
-            : "Renew it first: an expired name can't be sent."}
+          {!canSend
+            ? "Renew it first: an expired name can't be sent."
+            : copyFee !== null
+              ? "It moves for good: only the new owner can send it back."
+              : "It moves for good: only the new owner can send it back. Its Ethereum copy follows by itself, about 15 minutes later."}
         </p>
+        {canSend && copyFee !== null ? (
+          <div className="manage__fee">
+            <p className="manage__note">
+              Ethereum is busy, so sending it here also pays for its copy there, {feeText(copyFee)}, so the new owner
+              shows on Ethereum in about 15 minutes. Pay it with:
+            </p>
+            <FeeTokens token={feeToken} onChange={setFeeToken} disabled={busy} />
+          </div>
+        ) : null}
         {canSend ? (
           <div className="manage__row">
             <input
@@ -206,7 +236,12 @@ export function OwnerPanel({
               onClick={async () => {
                 setBusy(true);
                 try {
-                  await send({ label, to: to.trim() as Address, report: setSteps });
+                  await send({
+                    label,
+                    to: to.trim() as Address,
+                    copyWith: copyFee !== null ? feeToken : undefined,
+                    report: setSteps,
+                  });
                   onChanged?.();
                 } catch {
                   // Shown in the steps.
@@ -214,7 +249,7 @@ export function OwnerPanel({
                 setBusy(false);
               }}
             >
-              Send
+              {copyFee !== null ? `Send, +${feeText(copyFee)}` : "Send"}
             </button>
           </div>
         ) : null}

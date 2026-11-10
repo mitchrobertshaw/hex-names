@@ -126,3 +126,13 @@ test("copying names keeps to a daily ETH limit and to one copy of a name an hour
   assert.equal(custom.dailyEth, 100_000_000_000_000_000n);
   assert.equal(custom.nameCooldown, 900n);
 });
+
+test("the copy fee: on with the checkout's address, and the project pays up to $2 a copy unless changed", () => {
+  const without = loadConfig({ ...DEPLOYED });
+  assert.equal(without.checkout, undefined, "without PULSECHAIN_CHECKOUT, every copy stays free");
+  assert.equal(without.relayLimits.freeCopyUsdc, 2_000_000n);
+  const withIt = loadConfig({ ...DEPLOYED, PULSECHAIN_CHECKOUT: ADDRESS.toLowerCase(), COPY_FREE_USDC: "1.5" });
+  assert.equal(withIt.checkout, ADDRESS);
+  assert.equal(withIt.relayLimits.freeCopyUsdc, 1_500_000n);
+  assert.throws(() => loadConfig({ ...DEPLOYED, PULSECHAIN_CHECKOUT: "0x1234" }), /Address/);
+});

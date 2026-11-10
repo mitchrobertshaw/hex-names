@@ -50,7 +50,7 @@ themselves.
       rpc: "https://rpc.v4.testnet.pulsechain.com",
       registry: "0x…", // PULSECHAIN_HEX_REGISTRY, from step 1
       registrar: "0x…", // PULSECHAIN_REGISTRAR, from step 1
-      checkout: "0x…", // AnyTokenCheckout, from step 1
+      checkout: "0x…", // PULSECHAIN_CHECKOUT, from step 1 (AnyTokenCheckout in runs before the copy fee)
       usdc: "0x…", // PULSECHAIN_USDC, from step 1
       startBlock: 0, // START_BLOCK_PULSECHAIN, from step 1: a number, without quotes
     },
@@ -89,7 +89,7 @@ until when.
          rpc: "https://rpc.pulsechain.com",
          registry: "0x…", // PULSECHAIN_HEX_REGISTRY
          registrar: "0x…", // PULSECHAIN_REGISTRAR
-         checkout: "0x…", // AnyTokenCheckout
+         checkout: "0x…", // PULSECHAIN_CHECKOUT
          usdc: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07", // USDC bridged from Ethereum (PULSECHAIN_USDC)
          startBlock: 0, // START_BLOCK_PULSECHAIN
        },
@@ -131,8 +131,16 @@ that the page is private. Each change is a transaction from the admin wallet.
   app shows the new prices at once. The homepage's prices are text: ask for them to be updated.
 - **Held names:** the names held now and until when. **Hold more names** takes a list (each a
   transaction, plus one before and one after). **Hand a held name to its owner** makes it theirs
-  until its hold would have ended, and its Ethereum copy follows. **Add time** holds a name longer,
-  or gives an owned name free time.
+  until its hold would have ended; a second transaction sends its copy to Ethereum, and the bot
+  copies it at once. **Add time** holds a name longer, or gives an owned name free time.
+- **Ethereum copy fee:** what it is now, and who sets it. While Ethereum is busy and a copy costs
+  over $2, buyers can pay the rest to copy their name at once, or wait for a free copy
+  ([how it works](../bot/README.md#money)). **Choose it** makes the bot the copy bot, which turns
+  the fee on: the bot's wallet is filled in from `bot.address`. **The most a copy can cost** caps
+  it ($100 at deploy); 0 switches it off, and every copy is free. The homepage's FAQ says $100: ask
+  for it to be updated if you change it. **Copy a name to Ethereum now**
+  sends any name's copy from the admin wallet, and the bot copies it at once, at the project's cost:
+  for a name stuck waiting, say.
 
 ## Paying referrers
 

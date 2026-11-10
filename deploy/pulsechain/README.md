@@ -77,7 +77,7 @@ takes 5 to 10 minutes.
 | `Payments go to` | nowhere: check it's your wallet, `0x102785E63DCD7C2ba1146E96da7fE429155602C6`. The dry run shows it before anything is sent |
 | `Price rules locked` | nowhere: check it says `yes, for good`. Nobody, you included, can then change the price of one length, the multi-year prices, which characters names can use, the 63-character limit or the 5-year limit |
 | the **For the bot** block | into the bot's settings on Railway ([the bot guide](../bot/README.md)) |
-| `PULSECHAIN_HEX_REGISTRY`, `PULSECHAIN_REGISTRAR`, `AnyTokenCheckout`, `PULSECHAIN_USDC`, `START_BLOCK_PULSECHAIN` | into `web/src/deployment.ts` ([the website guide](../website/README.md)) |
+| `PULSECHAIN_HEX_REGISTRY`, `PULSECHAIN_REGISTRAR`, `PULSECHAIN_CHECKOUT`, `PULSECHAIN_USDC`, `START_BLOCK_PULSECHAIN` | into `web/src/deployment.ts` ([the website guide](../website/README.md)) |
 | `UniversalResolver` | for wallets that add .hex: where they look names up |
 | Root registry, Default resolver, Price oracle and the rest | nowhere: for reference |
 | Reserved names given and held | a check against the list |

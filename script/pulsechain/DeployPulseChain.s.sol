@@ -78,7 +78,7 @@ contract DeployPulseChain is DeployScript {
         console.log("PULSECHAIN_USDC          ", net.usdc);
         console.log("START_BLOCK_PULSECHAIN   ", startBlock);
         console.log("Payments go to           ", hub.registrar.BENEFICIARY());
-        console.log("AnyTokenCheckout         ", address(hub.checkout));
+        console.log("PULSECHAIN_CHECKOUT      ", address(hub.checkout));
         console.log("UniversalResolver        ", address(hub.core.universalResolver));
         console.log("Root registry            ", address(hub.core.rootRegistry));
         console.log("Default resolver         ", address(hub.core.ownerResolver));

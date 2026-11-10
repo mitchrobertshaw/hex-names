@@ -79,3 +79,40 @@ test("a name copied in the last hour waits, so sending it back and forth costs t
   const anHourAgo = relay(0n, { alice: (base.now - 3600n).toString() });
   assert.equal(holdReason({ ...base, kind: "mirror", label: "alice", relay: anHourAgo }), null);
 });
+
+test("a copy someone paid the copy fee for, or the admin sent, goes at once: past today's limit and the hourly wait", () => {
+  const busy = relay(config.relayLimits.dailyEth, { alice: (base.now - 60n).toString() });
+  assert.match(holdReason({ ...base, kind: "mirror", label: "alice", relay: busy })!, /today's limit/);
+  assert.equal(holdReason({ ...base, kind: "mirror", label: "alice", relay: busy, priority: "paid" }), null);
+  assert.equal(holdReason({ ...base, kind: "mirror", label: "alice", relay: busy, priority: "admin" }), null);
+  // It still leaves enough ETH to claim its own USDC and buy more.
+  const low = base.reserve + base.cost - 1n;
+  assert.match(holdReason({ ...base, kind: "mirror", label: "alice", relay: relay(), priority: "paid", ethBalance: low })!, /low on ETH/);
+});
+
+test("while the copy fee is on and a copy costs over $2, new names and renewals nobody paid for wait for fees to fall", () => {
+  const dear = { ...base, kind: "mirror" as const, label: "alice", relay: relay(), feeOn: true, copyUsdc: 2_000_001n };
+  assert.match(holdReason(dear)!, /alice\.hex waits for Ethereum's fees to fall/);
+  assert.equal(holdReason({ ...dear, copyUsdc: 2_000_000n }), null, "up to $2, the project pays");
+  assert.equal(holdReason({ ...dear, priority: "paid" }), null, "paid for");
+  assert.equal(holdReason({ ...dear, priority: "admin" }), null, "sent by the admin, after handing a name out");
+  assert.equal(holdReason({ ...dear, ownerChange: true }), null, "a new owner goes at once, or the old one would still get what's sent there");
+  assert.equal(holdReason({ ...dear, feeOn: false }), null, "with the fee off, nobody could have paid, so nothing waits for that");
+  assert.equal(holdReason({ ...dear, copyUsdc: undefined }), null, "ETH's price couldn't be read: as without the fee");
+  // A change of owner still keeps within today's limit, and to one copy of a name an hour.
+  assert.match(holdReason({ ...dear, ownerChange: true, relay: relay(config.relayLimits.dailyEth) })!, /today's limit/);
+  const justCopied = relay(0n, { alice: (base.now - 600n).toString() });
+  assert.match(holdReason({ ...dear, ownerChange: true, relay: justCopied })!, /less than 60 minutes ago/);
+  // Orders' refunds and payments aren't copies of names.
+  assert.equal(holdReason({ ...dear, kind: "settle" }), null);
+});
+
+test("today's allowance counts what copies really cost, so a change of owner still goes when gas is high", () => {
+  // At 30 gwei a claim may take 1.6 million gas (0.048 ETH), more than the whole day's 0.02 ETH;
+  // a copy really uses about 300,000 (0.009 ETH), which fits.
+  const gas = parseGwei("30");
+  const high = { ...base, cost: gas * CLAIM_GAS, reserve: gas * REFILL_GAS, ethBalance: 10n ** 18n, kind: "mirror" as const, label: "alice", ownerChange: true };
+  assert.equal(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay() }), null);
+  assert.match(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay(config.relayLimits.dailyEth - gas * 300_000n + 1n) })!, /today's limit/);
+  assert.match(holdReason({ ...high, relay: relay() })!, /today's limit/, "without what copies use, it plans for the most");
+});

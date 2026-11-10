@@ -5,6 +5,10 @@
 // submit them on Ethereum and pay the gas (a few cents). Anyone may; this bot does it for every
 // message the .hex contracts send, and for its own USDC sent to Ethereum to buy ETH. The signatures
 // are checked by the bridge, so the bot cannot alter a message, only deliver it.
+//
+// When Ethereum is busy and the copy fee is on (copyfee.ts), copies of new names and renewals wait
+// for its fees to fall, unless someone paid the copy fee for them. Paid copies, the admin's, and
+// changes of owner go at once: a name's old owner would otherwise still get what's sent to it there.
 
 import {
   type Address,
@@ -22,6 +26,7 @@ import {
   ORDER_STATUS,
   REGISTERED,
   bridgeCallsAbi,
+  checkoutAbi,
   foreignAmbAbi,
   homeAmbAbi,
   mirrorRegistrarAbi,
@@ -32,7 +37,8 @@ import {
 import { type AmbMessage, isFullySigned, packSignatures, parseAmbMessage } from "./amb.ts";
 import type { RelayLimits } from "./config.ts";
 import type { Context } from "./context.ts";
-import { short, submit } from "./orders.ts";
+import { copyCost, copyGas, recordCopyGas, weiPerUsdc } from "./copyfee.ts";
+import { short, submit, usdc } from "./orders.ts";
 import type { MessageRecord, RelayState } from "./state.ts";
 
 const LOG_RANGE = 50_000n;
@@ -58,6 +64,7 @@ export function claimGas(estimate: bigint): bigint {
 const CLAIM_TIMEOUT = 15n * 60n;
 const HOUR = 3600n;
 const userRequestForSignature = getAbiItem({ abi: homeAmbAbi, name: "UserRequestForSignature" });
+const copyPaid = getAbiItem({ abi: checkoutAbi, name: "CopyPaid" });
 
 /**
  * The USDC arriving on Ethereum, if `message` is the bot's own transfer of USDC from PulseChain to
@@ -75,21 +82,24 @@ export function ownTransfer(message: AmbMessage, bot: Address, homeBridge: Addre
 
 /**
  * Records messages the .hex contracts sent through the bridge since the last scan, and the bot's
- * own USDC transfers to Ethereum: found here even if the bot lost track of sending one.
+ * own USDC transfers to Ethereum: found here even if the bot lost track of sending one. Notes the
+ * copies someone paid the copy fee for, and those the admin sent: both are copied at once.
  */
 export async function scanMessages(ctx: Context): Promise<void> {
+  const { config } = ctx;
   const latest = await ctx.pls.getBlockNumber();
-  const senders = new Set<Address>([ctx.config.orderFiller, ctx.config.mirrorSync].map((a) => a.toLowerCase() as Address));
-  const t = ctx.config.treasury;
+  const senders = new Set<Address>([config.orderFiller, config.mirrorSync].map((a) => a.toLowerCase() as Address));
+  const t = config.treasury;
+  const admin = ctx.state.copyFee?.admin as Address | undefined;
   for (let from = BigInt(ctx.state.pulsechainAmbBlock) + 1n; from <= latest; from += LOG_RANGE) {
     const to = from + LOG_RANGE - 1n < latest ? from + LOG_RANGE - 1n : latest;
-    const logs = await ctx.pls.getLogs({ address: ctx.config.homeAmb, event: userRequestForSignature, fromBlock: from, toBlock: to });
+    const logs = await ctx.pls.getLogs({ address: config.homeAmb, event: userRequestForSignature, fromBlock: from, toBlock: to });
     for (const log of logs) {
       const message = parseAmbMessage(log.args.encodedData!);
       if (ctx.state.messages[message.messageId]) continue;
       const own = ownTransfer(message, ctx.account.address, t.homeBridge, t.ethereumUsdc);
       if (own === null && !senders.has(message.sender.toLowerCase() as Address)) continue;
-      ctx.state.messages[message.messageId] = {
+      const record: MessageRecord = {
         messageId: message.messageId,
         encoded: message.encoded,
         hash: message.hash,
@@ -99,6 +109,18 @@ export async function scanMessages(ctx: Context): Promise<void> {
         status: "waiting",
         ...(own === null ? {} : { own: { usdc: own.toString() } }),
       };
+      if (admin && own === null && isAddressEqual(message.sender, config.mirrorSync)) {
+        const tx = await ctx.pls.getTransaction({ hash: log.transactionHash! });
+        if (isAddressEqual(tx.from, admin)) record.admin = true;
+      }
+      ctx.state.messages[message.messageId] = record;
+    }
+    if (config.checkout) {
+      const paid = await ctx.pls.getLogs({ address: config.checkout, event: copyPaid, fromBlock: from, toBlock: to });
+      for (const log of paid) {
+        const record = ctx.state.messages[log.args.messageId!];
+        if (record && !record.paid) record.paid = { fee: log.args.fee!.toString() };
+      }
     }
     ctx.state.pulsechainAmbBlock = to.toString();
   }
@@ -108,24 +130,40 @@ export type Hold = {
   kind: "own" | "mirror" | "settle";
   label?: string; // the name a mirror message copies
   now: bigint;
-  cost: bigint; // about what claiming it costs, in wei
+  cost: bigint; // the most claiming it may cost, in wei: what's kept on hand for it
+  copyCost?: bigint; // about what a copy of a name really costs, in wei, from the gas copies use
   ethBalance: bigint;
   reserve: bigint; // wei kept back for claiming the bot's own refill
   limits: RelayLimits;
   relay: RelayState;
+  priority?: "paid" | "admin"; // someone paid the copy fee for it, or the admin sent it
+  ownerChange?: boolean; // it gives the name a new owner on Ethereum
+  copyUsdc?: bigint; // about what a copy costs now, in USDC units, if known
+  feeOn?: boolean; // the copy fee is on, so anyone could have paid for this copy to go at once
 };
 
 /**
  * Why a message should wait rather than be claimed now, or null to claim it. The bot's own USDC is
- * always claimed (it buys the ETH everything else needs). Others leave enough ETH for that; copies
- * of names also keep within the day's ETH allowance, and to one copy of a name an hour (the newest
- * change wins, so nothing is lost by waiting).
+ * always claimed (it buys the ETH everything else needs). Others leave enough ETH for that.
+ *
+ * Copies of names: one someone paid the copy fee for, or the admin sent, goes at once. While the
+ * copy fee is on and a copy costs more than the project pays (COPY_FREE_USDC), new names and
+ * renewals wait for Ethereum's fees to fall; a change of owner doesn't, as the old owner would
+ * still get what's sent to the name there. All of these keep within the day's ETH allowance, and to
+ * one copy of a name an hour (the newest change wins, so nothing is lost by waiting).
  */
 export function holdReason(h: Hold): string | null {
   if (h.kind === "own") return null;
   if (h.ethBalance < h.reserve + h.cost) return "low on ETH: what's left is kept for claiming its own USDC to buy more";
-  if (h.kind !== "mirror") return null;
-  if (BigInt(h.relay.spent) + h.cost > h.limits.dailyEth) {
+  if (h.kind !== "mirror" || h.priority) return null;
+  if (h.feeOn && !h.ownerChange && h.copyUsdc !== undefined && h.copyUsdc > h.limits.freeCopyUsdc) {
+    return (
+      `${h.label}.hex waits for Ethereum's fees to fall: a copy costs more than the ${usdc(h.limits.freeCopyUsdc)} USDC ` +
+      "the project pays (COPY_FREE_USDC), and nobody paid its copy fee"
+    );
+  }
+  // The day's allowance counts what copies really cost (claims are charged for the gas they use).
+  if (BigInt(h.relay.spent) + (h.copyCost ?? h.cost) > h.limits.dailyEth) {
     return "at today's limit of ETH for copying names (RELAY_DAILY_ETH): the rest wait until tomorrow (UTC)";
   }
   const last = h.label === undefined ? undefined : h.relay.lastClaim[h.label];
@@ -172,7 +210,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
   waiting.sort((a, b) => Number(Boolean(b.own)) - Number(Boolean(a.own)));
   const now = BigInt(Math.floor(Date.now() / 1000));
   const relay = relayState(ctx, now);
-  let funds: { gasPrice: bigint; eth: bigint } | null = null;
+  let funds: { gasPrice: bigint; eth: bigint; weiPerUsdc: bigint | undefined } | null = null;
   const required = await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "requiredSignatures" });
   for (const message of waiting) {
     try {
@@ -186,25 +224,35 @@ export async function claimMessages(ctx: Context): Promise<void> {
       }
       const signed = await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "numMessagesSigned", args: [message.hash] });
       if (!isFullySigned(signed, required)) continue;
-      const skip = message.own ? null : await reasonToSkip(ctx, message, waiting);
-      if (skip) {
+      const assessed: Assessment = message.own ? { skip: null, ownerChange: false } : await assess(ctx, message, waiting);
+      if (assessed.skip) {
         message.status = "skipped";
-        message.note = skip;
-        ctx.log(`bridge message ${message.messageId}: not claiming it, ${skip}`);
+        message.note = assessed.skip;
+        ctx.log(`bridge message ${message.messageId}: not claiming it, ${assessed.skip}`);
         continue;
       }
       const kind = message.own ? "own" : isAddressEqual(message.sender as Address, ctx.config.orderFiller) ? "settle" : "mirror";
       if (kind !== "own") {
-        funds ??= { gasPrice: await ctx.eth.getGasPrice(), eth: await ctx.eth.getBalance({ address: ctx.account.address }) };
+        const feeOn = ctx.state.copyFee?.on === true;
+        funds ??= {
+          gasPrice: await ctx.eth.getGasPrice(),
+          eth: await ctx.eth.getBalance({ address: ctx.account.address }),
+          weiPerUsdc: feeOn ? await weiPerUsdc(ctx) : undefined,
+        };
         const hold = holdReason({
           kind,
           label: kind === "mirror" ? labelOf(message) : undefined,
           now,
           cost: funds.gasPrice * CLAIM_GAS,
+          copyCost: funds.gasPrice * copyGas(relay),
           ethBalance: funds.eth,
           reserve: funds.gasPrice * REFILL_GAS,
           limits: ctx.config.relayLimits,
           relay,
+          priority: message.paid ? "paid" : message.admin ? "admin" : undefined,
+          ownerChange: assessed.ownerChange,
+          copyUsdc: funds.weiPerUsdc ? copyCost(copyGas(relay), funds.gasPrice, funds.weiPerUsdc) : undefined,
+          feeOn,
         });
         if (hold) {
           noteOnce(ctx, relay, now, `bridge: holding back a claim, ${hold}`);
@@ -249,10 +297,12 @@ function finishClaim(ctx: Context, message: MessageRecord, receipt: TransactionR
   message.tx = receipt.transactionHash;
   const label = message.own ? undefined : labelOf(message);
   if (label !== undefined) {
-    relay.spent = (BigInt(relay.spent) + cost).toString();
+    if (!message.paid) relay.spent = (BigInt(relay.spent) + cost).toString(); // paid copies don't use up the day's allowance
     relay.lastClaim[label] = now.toString();
+    recordCopyGas(relay, receipt.gasUsed);
   }
-  const from = message.own ? "the bot's own USDC, for gas" : label !== undefined ? `HexMirrorSync, ${label}.hex` : "HexOrderFiller";
+  const why = message.paid ? `, copy fee paid: ${usdc(BigInt(message.paid.fee))} USDC` : message.admin ? ", sent by the admin" : "";
+  const from = message.own ? "the bot's own USDC, for gas" : label !== undefined ? `HexMirrorSync, ${label}.hex${why}` : "HexOrderFiller";
   ctx.log(`bridge message ${message.messageId} (${from}) claimed on Ethereum (${receipt.transactionHash})`);
   return cost;
 }
@@ -279,42 +329,51 @@ function noteOnce(ctx: Context, relay: RelayState, now: bigint, text: string): v
   ctx.log(text);
 }
 
+/** Whether a message is worth claiming (`skip` says why not), and if it gives a name a new owner. */
+type Assessment = { skip: string | null; ownerChange: boolean };
+
 /**
  * Anyone can make the .hex contracts send a message (report a made-up expired order, or sync a
  * name that has not changed) for a fraction of a cent on PulseChain, while claiming it costs ETH.
- * So only messages that would change something on Ethereum are claimed. Returns why a message is
- * not worth claiming, or null if it is.
+ * So only messages that would change something on Ethereum are claimed. Says why a message is not
+ * worth claiming, if it isn't, and whether a copy gives the name a new owner on Ethereum.
  */
-async function reasonToSkip(ctx: Context, message: MessageRecord, waiting: MessageRecord[]): Promise<string | null> {
+async function assess(ctx: Context, message: MessageRecord, waiting: MessageRecord[]): Promise<Assessment> {
   const { config } = ctx;
+  const skip = (reason: string): Assessment => ({ skip: reason, ownerChange: false });
   const parsed = parseAmbMessage(message.encoded);
   let call;
   try {
     call = decodeFunctionData({ abi: bridgeCallsAbi, data: parsed.data });
   } catch {
-    return "it is not a .hex call";
+    return skip("it is not a .hex call");
   }
 
   if (call.functionName === "settle") {
-    if (!isAddressEqual(parsed.executor, config.orderBook)) return "it is for a different order book";
+    if (!isAddressEqual(parsed.executor, config.orderBook)) return skip("it is for a different order book");
     const [orderId, commitment, deadline] = call.args;
     const [, , orderCommitment, orderDeadline, status] = await ctx.eth.readContract({ address: config.orderBook, abi: orderBookAbi, functionName: "orders", args: [orderId] });
     if (status !== ORDER_STATUS.OPEN || orderCommitment !== commitment || orderDeadline !== deadline) {
-      return "it does not match an open order";
+      return skip("it does not match an open order");
     }
-    return null;
+    return { skip: null, ownerChange: false };
   }
 
-  if (!isAddressEqual(parsed.executor, config.mirrorRegistrar)) return "it is for a different Ethereum copy";
+  if (!isAddressEqual(parsed.executor, config.mirrorRegistrar)) return skip("it is for a different Ethereum copy");
   const [label, owner, expiry, nonce] = call.args;
   const labelId = BigInt(keccak256(toBytes(label)));
   const last = await ctx.eth.readContract({ address: config.mirrorRegistrar, abi: mirrorRegistrarAbi, functionName: "lastNonce", args: [labelId] });
-  if (nonce <= last) return `Ethereum already has a newer copy of ${label}.hex`;
+  if (nonce <= last) return skip(`Ethereum already has a newer copy of ${label}.hex`);
   for (const other of waiting) {
     if (other.messageId === message.messageId) continue;
     try {
       const o = decodeFunctionData({ abi: bridgeCallsAbi, data: parseAmbMessage(other.encoded).data });
-      if (o.functionName === "mirror" && o.args[0] === label && o.args[3] > nonce) return `a newer copy of ${label}.hex is on its way`;
+      if (o.functionName === "mirror" && o.args[0] === label && o.args[3] > nonce) {
+        // The newer copy goes instead, and as this one would have: paid for, or the admin's.
+        if (message.paid && !other.paid) other.paid = message.paid;
+        if (message.admin) other.admin = true;
+        return skip(`a newer copy of ${label}.hex is on its way`);
+      }
     } catch {}
   }
   const registry = await ctx.eth.readContract({ address: config.mirrorRegistrar, abi: mirrorRegistrarAbi, functionName: "REGISTRY" });
@@ -322,9 +381,9 @@ async function reasonToSkip(ctx: Context, message: MessageRecord, waiting: Messa
   const now = (await ctx.eth.getBlock()).timestamp;
   const live = !isAddressEqual(owner, zeroAddress) && expiry > now;
   const registered = state.status === REGISTERED;
-  if (!live && !registered) return `${label}.hex is not on Ethereum and should not be`;
+  if (!live && !registered) return skip(`${label}.hex is not on Ethereum and should not be`);
   if (live && registered && isAddressEqual(state.latestOwner, owner) && state.expiry === expiry) {
-    return `Ethereum already shows ${label}.hex as it is on PulseChain`;
+    return skip(`Ethereum already shows ${label}.hex as it is on PulseChain`);
   }
-  return null;
+  return { skip: null, ownerChange: live && registered && !isAddressEqual(state.latestOwner, owner) };
 }

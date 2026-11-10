@@ -1,13 +1,13 @@
-// The admin page's reads and actions: pausing sales, raising or lowering all prices together, and
-// holding names, handing them to their owners and adding time to them. Each is a power the
-// contracts give the admin wallet at deploy (README, "Who can do what"), and the contracts check it
-// whoever calls: this page only makes the powers easy to use.
+// The admin page's reads and actions: pausing sales, raising or lowering all prices together,
+// holding names, handing them to their owners and adding time to them, and the Ethereum copy fee.
+// Each is a power the contracts give the admin wallet at deploy (README, "Who can do what"), and the
+// contracts check it whoever calls: this page only makes the powers easy to use.
 
 import { type Abi, type Address, getAbiItem, isAddress, zeroAddress } from "viem";
 
 import { checkName } from "../lib/names";
 import { reservedFor, reservedNames } from "../lib/reserved";
-import { erc20Abi, oracleAbi, registrarAbi, registryAbi } from "./abis";
+import { checkoutAbi, erc20Abi, mirrorSyncAbi, oracleAbi, registrarAbi, registryAbi } from "./abis";
 import { confirm, errorText, fees, Progress, type Report } from "./flows";
 import { LIST_LEVEL, levelOf, oracleAddress, type Ratio, ratioFor, readPriceDecimals, ROLE_REGISTRAR } from "./live";
 import { clients, deployment, PAY } from "./network";
@@ -33,6 +33,8 @@ export interface Powers {
   hold: boolean;
   handOut: boolean;
   extend: boolean;
+  /** Choosing the copy bot and capping the Ethereum copy fee: this wallet owns the checkout. */
+  copyFee: boolean;
   /**
    * Roles that let this wallet register or renew any name for free. The page only takes them for
    * the moment an action needs them, so holding them means an action didn't finish.
@@ -40,7 +42,7 @@ export interface Powers {
   leftover: bigint;
 }
 
-export function powersOf(registryRoles: bigint, canUpdatePrices: boolean): Powers {
+export function powersOf(registryRoles: bigint, canUpdatePrices: boolean, ownsCheckout = false): Powers {
   const has = (role: bigint) => (registryRoles & role) === role;
   return {
     pause: has(adminRole(ROLE_REGISTRAR)),
@@ -48,11 +50,13 @@ export function powersOf(registryRoles: bigint, canUpdatePrices: boolean): Power
     hold: has(adminRole(ROLE_REGISTRAR)) || has(ROLE_REGISTRAR),
     handOut: has(ROLE_REGISTER_RESERVED),
     extend: has(adminRole(ROLE_RENEW)) || has(ROLE_RENEW),
+    copyFee: ownsCheckout,
     leftover: registryRoles & (ROLE_REGISTRAR | ROLE_RENEW),
   };
 }
 
-export const anyPower = (p: Powers) => p.pause || p.prices || p.hold || p.handOut || p.extend || p.leftover !== 0n;
+export const anyPower = (p: Powers) =>
+  p.pause || p.prices || p.hold || p.handOut || p.extend || p.copyFee || p.leftover !== 0n;
 
 function required() {
   if (!deployment) throw new Error("The contracts aren't deployed yet.");
@@ -62,7 +66,7 @@ function required() {
 /** What `account` may do here. */
 export async function readPowers(account: Address): Promise<Powers> {
   const d = required();
-  const [roles, prices] = await Promise.all([
+  const [roles, prices, checkoutOwner] = await Promise.all([
     clients.pulsechain.readContract({
       address: d.pulsechain.registry,
       abi: registryAbi,
@@ -77,8 +81,29 @@ export async function readPowers(account: Address): Promise<Powers> {
         args: [ROLE_UPDATE_TOKEN, account],
       }),
     ),
+    // A checkout deployed before the copy fee has no owner.
+    clients.pulsechain
+      .readContract({ address: d.pulsechain.checkout, abi: checkoutAbi, functionName: "owner" })
+      .catch(() => zeroAddress),
   ]);
-  return powersOf(roles, prices);
+  return powersOf(roles, prices, checkoutOwner.toLowerCase() === account.toLowerCase());
+}
+
+/** The copy fee's settings: the bot that sets it, the most it may be, and what it is now (USDC units). */
+export interface CopySettings {
+  bot: Address;
+  cap: bigint;
+  fee: bigint;
+}
+
+export async function readCopySettings(): Promise<CopySettings> {
+  const checkout = { address: required().pulsechain.checkout, abi: checkoutAbi } as const;
+  const [bot, cap, fee] = await Promise.all([
+    clients.pulsechain.readContract({ ...checkout, functionName: "copyBot" }),
+    clients.pulsechain.readContract({ ...checkout, functionName: "maxCopyFee" }),
+    clients.pulsechain.readContract({ ...checkout, functionName: "copyFee" }),
+  ]);
+  return { bot, cap, fee };
 }
 
 const RANGE = 50_000n;
@@ -361,7 +386,20 @@ export async function holdNames(o: { text: string; years: number; report: Report
   });
 }
 
-/** Hands a held name to `owner`, with the roles a buyer gets, for the rest of its hold. */
+/**
+ * Sends `label`'s copy to Ethereum from the admin wallet: the bot copies what the admin sends at
+ * once, whatever Ethereum's fees, at the project's cost.
+ */
+async function syncStep(progress: Progress, key: string, label: string) {
+  const sync = await clients.pulsechain.readContract({
+    address: required().pulsechain.checkout,
+    abi: checkoutAbi,
+    functionName: "MIRROR_SYNC",
+  });
+  await sendStep(progress, key, { address: sync, abi: mirrorSyncAbi, functionName: "sync", args: [label] });
+}
+
+/** Hands a held name to `owner`, with the roles a buyer gets, for the rest of its hold, and copies it to Ethereum. */
 export async function handOut(o: { name: string; owner: string; report: Report }) {
   const d = required();
   const label = oneName(o.name);
@@ -375,12 +413,59 @@ export async function handOut(o: { name: string; owner: string; report: Report }
   });
   if (state.status !== HELD) throw new Error(`${label}.hex isn't held, so there's nothing to hand out.`);
   const to = `${owner.slice(0, 6)}…${owner.slice(-4)}`;
-  await run([["give", `Hand ${label}.hex to ${to}`]], o.report, async (progress) => {
+  const steps: [string, string][] = [
+    ["give", `Hand ${label}.hex to ${to}`],
+    ["copy", "Copy it to Ethereum now"],
+  ];
+  await run(steps, o.report, async (progress) => {
     await sendStep(progress, "give", {
       address: d.pulsechain.registry,
       abi: registryAbi,
       functionName: "register",
       args: [label, owner, zeroAddress, zeroAddress, OWNER_ROLES, 0n],
+    });
+    await syncStep(progress, "copy", label);
+  });
+}
+
+/** Copies a name to Ethereum now, from the admin wallet: the bot copies it at once, at the project's cost. */
+export async function copyToEthereum(o: { name: string; report: Report }) {
+  const label = oneName(o.name);
+  await run([["copy", `Copy ${label}.hex to Ethereum now`]], o.report, async (progress) => {
+    await syncStep(progress, "copy", label);
+  });
+}
+
+/** Chooses the bot that sets the copy fee and receives it (its wallet address); zero switches the fee off. */
+export async function setCopyBot(o: { bot: string; report: Report }) {
+  const bot = o.bot.trim();
+  if (!isAddress(bot)) throw new Error("Type the bot's wallet address (0x…).");
+  const off = bot === zeroAddress;
+  await run([["bot", off ? "Switch the copy fee off" : "Choose the copy bot"]], o.report, async (progress) => {
+    await sendStep(progress, "bot", {
+      address: required().pulsechain.checkout,
+      abi: checkoutAbi,
+      functionName: "setCopyBot",
+      args: [bot],
+    });
+  });
+}
+
+/** The most a copy can cost anyone, in dollars ("100", "2.50"); 0 switches the fee off. */
+export function capFrom(text: string): bigint | null {
+  if (!/^\d+(\.\d{1,2})?$/.test(text.trim())) return null;
+  const [whole, cents = ""] = text.trim().split(".");
+  const cap = BigInt(whole) * 1_000_000n + BigInt(cents.padEnd(2, "0")) * 10_000n;
+  return cap <= 10_000_000_000n ? cap : null; // up to $10,000
+}
+
+export async function setCopyCap(o: { cap: bigint; report: Report }) {
+  await run([["cap", o.cap === 0n ? "Switch the copy fee off" : "Set the most a copy can cost"]], o.report, async (progress) => {
+    await sendStep(progress, "cap", {
+      address: required().pulsechain.checkout,
+      abi: checkoutAbi,
+      functionName: "setMaxCopyFee",
+      args: [o.cap],
     });
   });
 }

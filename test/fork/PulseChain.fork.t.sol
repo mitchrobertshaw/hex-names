@@ -139,6 +139,47 @@ contract PulseChainForkTest is Test, HexDeployer {
         assertEq(IERC20(P.USDC).balanceOf(address(hub.checkout)), 0);
     }
 
+    function test_fork_buyWithPLS_payingTheCopyFee() public {
+        vm.prank(admin);
+        hub.checkout.setCopyBot(bot);
+        vm.prank(bot);
+        hub.checkout.setCopyFee(3e6); // Ethereum is busy: $3 to copy at once
+        AnyTokenCheckout.Registration memory reg = _registration("hexnamescopyfee", alice);
+        _commit(reg);
+        (uint256 price, uint256 fee, uint256 plsIn) =
+            hub.checkout.quoteRegisterAndCopy(reg.label, reg.duration, P.PULSEX_V2_ROUTER, _path(P.WPLS));
+        assertEq(fee, 3e6);
+        plsIn = plsIn * 103 / 100;
+        vm.deal(alice, plsIn);
+
+        vm.recordLogs();
+        vm.prank(alice);
+        (, uint256 change, uint256 charged) =
+            hub.checkout.registerWithPLSAndCopy{value: plsIn}(reg, _swap(P.PULSEX_V2_ROUTER, P.WPLS, price + fee), fee);
+
+        assertEq(charged, fee);
+        assertEq(hub.core.hexRegistry.findOwner("hexnamescopyfee"), alice);
+        assertEq(IERC20(P.USDC).balanceOf(beneficiary), price, "the registrar was paid exactly the price");
+        assertEq(IERC20(P.USDC).balanceOf(bot), fee, "the bot got the fee");
+        assertEq(IERC20(P.USDC).balanceOf(alice), change, "change in USDC");
+        assertEq(IERC20(P.USDC).balanceOf(address(hub.checkout)), 0);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        _assertBridgeMessage(logs, address(hub.mirrorSync), ethMirrorRegistrar, 1_000_000);
+        // The fee names the real bridge message it paid for, which the bot then claims first.
+        bytes32 messageId;
+        bytes32 paidFor;
+        for (uint256 i = 0; i < logs.length; ++i) {
+            if (logs[i].emitter == P.AMB && logs[i].topics[0] == USER_REQUEST_FOR_SIGNATURE) {
+                messageId = logs[i].topics[1];
+            }
+            if (logs[i].emitter == address(hub.checkout) && logs[i].topics[0] == AnyTokenCheckout.CopyPaid.selector) {
+                paidFor = logs[i].topics[2];
+            }
+        }
+        assertTrue(messageId != bytes32(0));
+        assertEq(paidFor, messageId);
+    }
+
     function test_fork_fillAnEthereumOrder() public {
         HexOrderFiller.Reveal memory r = HexOrderFiller.Reveal({
             label: "hexnamesorder",

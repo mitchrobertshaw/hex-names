@@ -100,6 +100,7 @@ hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
   buying from Ethereum is off (FILL=false): names are bought on PulseChain
   order encryption public key, for the website (bot.publicKey in web/src/deployment.ts): 0x… (made from the bot's wallet key)
   fill orders: false, claim bridge messages: true, copy name changes: true, pay its own gas: true
+  copy fee: kept up to date on 0x… once the admin chooses this bot as the copy bot; the project pays up to 2 USDC a copy
   remembers its place in /data/state.json
 ```
 
@@ -115,8 +116,13 @@ hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
   payments wallet.
 - **"gas: bought …"** and **"balance: …"** are it paying its own way ([money](#money)).
 - **"bridge: holding back a claim, …"**, at most once an hour, says why a claim is waiting: a name
-  copied less than an hour ago, the day's limit reached ([money](#money)), or ETH kept back to claim
-  its own USDC. It goes through by itself later.
+  copied less than an hour ago, the day's limit reached, a new name or renewal waiting for
+  Ethereum's fees to fall ([money](#money)), or ETH kept back to claim its own USDC. It goes through
+  by itself later.
+- **"copy fee: …"** says whether the copy fee is on, and what it is ([money](#money)). Until you
+  choose the bot on the admin page (Mainnet, step 5), it says "off until this bot is chosen as the
+  copy bot". On the testnet as first deployed, before the copy fee, it says "off
+  (PULSECHAIN_CHECKOUT not set)": that's expected, and every copy there is free.
 - **"WARNING: the bot is …"**, at most once a day, means it needs you: it says what for.
 
 On its first run the bot also copies the reserved names that went straight to a wallet over to
@@ -139,6 +145,10 @@ After steps 1 to 3 on mainnet:
    `app.hexns.domains/referrals`, with your payments wallet (`0x1027…02C6`). Under **The bot**, set
    a budget, say 100 USDC, and approve it in your wallet. That's what it may draw from your
    payments wallet if gas ever leaves it short. Do the same on the testnet site in the rehearsal.
+5. **Turn on the copy fee.** Open the app's admin page, `app.hexns.domains/admin`, with the admin
+   wallet. Under **Ethereum copy fee**, check the bot's wallet is filled in (the first `0x…` in its
+   log), and click **Choose it**. Within a minute the bot's log says "copy fee: on, at most 100
+   USDC". Until then every copy is free, as before ([money](#money)).
 
 After the rehearsal you can delete the `testnet` environment (project **Settings**, then
 **Environments**) to stop paying for it, or keep it for trying changes.
@@ -165,6 +175,24 @@ enough for it at the gas price of the moment, buying what that takes, up to $100
 copying (below) leaves room: ETH it couldn't spend would just sit there. The settings `ETH_LOW`
 (0.003), `ETH_BUY_USDC` (15), `PLS_LOW` (200000) and `PLS_BUY_USDC` (2) change the rest.
 
+**When Ethereum is busy,** the copy fee keeps the project's cost down. The project pays up to $2 of
+each copy (`COPY_FREE_USDC`). When a copy costs more, the bot sets a copy fee on the checkout, about
+once a minute: the part over $2, and a quarter more for gas rising before the copy goes out. Buyers
+and renewers choose between their copy going free once fees fall, or at once for the fee; sending a
+name through the app pays it. The bot copies:
+
+- a copy someone paid for, or one the admin sent (the admin page's hand-outs and **Copy it now**):
+  at once, whatever gas costs, and outside the daily limit below;
+- a change of owner made elsewhere, on a marketplace say: at once, within the limits below, as the
+  old owner would otherwise still get what's sent to the name on Ethereum;
+- a new name or renewal nobody paid for: once a copy costs $2 or less again.
+
+The fee goes to the bot's working balance, so what's over its $20 comes back to your payments
+wallet with everything else. You cap the fee on the admin page ($100 at deploy): when a copy would
+cost more, copying at once isn't offered, and copies wait. With the fee switched off there, or before
+you choose the bot, every copy is free, within the limits below. Each copy's real cost comes from the
+gas the bot's own copies used, so the fee follows Ethereum's upgrades by itself.
+
 **It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
 knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends
 the same money again. On Ethereum it claims its own USDC first, and keeps enough ETH back to do so.
@@ -176,17 +204,19 @@ draw by the bot for gas. The app's payments page shows the bot's balances and th
 the bot on the same page. If its budget is running low, raise it. If the bot can't fix something
 itself, its log says so, once a day, starting "WARNING".
 
-**Costs.** Railway's Hobby plan, $5 a month. Gas, at 10 November 2026's prices: about 8 cents to copy
-each name, renewal or transfer to Ethereum. A $100 budget covers about 1,300 of those. (A copy uses
-about a million gas on Sepolia, which already runs Ethereum's next upgrade; less on Ethereum until
-then.)
+**Costs.** Railway's Hobby plan, $5 a month. Gas, at 10 November 2026's prices: about 4 cents to copy
+each name, renewal or transfer to Ethereum. A $100 budget covers about 2,500 of those. (A copy used
+about 300,000 gas on a local copy of Ethereum in November 2026. It used about a million on Sepolia,
+which already runs Ethereum's next upgrade, so copies may cost three times as much after that.)
 
 **Limits on copying names.** So that nobody can run up its Ethereum gas by changing a name over and
 over, it copies each name at most once an hour (the newest change wins), and spends at most 0.02 ETH
-a day copying names, about 550 copies at November 2026's gas prices. The rest wait until the next
+a day copying names, about 1,100 copies at November 2026's gas prices. The rest wait until the next
 day (UTC): nothing is lost, as a name works on PulseChain all along and its copy only lags. The
-limit is in ETH, so fewer copies fit when gas is high: about 20 a day at 1 gwei. If gas stays high,
-raise it. The settings `RELAY_NAME_COOLDOWN_MINUTES` (60) and `RELAY_DAILY_ETH` (0.02) change these.
+limit is in ETH, so fewer copies fit when gas is high: about 65 a day at 1 gwei, 6 at 10 gwei, and
+none above about 65 gwei (a third as many after Ethereum's next upgrade, if copies then cost what
+they do on Sepolia). If gas stays high, raise it. Copies paid for, and those the admin sends, go regardless. The settings
+`RELAY_NAME_COOLDOWN_MINUTES` (60), `RELAY_DAILY_ETH` (0.02) and `COPY_FREE_USDC` (2) change these.
 
 ## Keeping it safe
 

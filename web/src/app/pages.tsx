@@ -9,6 +9,7 @@ import { timeAgo } from "../lib/stats";
 import { NETWORK } from "../site";
 import { AlertIcon, LockIcon, SearchIcon } from "../components/icons";
 import { BuyPanel } from "./BuyPanel";
+import { EthereumCopyRow } from "./CopyChoice";
 import { lookUp, type NameInfo } from "./lookup";
 import { CopyButton, OwnerPanel, RenewPanel } from "./ManagePanel";
 import { addressUrl, deployment } from "./network";
@@ -253,6 +254,15 @@ export function NamePage({ label }: { label: string }) {
                 <dt>{info.inGrace ? "Expired on" : "Paid until"}</dt>
                 <dd>{dateText(info.expiry)}</dd>
               </div>
+              {!info.inGrace ? (
+                <EthereumCopyRow
+                  label={info.label}
+                  owner={info.owner}
+                  expiry={info.expiry}
+                  version={version}
+                  onChanged={() => setVersion((v) => v + 1)}
+                />
+              ) : null}
             </dl>
             {info.inGrace ? (
               <p className="details__note">
