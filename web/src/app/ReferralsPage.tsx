@@ -1,10 +1,13 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { type Address, formatUnits, type Hex } from "viem";
 
 import {
   dollarsText,
   findPayout,
+  nextPeriod,
+  paidThrough,
   payoutCsv,
+  payoutNote,
   payoutReport,
   type PayoutReport,
   type PayoutRow,
@@ -16,8 +19,8 @@ import { LAUNCH_OFFER_DAYS, launchOffer, REFERRAL_PERCENT } from "../lib/referra
 import { erc20Abi, registrarAbi } from "./abis";
 import { payReferrers, setBotBudget, type Step, usdcUnits } from "./flows";
 import { CopyButton } from "./ManagePanel";
-import { addressUrl, clients, deployment, network, txUrl } from "./network";
-import { readPayoutTransfers, readReferredPayments, readReferrers, readTokens } from "./payouts";
+import { addressUrl, clients, deployment, txUrl } from "./network";
+import { readPayouts, readPayoutTransfers, readReferredPayments, readReferrers, readTokens } from "./payouts";
 import { Steps } from "./Steps";
 import { short, useWallet } from "./wallet";
 import { WalletChoices } from "./WalletButton";
@@ -30,23 +33,6 @@ const dayText = (day: string) =>
   new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const blockDay = async (block: bigint) =>
   isoDay(new Date(Number((await clients.pulsechain.getBlock({ blockNumber: block })).timestamp) * 1000));
-
-// The last day paid for, remembered in this browser so the next report starts after it.
-const paidKey = () => `hexns-referrals-paid-through:${network}:${deployment?.pulsechain.registrar.toLowerCase()}`;
-function loadPaidThrough(): string | null {
-  try {
-    return localStorage.getItem(paidKey());
-  } catch {
-    return null;
-  }
-}
-function savePaidThrough(day: string) {
-  try {
-    if ((loadPaidThrough() ?? "") < day) localStorage.setItem(paidKey(), day);
-  } catch {
-    // Without storage, the next report just starts at the beginning of the offer again.
-  }
-}
 
 function download(report: PayoutReport, from: string, to: string) {
   const url = URL.createObjectURL(new Blob([payoutCsv(report)], { type: "text/csv" }));
@@ -79,6 +65,9 @@ interface Done {
   decimals: number;
   /** A payout that already paid all of this, if there is one. */
   paid: { transfer: Transfer; day: string } | null;
+  payee: Address;
+  /** Reads again what's been paid, after a payout. */
+  onPaid: () => void;
 }
 
 type State =
@@ -145,7 +134,7 @@ export function ReferralsPage() {
       </Shell>
     );
   }
-  return <Payouts />;
+  return <Payouts payee={payee} />;
 }
 
 function Shell({ children }: { children: ReactNode }) {
@@ -157,29 +146,55 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-function Payouts() {
+type Paid =
+  | { status: "loading" }
+  /** `today` is PulseChain's day, from its latest block, so a computer's clock can't shift the days paid. */
+  | { status: "ok"; through: string | null; today: string }
+  | { status: "failed"; message: string };
+
+/**
+ * The next payout: from the day after the last one paid (or the launch offer's first day) to
+ * yesterday, within the offer. What's been paid comes from the chain: each payout records the days
+ * it paid for at the end of its transaction, so no day is paid twice, whichever device pays.
+ */
+function Payouts({ payee }: { payee: Address }) {
   const pulsechain = deployment!.pulsechain;
   const offer = launchOffer(deployment!.launchDate);
   const offerFrom = offer ? deployment!.launchDate! : "";
   const offerTo = offer ? isoDay(offer.lastDay) : "";
-  const today = isoDay(new Date());
-  const paidThrough = loadPaidThrough();
-  const [from, setFrom] = useState(() => {
-    const after = paidThrough ? nextDay(paidThrough) : "";
-    return after && (!offer || after <= offerTo) ? after : offerFrom;
-  });
-  const [to, setTo] = useState(offer && offerTo < today ? offerTo : today);
+  const [paid, setPaid] = useState<Paid>({ status: "loading" });
+  const [checks, setChecks] = useState(0);
   const [state, setState] = useState<State>({ status: "idle" });
 
-  // Only purchases during the launch offer earn the 10%, so the report keeps to its days.
-  const first = offer && from < offerFrom ? offerFrom : from;
-  const last = offer && to > offerTo ? offerTo : to;
-  const kept = offer && (first !== from || last !== to);
-  const ready = !!first && !!last && first <= last && state.status !== "working";
+  useEffect(() => {
+    let alive = true;
+    setPaid({ status: "loading" });
+    Promise.all([
+      readPayouts(clients.pulsechain, pulsechain.usdc, payee, BigInt(pulsechain.startBlock)),
+      clients.pulsechain.getBlock(),
+    ])
+      .then(
+        ([payouts, block]) =>
+          alive &&
+          setPaid({ status: "ok", through: paidThrough(payouts), today: isoDay(new Date(Number(block.timestamp) * 1000)) }),
+      )
+      .catch(
+        (error) =>
+          alive && setPaid({ status: "failed", message: error instanceof Error ? error.message.split("\n")[0] : String(error) }),
+      );
+    return () => {
+      alive = false;
+    };
+  }, [payee, pulsechain.usdc, pulsechain.startBlock, checks]);
 
-  async function run(event: FormEvent) {
-    event.preventDefault();
-    if (!ready) return;
+  const period =
+    offer && paid.status === "ok"
+      ? nextPeriod({ offerFirst: offerFrom, offerLast: offerTo, paidThrough: paid.through, today: paid.today })
+      : null;
+
+  async function run() {
+    if (!period || state.status === "working") return;
+    const { first, last } = period;
     setState({ status: "working", percent: 0 });
     try {
       const client = clients.pulsechain;
@@ -192,7 +207,7 @@ function Payouts() {
         client.readContract({ address: pulsechain.usdc, abi: erc20Abi, functionName: "decimals" }),
       ]);
       const report = payoutReport(payments, referrers, tokens);
-      // Has this exact payout been sent already, from any device? Payouts come after their days.
+      // A payout made before payouts carried their days: has exactly this been sent already?
       const transfers = await readPayoutTransfers(
         client,
         pulsechain.usdc,
@@ -208,6 +223,8 @@ function Payouts() {
         payments: payments.length,
         decimals,
         paid: sent ? { transfer: sent, day: await blockDay(sent.block) } : null,
+        payee,
+        onPaid: () => setChecks((n) => n + 1),
       });
     } catch (error) {
       setState({ status: "failed", message: error instanceof Error ? error.message.split("\n")[0] : String(error) });
@@ -220,28 +237,63 @@ function Payouts() {
         What each referrer is owed: {REFERRAL_PERCENT}% of what the buyers they brought paid, for purchases and renewals
         made through their referral link. Worked out from the registrar&rsquo;s records on PulseChain.
       </p>
-      <p className="payouts__offer">
-        {offer
-          ? `The launch offer runs from ${dayText(offerFrom)} to ${dayText(offerTo)}. Only purchases in those days earn the ${REFERRAL_PERCENT}%.`
-          : `The launch offer runs for ${LAUNCH_OFFER_DAYS} days from launchDate in web/src/deployment.ts, which isn't set yet. Choose the days yourself.`}
-        {paidThrough ? ` You've paid up to ${dayText(paidThrough)} from this browser.` : ""}
-      </p>
 
-      <form className="card payouts__card payouts__form" onSubmit={run}>
-        <label>
-          From
-          <input type="date" value={from} min={offerFrom || undefined} max={offerTo || undefined} onChange={(e) => setFrom(e.target.value)} required />
-        </label>
-        <label>
-          To (included)
-          <input type="date" value={to} min={offerFrom || undefined} max={offerTo || undefined} onChange={(e) => setTo(e.target.value)} required />
-        </label>
-        <button type="submit" className="button button--primary" disabled={!ready}>
-          {state.status === "working" ? `Reading PulseChain… ${state.percent}%` : "Work it out"}
-        </button>
-        {kept ? <p className="payouts__note">Kept to the launch offer: {dayText(first)} to {dayText(last)}.</p> : null}
-        {first && last && first > last ? <p className="payouts__note">The first day is after the last.</p> : null}
-      </form>
+      {!offer ? (
+        <section className="card payouts__card">
+          <p>
+            The launch offer runs for {LAUNCH_OFFER_DAYS} days from <code>launchDate</code> in{" "}
+            <code>web/src/deployment.ts</code>, which isn&rsquo;t set yet, so there&rsquo;s nothing to pay.
+          </p>
+        </section>
+      ) : (
+        <section className="card payouts__card" aria-labelledby="next-payout">
+          <h2 id="next-payout" className="payouts__title">
+            Next payout
+          </h2>
+          <p className="payouts__offer">
+            The launch offer runs from {dayText(offerFrom)} to {dayText(offerTo)}: purchases in those days earn the{" "}
+            {REFERRAL_PERCENT}%.
+          </p>
+          {paid.status === "loading" ? (
+            <p className="name-page__loading">Checking what&rsquo;s been paid…</p>
+          ) : paid.status === "failed" ? (
+            <p role="alert">
+              <b>Couldn&rsquo;t read PulseChain.</b> {paid.message} Reload the page in a minute.
+            </p>
+          ) : (
+            <>
+              <p>
+                {paid.through ? (
+                  <>
+                    <b>Paid up to {dayText(paid.through)}</b>, as the payouts on the chain record.
+                  </>
+                ) : (
+                  <b>Nothing paid yet.</b>
+                )}{" "}
+                {period
+                  ? `Next: ${dayText(period.first)} to ${dayText(period.last)}. Each payout covers whole days up to ` +
+                    "yesterday, and records them, so no day is paid twice."
+                  : paid.through && paid.through >= offerTo
+                    ? "That's the whole launch offer: there's nothing more to pay."
+                    : `Purchases from ${dayText(paid.through && paid.through >= offerFrom ? nextDay(paid.through) : offerFrom)} ` +
+                      "can be paid once that day is over."}
+              </p>
+              {period ? (
+                <div>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => void run()}
+                    disabled={state.status === "working"}
+                  >
+                    {state.status === "working" ? `Reading PulseChain… ${state.percent}%` : "Work it out"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </section>
+      )}
 
       {state.status === "failed" ? (
         <section className="card payouts__card" role="alert">
@@ -259,19 +311,29 @@ function Payouts() {
   );
 }
 
-function Report({ report, from, to, payments, decimals, paid }: Done) {
+function Report({ report, from, to, payments, decimals, paid, payee, onPaid }: Done) {
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [sent, setSent] = useState<Hex | null>(null);
   const [busy, setBusy] = useState(false);
   const notPaid = [...report.selfReferrals, ...report.noOwner];
   const transfers = payoutTransfers(report, decimals);
 
+  const [overtaken, setOvertaken] = useState<string | null>(null);
+
   async function payAll() {
     setBusy(true);
     try {
-      const hash = await payReferrers({ payments: transfers, report: setSteps });
+      // Paid from another device since this was worked out? Then these days aren't owed again.
+      const pulsechain = deployment!.pulsechain;
+      const through = paidThrough(await readPayouts(clients.pulsechain, pulsechain.usdc, payee, BigInt(pulsechain.startBlock)));
+      if (through && through >= from) {
+        setOvertaken(through);
+        onPaid();
+        return;
+      }
+      const hash = await payReferrers({ payments: transfers, note: payoutNote(from, to), report: setSteps });
       setSent(hash);
-      savePaidThrough(to);
+      onPaid();
     } catch {
       // The steps show what went wrong.
     } finally {
@@ -349,7 +411,12 @@ function Report({ report, from, to, payments, decimals, paid }: Done) {
                 <a href={txUrl("pulsechain", sent)} target="_blank" rel="noreferrer">
                   one transaction
                 </a>
-                . Next time, start from {dayText(nextDay(to))}.
+                . It records that it paid up to {dayText(to)}, so the next payout starts on {dayText(nextDay(to))}.
+              </p>
+            ) : overtaken ? (
+              <p className="payouts__paid" role="alert">
+                <b>Not sent:</b> a payout up to {dayText(overtaken)} has been made since this was worked out, so these
+                days are paid. Work out the next payout above.
               </p>
             ) : transfers.length ? (
               <div className="payouts__pay">

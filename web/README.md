@@ -46,9 +46,9 @@ buyers they bring pay. The owner's panel in the app says until when.
 
 **Paying referrers.** `app.hexns.domains/referrals` (not in the menu) is for the wallet that receives
 .hex's payments, the registrar's `BENEFICIARY`: it shows the report only when that wallet is
-connected. Everything on it can still be read from the chain by anyone. For the days you choose,
-kept to the launch offer, it works out 10% of what each referrer's buyers paid, owed to whoever owns
-the referring name now ([`src/app/ReferralsPage.tsx`](src/app/ReferralsPage.tsx), adding up in
+connected. Everything on it can still be read from the chain by anyone. For the days not yet paid,
+from the day after the last payout to yesterday (PulseChain's day), kept to the launch offer, it
+works out 10% of what each referrer's buyers paid, owed to whoever owns the referring name now ([`src/app/ReferralsPage.tsx`](src/app/ReferralsPage.tsx), adding up in
 [`src/lib/payouts.ts`](src/lib/payouts.ts)). It reads the registrar's `NameRegistered` and
 `NameRenewed` events from the deployment's start block, in the browser. Self-referrals (the buyer
 also owns the referring name) and tags that aren't a name anyone owns are set aside. The same page,
@@ -80,6 +80,13 @@ code on PulseChain and PulseChain Testnet v4): an approval of the exact total, t
 `disperseToken`. Each run also looks for a payout already sent, one transaction that paid every
 referrer exactly what they're owed, and says so instead of offering to pay again. The spreadsheet it
 downloads has each wallet and the exact USDC.
+
+**No day is paid twice.** Each Pay all records the days it covers at the end of its transaction:
+`HXNS`, then the first and last day, after the call Disperse reads, which Disperse ignores
+([`payoutNote`](src/lib/payouts.ts)). The page finds the payments wallet's payouts from the transfers
+it made to Disperse, reads their notes, and starts the next payout the day after the last day paid.
+It checks again just before sending, so a payout made meanwhile from another device stops it. A
+payout made before payouts carried notes is still recognised if it paid exactly the same amounts.
 
 **Tested end to end** on local copies of PulseChain Testnet v4 and Sepolia with the real contracts
 and the bot: buying on PulseChain with USDC, renewing, sending, My names, and a referral tag landing
