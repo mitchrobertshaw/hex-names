@@ -42,7 +42,7 @@ import {ReservedName, ReservedNames} from "./ReservedNames.sol";
 ///         the tests, so the tests run against exactly what gets deployed.
 /// @dev Settings follow ENSv2's own deployment (contracts-v2 script/deploy-constants.ts) except
 ///      the price of 5+ letter names: $10 a year, covering the name on both chains, instead of
-///      ENS's $8.
+///      ENS's $8; and the oracle's finer units, which make every price exact (see PRICE_DECIMALS).
 abstract contract HexDeployer {
     // --- Registrar settings (ENSv2 defaults) ---
     uint64 internal constant GRACE_PERIOD = 28 days;
@@ -51,8 +51,14 @@ abstract contract HexDeployer {
     uint64 internal constant MIN_REGISTER_DURATION = 28 days;
 
     // --- Prices ---
-    /// @dev The oracle works in "standard units" with 12 decimals.
-    uint256 internal constant PRICE_SCALE = 1e12;
+    /// @dev The oracle works in "standard units": here a dollar is 10^27 of them, where ENS uses
+    ///      10^12. It keeps each price per second, and a year's price doesn't divide evenly into
+    ///      seconds, so each rate is rounded; then the amount to pay is rounded up to the token's
+    ///      smallest unit. With ENS's units that made a year 10.000003 USDC. With these, the
+    ///      rounding stays below the smallest unit of USDC or DAI, so every whole number of years
+    ///      costs exactly its price: 10 USDC (or 10 DAI) for a year of a 5+ letter name.
+    uint8 internal constant PRICE_DECIMALS = 27;
+    uint256 internal constant PRICE_SCALE = 10 ** PRICE_DECIMALS;
     uint256 internal constant SEC_PER_YEAR = 365 days;
     /// @dev Dollars a year by length. Names of 1 or 2 characters are not for sale.
     uint256 internal constant YEARLY_PRICE_3 = 320;
@@ -345,8 +351,10 @@ abstract contract HexDeployer {
         rates[4] = _perSecond(YEARLY_PRICE_5_PLUS);
     }
 
+    /// @dev Rounded down: the oracle's rounding up of the amount to pay then lands exactly on the
+    ///      price (rounding up here, as ENS does, would land a unit above it).
     function _perSecond(uint256 dollarsPerYear) internal pure returns (uint256) {
-        return (PRICE_SCALE * dollarsPerYear + SEC_PER_YEAR - 1) / SEC_PER_YEAR; // rounded up, as ENS does
+        return PRICE_SCALE * dollarsPerYear / SEC_PER_YEAR;
     }
 
     function _discountPoints() internal pure returns (DiscountPoint[] memory points) {
@@ -359,7 +367,7 @@ abstract contract HexDeployer {
         points[3] = DiscountPoint({duration: uint64(5 * SEC_PER_YEAR), numer: DISCOUNT_DENOMINATOR / 5 * 2});
     }
 
-    /// @dev Exchange rates from standard units (12 decimals) to each stablecoin's own decimals.
+    /// @dev Exchange rates from standard units (PRICE_DECIMALS) to each stablecoin's own decimals.
     function _paymentRatios(IERC20 usdc, IERC20 dai) internal view returns (PaymentRatio[] memory ratios) {
         ratios = new PaymentRatio[](2);
         ratios[0] = _ratio(usdc);
@@ -368,8 +376,8 @@ abstract contract HexDeployer {
 
     function _ratio(IERC20 token) internal view returns (PaymentRatio memory) {
         uint8 decimals = IERC20Metadata(address(token)).decimals();
-        uint128 numer = decimals > 12 ? uint128(10 ** (decimals - 12)) : 1;
-        uint128 denom = decimals < 12 ? uint128(10 ** (12 - decimals)) : 1;
+        uint128 numer = decimals > PRICE_DECIMALS ? uint128(10 ** (decimals - PRICE_DECIMALS)) : 1;
+        uint128 denom = decimals < PRICE_DECIMALS ? uint128(10 ** (PRICE_DECIMALS - decimals)) : 1;
         return PaymentRatio({paymentToken: token, numer: numer, denom: denom});
     }
 }

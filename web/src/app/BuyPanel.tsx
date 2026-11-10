@@ -5,13 +5,13 @@ import { CheckIcon } from "../components/icons";
 import { MAX_YEARS } from "../lib/names";
 import { formatToken, formatUsd, quoteIn } from "../lib/quotes";
 import { captureReferral, referralLink } from "../lib/referral";
-import type { ChainKey, PayToken } from "../lib/tokens";
+import type { PayToken } from "../lib/tokens";
 import { erc20Abi } from "./abis";
-import { buyOnPulseChain, type Step, tokenAddress, withBuffer } from "./flows";
+import { amountText, bestQuote, buyOnPulseChain, type Step, tokenAddress, withBuffer } from "./flows";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
 import { clients, deployment, PAY } from "./network";
-import { referralTag } from "./order";
+import { referralTag, SECONDS_PER_YEAR } from "./order";
 import { linkProps } from "./router";
 import { Steps } from "./Steps";
 import { WalletChoices } from "./WalletButton";
@@ -20,34 +20,43 @@ import { useWallet } from "./wallet";
 type Quote = { status: "loading" } | { status: "ok"; text: string; amount: bigint } | { status: "error" };
 const yearsText = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
 
-/** The live price of `dollars` in `token` on `chain`, refreshed as the choices change. */
-function useQuote(chainKey: ChainKey, token: PayToken, dollars: number): Quote {
+/**
+ * What paying for `years` of `label` takes in `token`, refreshed as the choices change. Once the
+ * contracts are deployed it's the checkout's own quote: in USDC, the price to the last unit, exactly
+ * what's paid. Before then (the walkthrough), `dollars` priced on the exchange.
+ */
+function useQuote(token: PayToken, label: string, years: number, dollars: number): Quote {
   const [quote, setQuote] = useState<Quote>({ status: "loading" });
   useEffect(() => {
-    const chain = PAY[chainKey];
+    const chain = PAY.pulsechain;
     const usdc = BigInt(Math.ceil(dollars * 1e6));
-    if (!token.path) {
-      setQuote({ status: "ok", text: `= ${formatToken(usdc, 6)} ${token.label ?? token.symbol}`, amount: usdc });
+    const show = (amount: bigint) =>
+      setQuote({
+        status: "ok",
+        text: token.path
+          ? `≈ ${formatToken(amount, token.decimals)} ${token.symbol} on ${chain.dex} right now`
+          : `= ${amountText(token, amount)}`,
+        amount,
+      });
+    if (!deployment && !token.path) {
+      show(usdc);
       return;
     }
     const controller = new AbortController();
     setQuote({ status: "loading" });
     const timer = setTimeout(() => {
-      quoteIn(chain, token, usdc, controller.signal)
-        .then((amount) =>
-          setQuote({
-            status: "ok",
-            text: `≈ ${formatToken(amount, token.decimals)} ${token.symbol} on ${chain.dex} right now`,
-            amount,
-          }),
-        )
+      const asked = deployment
+        ? bestQuote("quoteRegister", label, BigInt(years) * SECONDS_PER_YEAR, token).then((q) => q.amountIn)
+        : quoteIn(chain, token, usdc, controller.signal);
+      asked
+        .then((amount) => !controller.signal.aborted && show(amount))
         .catch(() => !controller.signal.aborted && setQuote({ status: "error" }));
     }, 250);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [chainKey, token, dollars]);
+  }, [token, label, years, dollars]);
   return quote;
 }
 
@@ -220,7 +229,7 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const token = chain.tokens.find((t) => t.symbol === symbol) ?? chain.tokens[0];
   const price = priceOf(info, years);
   const total = Math.round(price.total * 100) / 100;
-  const quote = useQuote("pulsechain", token, total);
+  const quote = useQuote(token, info.label, years, total);
   const need = quote.status === "ok" ? (token.path ? withBuffer(quote.amount) : quote.amount) : null;
   const funds = useFunds(wallet.connected?.account, token, need);
   const [steps, setSteps] = useState<Step[] | null>(null);

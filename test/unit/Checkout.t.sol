@@ -52,6 +52,19 @@ contract CheckoutTest is HexTestBase {
         _assertNothingLeft();
     }
 
+    function test_register_aWalletHoldingExactlyTheShownPriceCanPay() public {
+        // The app shows $10 for a year, and a wallet holding exactly 10 USDC can pay it.
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        _fundAndApprove(plsUsdc, alice, 10e6);
+        vm.prank(alice);
+        checkout.registerWithToken(reg, plsUsdc, 10e6, _noSwap());
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice);
+        assertEq(plsUsdc.balanceOf(alice), 0, "all 10 USDC, and no more");
+        assertEq(plsUsdc.balanceOf(beneficiary), 10e6);
+        _assertNothingLeft();
+    }
+
     function test_register_withHEX_returnsChange() public {
         AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
         _commitReg(reg);
@@ -109,7 +122,7 @@ contract CheckoutTest is HexTestBase {
     function test_register_recentlyExpiredNameCostsAPremium() public {
         _registerDirect("lapsed", bob, 28 days);
         vm.warp(block.timestamp + 28 days + GRACE_PERIOD + 20 days); // 20 days into the 21-day premium
-        uint256 base = _perSecond(YEARLY_PRICE_5_PLUS) * ONE_YEAR / 1e6; // standard units -> 6 decimals
+        uint256 base = 10e6; // a year of a 5+ letter name: exactly $10
         uint256 price = _registerPrice("lapsed", ONE_YEAR);
         assertGt(price, base + 40e6, "still a premium of about $47");
 
@@ -122,7 +135,7 @@ contract CheckoutTest is HexTestBase {
         assertEq(hub.core.hexRegistry.findOwner("lapsed"), alice);
 
         vm.warp(block.timestamp + 2 days);
-        assertApproxEqAbs(_registerPrice("other", ONE_YEAR), base, 10, "no premium on a fresh name");
+        assertEq(_registerPrice("other", ONE_YEAR), base, "no premium on a fresh name");
     }
 
     function test_register_sendsTheNameToEthereum() public {

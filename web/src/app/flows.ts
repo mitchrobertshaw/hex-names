@@ -1,10 +1,21 @@
 // Buying, renewing and sending names: each a few wallet steps, reported as they go.
 
-import { type Address, type ContractFunctionArgs, type Hex, zeroAddress } from "viem";
+import {
+  type Address,
+  BaseError,
+  type ContractFunctionArgs,
+  ContractFunctionRevertedError,
+  ExecutionRevertedError,
+  type Hex,
+  parseGwei,
+  zeroAddress,
+} from "viem";
 
+import { usdcText } from "../lib/payouts";
+import { formatToken } from "../lib/quotes";
 import type { ChainKey, PayToken } from "../lib/tokens";
 import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, registrarAbi, registryAbi } from "./abis";
-import { clients, deployment, PAY } from "./network";
+import { clients, deployment, network, PAY } from "./network";
 import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR } from "./order";
 import { switchTo, walletClient } from "./wallet";
 
@@ -77,9 +88,10 @@ type Quote = { router: Address; path: Address[]; price: bigint; amountIn: bigint
 /**
  * The checkout's price for registering or renewing `label`, and how much of `token` pays it, asked
  * along each of PulseChain's routers. The one needing the least wins: pools differ in depth (PLS
- * cost up to 6.6% more on PulseX V2 than V1 in November 2026) and change over time.
+ * cost up to 6.6% more on PulseX V2 than V1 in November 2026) and change over time. For USDC it's
+ * the price itself, to the last unit: exactly what paying takes.
  */
-async function bestQuote(
+export async function bestQuote(
   fn: "quoteRegister" | "quoteRenew",
   label: string,
   duration: bigint,
@@ -110,13 +122,81 @@ function swapOf(token: PayToken, q: Quote) {
 }
 
 /**
- * A payment's gas estimate plus 30%, or undefined to leave it to the wallet if it can't be estimated.
- * Some wallets send exactly the estimate, and a payment's last step (sending the name's copy to the
- * bridge) can then run out of gas when other transactions in the same block change what it costs.
- * Only the gas used is paid for.
+ * A payment's gas estimate plus 30%. Some wallets send exactly the estimate, and a payment's last
+ * step (sending the name's copy to the bridge) can then run out of gas when other transactions in
+ * the same block change what it costs. Only the gas used is paid for.
+ *
+ * If the estimate shows the payment would fail, it isn't sent: the wallet would still ask for its
+ * fee, often an alarming one, for a transaction that can only fail. If there's no estimate for
+ * another reason, such as the network being busy, the wallet works out the gas itself (undefined).
  */
 async function withGasRoom(estimate: Promise<bigint>): Promise<bigint | undefined> {
-  return estimate.then((gas) => (gas * 13n) / 10n).catch(() => undefined);
+  try {
+    return ((await estimate) * 13n) / 10n;
+  } catch (error) {
+    if (refusalOf(error)) throw error;
+    return undefined;
+  }
+}
+
+/** Where a contract refused a call, if that's why `error` happened. */
+function refusalOf(error: unknown): BaseError | null {
+  if (!(error instanceof BaseError)) return null;
+  return error.walk((e) => e instanceof ContractFunctionRevertedError || e instanceof ExecutionRevertedError) as
+    | BaseError
+    | null;
+}
+
+/** The tip offered on PulseChain's testnet. */
+export const TESTNET_TIP = parseGwei("1");
+
+/**
+ * Fees for PulseChain's testnet, where the network suggests a tip thousands of times its base fee
+ * (25,000 gwei against 7 wei in November 2026): wallets that follow it ask tens of tPLS for a
+ * purchase that takes a fraction of one. A 1 gwei tip gets in, with room for the base fee to rise.
+ */
+export function testnetFees(baseFee: bigint | null | undefined) {
+  return { maxPriorityFeePerGas: TESTNET_TIP, maxFeePerGas: (baseFee ?? 0n) * 2n + TESTNET_TIP };
+}
+
+/**
+ * What to offer for a transaction on `key`: the testnet fees on PulseChain's testnet, and otherwise
+ * nothing, as the wallet's own suggestion is fair.
+ */
+async function fees(key: ChainKey = "pulsechain"): Promise<{ maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint }> {
+  if (network !== "testnet" || key !== "pulsechain") return {};
+  try {
+    return testnetFees((await clients.pulsechain.getBlock()).baseFeePerGas);
+  } catch {
+    return {};
+  }
+}
+
+/** An amount of `token` for people: USDC to the last unit, as a price is exact; others to 4 figures. */
+export function amountText(token: PayToken, amount: bigint): string {
+  const exact = !token.path && token.decimals === 6;
+  return `${exact ? usdcText(amount) : formatToken(amount, token.decimals)} ${token.label ?? token.symbol}`;
+}
+
+/** What a wallet holding `held` of `token` is told when paying takes `pay`. */
+export function shortText(token: PayToken, held: bigint, pay: bigint): string {
+  // A swap sends 2% extra, which comes back as change, so only USDC's amounts are the price.
+  const short = token.path
+    ? `This wallet doesn't hold enough ${token.label ?? token.symbol} to pay.`
+    : `This wallet holds ${amountText(token, held)}, and this costs ${amountText(token, pay)}.`;
+  return `${short} Add a little more, then try again. Nothing was paid.`;
+}
+
+/**
+ * Stops a payment the wallet can't cover before the wallet is asked to send it: it would only
+ * fail, and its fee would be spent all the same.
+ */
+async function requireFunds(token: PayToken, owner: Address, pay: bigint) {
+  const address = tokenAddress("pulsechain", token);
+  const held = address
+    ? await clients.pulsechain.readContract({ address, abi: erc20Abi, functionName: "balanceOf", args: [owner] })
+    : await clients.pulsechain.getBalance({ address: owner });
+  if (held < pay) throw new Error(shortText(token, held, pay));
 }
 
 async function ensureAllowance(key: ChainKey, token: Address, spender: Address, amount: bigint, progress: Progress) {
@@ -135,6 +215,7 @@ async function ensureAllowance(key: ChainKey, token: Address, spender: Address, 
     abi: erc20Abi,
     functionName: "approve",
     args: [spender, amount],
+    ...(await fees(key)),
   });
   progress.set("approve", { tx: { chain: key, hash } });
   await confirm(key, hash);
@@ -228,6 +309,9 @@ export async function buyOnPulseChain(o: {
     }
     const commitment = commitmentOf(purchase);
     progress.start("commit");
+    // A wallet that can't pay stops here, before spending fees on reserving and allowing.
+    const first = await bestQuote("quoteRegister", o.label, duration, o.token);
+    await requireFunds(o.token, owner, o.token.path ? withBuffer(first.amountIn) : first.amountIn);
     if (!committedAt) {
       savePending(purchase);
       const hash = await wallet.writeContract({
@@ -235,6 +319,7 @@ export async function buyOnPulseChain(o: {
         abi: registrarAbi,
         functionName: "commit",
         args: [commitment],
+        ...(await fees()),
       });
       progress.set("commit", { tx: { chain: "pulsechain", hash } });
       const receipt = await confirm("pulsechain", hash);
@@ -250,12 +335,11 @@ export async function buyOnPulseChain(o: {
     const token = tokenAddress("pulsechain", o.token);
     if (token) {
       // Allow the token during the wait, so paying is one step when it's over.
-      const { amountIn } = await bestQuote("quoteRegister", o.label, duration, o.token);
       await ensureAllowance(
         "pulsechain",
         token,
         d.pulsechain.checkout,
-        o.token.path ? withRoom(amountIn) : amountIn,
+        o.token.path ? withRoom(first.amountIn) : first.amountIn,
         progress,
       );
       progress.done("approve");
@@ -266,6 +350,7 @@ export async function buyOnPulseChain(o: {
     progress.start("pay");
     const q = await bestQuote("quoteRegister", o.label, duration, o.token);
     const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
+    await requireFunds(o.token, owner, pay);
     if (token) {
       // The price rose more than the room allowed during the minute: allow the new amount first.
       await ensureAllowance("pulsechain", token, d.pulsechain.checkout, pay, progress);
@@ -277,6 +362,7 @@ export async function buyOnPulseChain(o: {
     const reg = purchase as never;
     const swap = swapOf(o.token, q);
     const checkout = d.pulsechain.checkout;
+    const fee = await fees();
     const hash = token
       ? await wallet.writeContract({
           address: checkout,
@@ -292,6 +378,7 @@ export async function buyOnPulseChain(o: {
               account: owner,
             }),
           ),
+          ...fee,
         })
       : await wallet.writeContract({
           address: checkout,
@@ -309,6 +396,7 @@ export async function buyOnPulseChain(o: {
               account: owner,
             }),
           ),
+          ...fee,
         });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -343,6 +431,8 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     const duration = BigInt(o.years) * SECONDS_PER_YEAR;
     const q = await bestQuote("quoteRenew", o.label, duration, o.token);
     const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
+    const account = wallet.account.address;
+    await requireFunds(o.token, account, pay);
     const token = tokenAddress("pulsechain", o.token);
     if (token) {
       await ensureAllowance("pulsechain", token, d.pulsechain.checkout, pay, progress);
@@ -352,7 +442,7 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     const ren = { label: o.label, duration, referrer: o.referrer };
     const swap = swapOf(o.token, q);
     const checkout = d.pulsechain.checkout;
-    const account = wallet.account.address;
+    const fee = await fees();
     const hash = token
       ? await wallet.writeContract({
           address: checkout,
@@ -368,6 +458,7 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
               account,
             }),
           ),
+          ...fee,
         })
       : await wallet.writeContract({
           address: checkout,
@@ -385,6 +476,7 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
               account,
             }),
           ),
+          ...fee,
         });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -422,6 +514,7 @@ export async function send(o: { label: string; to: Address; report: Report }) {
       abi: registryAbi,
       functionName: "safeTransferFrom",
       args: [wallet.account.address, o.to, state.tokenId, 1n, "0x"],
+      ...(await fees()),
     });
     progress.set("send", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -467,6 +560,7 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
       abi: disperseAbi,
       functionName: "disperseToken",
       args: [d.pulsechain.usdc, o.payments.map((p) => p.to), o.payments.map((p) => p.amount)],
+      ...(await fees()),
     });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -501,6 +595,7 @@ export async function setBotBudget(o: { bot: Address; usdc: bigint; report: Repo
       abi: erc20Abi,
       functionName: "approve",
       args: [o.bot, o.usdc],
+      ...(await fees()),
     });
     progress.set("budget", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
@@ -512,6 +607,15 @@ export async function setBotBudget(o: { bot: Address; usdc: bigint; report: Repo
   }
 }
 
+/** Why the contracts would refuse a payment, said plainly, by their error's name. */
+const REFUSALS: Record<string, string> = {
+  InsufficientPayment: "The price changed while paying. Try again.",
+  NameNotAvailable: "Someone else registered it first.",
+  CommitmentTooOld: "Its reservation ran out. Try again to reserve it afresh.",
+  CommitmentTooNew: "Its minute isn't quite over. Try again in a moment.",
+  TooFarAhead: "A name can be paid for at most 5 years ahead.",
+};
+
 /** A failure, said plainly. */
 export function errorText(error: unknown): string {
   const e = error as { code?: number; shortMessage?: string; message?: string; cause?: { code?: number } };
@@ -520,5 +624,19 @@ export function errorText(error: unknown): string {
   }
   if (/insufficient funds/i.test(e?.message ?? ""))
     return "Not enough in your wallet to pay for this, and its network fee.";
+  const refusal = refusalOf(error);
+  if (refusal) {
+    const reverted = refusal instanceof ContractFunctionRevertedError ? refusal : null;
+    const name = reverted?.data?.errorName;
+    const reason = reverted?.reason !== "execution reverted" ? reverted?.reason : undefined;
+    const why =
+      (name && REFUSALS[name]) ??
+      (reason && /INSUFFICIENT_OUTPUT_AMOUNT|EXCESSIVE_INPUT_AMOUNT/.test(reason)
+        ? "The price moved while paying. Try again."
+        : reason || name
+          ? `The contract said: ${reason ?? name}.`
+          : "");
+    return `It would fail, so it wasn't sent, and nothing was paid.${why ? ` ${why}` : ""}`;
+  }
   return e?.shortMessage ?? e?.message ?? "Something went wrong.";
 }

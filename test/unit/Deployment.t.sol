@@ -36,16 +36,42 @@ contract DeploymentTest is HexTestBase {
         (uint256 base5,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
         (uint256 base4,) = hub.registrar.getRegisterPrice("four", ONE_YEAR, plsUsdc);
         (uint256 base3,) = hub.registrar.getRegisterPrice("abc", ONE_YEAR, plsUsdc);
-        // ENS rounds the per-second rate up, so a year costs a few millionths of a dollar more.
-        assertApproxEqAbs(base5, 10e6, 50, "5+ letters: $10 a year");
-        assertApproxEqAbs(base4, 160e6, 50, "4 letters: $160 a year");
-        assertApproxEqAbs(base3, 320e6, 50, "3 letters: $320 a year");
+        assertEq(base5, 10e6, "5+ letters: exactly $10 a year");
+        assertEq(base4, 160e6, "4 letters: exactly $160 a year");
+        assertEq(base3, 320e6, "3 letters: exactly $320 a year");
     }
 
     function test_prices_sameInDai() public view {
         (uint256 usdc,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsUsdc);
         (uint256 dai,) = hub.registrar.getRegisterPrice("alice", ONE_YEAR, plsDai);
-        assertApproxEqAbs(dai, usdc * 1e12, 1e12, "the same price in DAI, to within a millionth of a dollar");
+        assertEq(dai, usdc * 1e12, "exactly the same price in DAI");
+    }
+
+    /// @dev Every price is exact to the last unit, for buying and renewing alike: what the app
+    ///      shows is what a wallet pays, so one holding exactly the price can pay it.
+    function test_prices_exactForEveryLengthAndTerm() public {
+        string[3] memory labels = ["abc", "four", "alice"];
+        string[3] memory renewing = ["xyz", "wxyz", "bobby"];
+        uint256[3] memory yearly = [uint256(320), 160, 10];
+        // Each term's share of a year's price, in eighths: 1, 1.5, 1.75, 1.875 and 2 years' worth.
+        uint256[6] memory eighths = [uint256(0), 8, 12, 14, 15, 16];
+        for (uint256 i = 0; i < 3; ++i) {
+            // Paid up 28 days ahead, so it can be renewed for up to 4 more years.
+            _registerDirect(renewing[i], alice, MIN_REGISTER_DURATION);
+            for (uint64 y = 1; y <= 5; ++y) {
+                uint256 usdcPrice = yearly[i] * 1e6 * eighths[y] / 8;
+                (uint256 usdc, uint256 premium) = hub.registrar.getRegisterPrice(labels[i], y * ONE_YEAR, plsUsdc);
+                (uint256 dai,) = hub.registrar.getRegisterPrice(labels[i], y * ONE_YEAR, plsDai);
+                assertEq(premium, 0);
+                assertEq(usdc, usdcPrice, "to buy, in USDC");
+                assertEq(dai, usdcPrice * 1e12, "to buy, in DAI");
+                if (y < 5) {
+                    assertEq(
+                        hub.registrar.getRenewPrice(renewing[i], y * ONE_YEAR, plsUsdc), usdcPrice, "to renew, in USDC"
+                    );
+                }
+            }
+        }
     }
 
     function test_prices_shortNamesNotForSale() public {
@@ -61,14 +87,14 @@ contract DeploymentTest is HexTestBase {
         uint256 previous;
         for (uint64 y = 1; y <= 5; ++y) {
             (uint256 base,) = hub.registrar.getRegisterPrice("abc", y * ONE_YEAR, plsUsdc);
-            assertApproxEqAbs(base, expected[y], 50, "3 characters");
+            assertEq(base, expected[y], "3 characters");
             assertGt(base, previous, "more years always cost more in all");
             previous = base;
         }
         (uint256 five5,) = hub.registrar.getRegisterPrice("alice", 5 * ONE_YEAR, plsUsdc);
         (uint256 five4,) = hub.registrar.getRegisterPrice("four", 5 * ONE_YEAR, plsUsdc);
-        assertApproxEqAbs(five5, 20e6, 50, "5+ characters: $20 for 5 years");
-        assertApproxEqAbs(five4, 320e6, 50, "4 characters: $320 for 5 years");
+        assertEq(five5, 20e6, "5+ characters: $20 for 5 years");
+        assertEq(five4, 320e6, "4 characters: $320 for 5 years");
     }
 
     function test_prices_onlyStablecoinsAccepted() public {
