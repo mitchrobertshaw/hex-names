@@ -240,7 +240,7 @@ contract DeploymentTest is HexTestBase {
     function test_roles_adminRunsTheCopyFee_whichStartsOff() public view {
         assertEq(hub.checkout.owner(), admin, "the admin chooses the copy bot and caps the fee");
         assertEq(hub.checkout.copyBot(), address(0), "off until the admin chooses the bot");
-        assertEq(hub.checkout.maxCopyFee(), 100e6, "at most $100 a copy");
+        assertEq(hub.checkout.maxCopyFee(), 1000e6, "at most $1,000 a copy, a safety limit");
         assertEq(hub.checkout.copyFee(), 0);
     }
 

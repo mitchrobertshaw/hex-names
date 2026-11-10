@@ -1,9 +1,9 @@
 // The Ethereum copy fee. Each name has a copy on Ethereum, written there by the project's bot, which
 // pays Ethereum's gas for it. While a copy costs up to $2 there's no fee, and copies follow by
 // themselves in about 15 minutes. When Ethereum is busy, the bot sets a copy fee on the checkout for
-// the rest: anyone buying, renewing or sending a name can pay it to have it copied at once, or leave
-// it to be copied free once Ethereum's fees fall. The admin caps the fee: above the cap, copying at
-// once isn't offered, and copies wait.
+// the rest: anyone buying, renewing or sending a name can pay it to have it copied at once, however
+// busy Ethereum is, or leave it to be copied free once Ethereum's fees fall. Copying at once is
+// offered while the bot holds the ETH to do it straight away; the admin's cap is a safety limit.
 
 import { useEffect, useState } from "react";
 import { type Address, getAbiItem, isAddressEqual, parseEventLogs, type TransactionReceipt } from "viem";
@@ -17,13 +17,20 @@ export type CopyFee =
   | { kind: "free" }
   /** `fee` (USDC units) copies a name at once; without it, it's copied free once Ethereum's fees fall. */
   | { kind: "offered"; fee: bigint }
-  /** Ethereum is so busy a copy would cost more than the admin's cap (USDC units): copies wait for its fees to fall. */
-  | { kind: "busy"; cap: bigint };
+  /**
+   * Copying at once isn't available just now: the bot hasn't the ETH to do it straight away at
+   * today's gas, or (`overCap`) a copy would cost more than the admin's safety limit, `cap` (USDC
+   * units). Copies wait for Ethereum's fees to fall.
+   */
+  | { kind: "busy"; cap: bigint; overCap: boolean };
+
+/** The fee the bot sets while copying at once is paused (the bot's UNAVAILABLE): above any cap. */
+export const UNAVAILABLE = 2n ** 256n - 1n;
 
 /** The copy fee, from the checkout's fee and the admin's cap. */
 export function copyFeeOf(fee: bigint, cap: bigint): CopyFee {
   if (fee === 0n || cap === 0n) return { kind: "free" };
-  return fee > cap ? { kind: "busy", cap } : { kind: "offered", fee };
+  return fee > cap ? { kind: "busy", cap, overCap: fee !== UNAVAILABLE } : { kind: "offered", fee };
 }
 
 /** The copy fee now. Free if the checkout can't say: one deployed before the copy fee has none. */

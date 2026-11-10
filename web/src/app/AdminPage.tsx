@@ -589,7 +589,7 @@ function CopyFeeCard() {
   const [settings, setSettings] = useState<CopySettings | "failed" | null>(null);
   const [version, setVersion] = useState(0);
   const [bot, setBot] = useState(deployment?.bot.address ?? "");
-  const [cap, setCap] = useState("100");
+  const [cap, setCap] = useState("1000");
   const [copyName, setCopyName] = useState("");
   const [botSteps, choosing, botAct] = useAction();
   const [capSteps, capping, capAct] = useAction();
@@ -620,9 +620,9 @@ function CopyFeeCard() {
       </h2>
       <p className="payouts__how">
         The bot pays Ethereum&rsquo;s gas to copy each name there. The project covers up to $2 a copy. When Ethereum is
-        busy and a copy costs more, the bot sets a fee for the rest: buyers can pay it to copy their name at once, or
-        wait for it to be copied free once fees fall. Sending a name through the app pays it too. The fee goes to the
-        bot, which buys its ETH with it.
+        busy and a copy costs more, the bot sets a fee for the rest: buyers can pay it to copy their name at once,
+        however much it is, or wait for it to be copied free once fees fall. Sending a name through the app pays it
+        too. The fee goes to the bot, which keeps ETH on hand for copies paid for (COPY_NOW_ETH).
       </p>
       {settings === "failed" ? (
         <p>Couldn&rsquo;t read the checkout just now. Reload the page in a minute.</p>
@@ -639,7 +639,9 @@ function CopyFeeCard() {
                   : now?.kind === "offered"
                     ? `${feeText(now.fee)} to copy a name at once.`
                     : now?.kind === "busy"
-                      ? `Over the most a copy can cost (${feeText(settings.cap)}): copying at once isn't offered.`
+                      ? now.overCap
+                        ? `Over the most a copy can cost (${feeText(settings.cap)}): copying at once isn't offered.`
+                        : "Copying at once paused: the bot hasn't the ETH on hand to do it straight away at today's gas. It tops up while copies are free."
                       : "None now: copies cost under $2, so they're free."}
             </b>{" "}
             {settings.bot === zeroAddress || settings.cap === 0n
@@ -701,9 +703,9 @@ function CopyFeeCard() {
             </button>
           </form>
           <p className="payouts__how">
-            If a copy would cost more than this, copying at once isn&rsquo;t offered, and copies wait for Ethereum&rsquo;s
-            fees to fall. Switched off, every copy is free. The app shows the new amount at once; the homepage&rsquo;s
-            FAQ says $100 as text, so ask for it to be updated after a change.
+            A safety limit, in case the bot ever sets a wrong fee: below it, buyers can pay whatever copying at once
+            costs. If a copy would cost more, copying at once isn&rsquo;t offered, and copies wait for Ethereum&rsquo;s
+            fees to fall. Ethereum would reach $1,000 at about 1,500 gwei. Switched off (0), every copy is free.
           </p>
           {capSteps ? <Steps steps={capSteps} /> : null}
         </>

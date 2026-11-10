@@ -136,9 +136,9 @@ that the page is private. Each change is a transaction from the admin wallet.
 - **Ethereum copy fee:** what it is now, and who sets it. While Ethereum is busy and a copy costs
   over $2, buyers can pay the rest to copy their name at once, or wait for a free copy
   ([how it works](../bot/README.md#money)). **Choose it** makes the bot the copy bot, which turns
-  the fee on: the bot's wallet is filled in from `bot.address`. **The most a copy can cost** caps
-  it ($100 at deploy); 0 switches it off, and every copy is free. The homepage's FAQ says $100: ask
-  for it to be updated if you change it. **Copy a name to Ethereum now**
+  the fee on: the bot's wallet is filled in from `bot.address`. **The most a copy can cost** is a
+  safety limit ($1,000 at deploy), in case the bot ever sets a wrong fee; below it, buyers can pay
+  whatever copying at once costs. 0 switches the fee off, and every copy is free. **Copy a name to Ethereum now**
   sends any name's copy from the admin wallet, and the bot copies it at once, at the project's cost:
   for a name stuck waiting, say.
 

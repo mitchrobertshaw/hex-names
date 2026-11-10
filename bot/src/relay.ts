@@ -37,7 +37,7 @@ import {
 import { type AmbMessage, isFullySigned, packSignatures, parseAmbMessage } from "./amb.ts";
 import type { RelayLimits } from "./config.ts";
 import type { Context } from "./context.ts";
-import { copyCost, copyGas, recordCopyGas, weiPerUsdc } from "./copyfee.ts";
+import { copyCost, copyGas, paidCopyNeed, recordCopyGas, weiPerUsdc } from "./copyfee.ts";
 import { short, submit, usdc } from "./orders.ts";
 import type { MessageRecord, RelayState } from "./state.ts";
 
@@ -137,6 +137,7 @@ export type Hold = {
   limits: RelayLimits;
   relay: RelayState;
   priority?: "paid" | "admin"; // someone paid the copy fee for it, or the admin sent it
+  paidNeed?: bigint; // the ETH a paid copy's claim needs on hand (paidCopyNeed in copyfee.ts)
   ownerChange?: boolean; // it gives the name a new owner on Ethereum
   copyUsdc?: bigint; // about what a copy costs now, in USDC units, if known
   feeOn?: boolean; // the copy fee is on, so anyone could have paid for this copy to go at once
@@ -146,7 +147,8 @@ export type Hold = {
  * Why a message should wait rather than be claimed now, or null to claim it. The bot's own USDC is
  * always claimed (it buys the ETH everything else needs). Others leave enough ETH for that.
  *
- * Copies of names: one someone paid the copy fee for, or the admin sent, goes at once. While the
+ * Copies of names: one someone paid the copy fee for, or the admin sent, goes at once (a paid one
+ * needs only the ETH for its own claim, which the bot keeps on hand while the fee is on). While the
  * copy fee is on and a copy costs more than the project pays (COPY_FREE_USDC), new names and
  * renewals wait for Ethereum's fees to fall; a change of owner doesn't, as the old owner would
  * still get what's sent to the name there. All of these keep within the day's ETH allowance, and to
@@ -154,6 +156,10 @@ export type Hold = {
  */
 export function holdReason(h: Hold): string | null {
   if (h.kind === "own") return null;
+  if (h.priority === "paid" && h.paidNeed !== undefined) {
+    // Someone paid to copy it at once: it may use the ETH kept back for the bot's own refill.
+    return h.ethBalance < h.paidNeed ? "low on ETH for a paid copy: it goes once the bot has more" : null;
+  }
   if (h.ethBalance < h.reserve + h.cost) return "low on ETH: what's left is kept for claiming its own USDC to buy more";
   if (h.kind !== "mirror" || h.priority) return null;
   if (h.feeOn && !h.ownerChange && h.copyUsdc !== undefined && h.copyUsdc > h.limits.freeCopyUsdc) {
@@ -245,6 +251,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
           now,
           cost: funds.gasPrice * CLAIM_GAS,
           copyCost: funds.gasPrice * copyGas(relay),
+          paidNeed: paidCopyNeed(funds.gasPrice, copyGas(relay)),
           ethBalance: funds.eth,
           reserve: funds.gasPrice * REFILL_GAS,
           limits: ctx.config.relayLimits,

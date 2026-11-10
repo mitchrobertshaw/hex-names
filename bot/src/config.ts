@@ -76,6 +76,11 @@ export type Treasury = {
   ethLow: bigint; // ETH_LOW: below this much ETH (in wei), it buys more
   ethBuyUsdc: bigint; // ETH_BUY_USDC: how much USDC of ETH it buys at a time
   ethBuyMaxUsdc: bigint; // ETH_BUY_MAX_USDC: the most one ETH purchase spends, when gas is high
+  /**
+   * COPY_NOW_ETH: while the copy fee is on, the ETH it keeps for paid copies, bought while Ethereum
+   * is cheap, so someone paying to copy a name at once can, however busy Ethereum gets.
+   */
+  copyNowEth: bigint;
   ethereumUsdc: Address; // USDC on Ethereum (or Sepolia): what orders are paid in
   homeBridge: Address; // the official bridge's token contract on PulseChain
   foreignBridge: Address; // ... and on Ethereum
@@ -107,6 +112,7 @@ export const NETWORK_DEFAULTS: Record<
     ethLow: string;
     ethBuyUsdc: string;
     ethBuyMaxUsdc: string;
+    copyNowEth: string;
   }
 > = {
   // Checked on-chain on 8 November 2026.
@@ -129,6 +135,7 @@ export const NETWORK_DEFAULTS: Record<
     ethLow: "0.003", // about 80 copies of names at 10 November 2026's gas prices
     ethBuyUsdc: "15",
     ethBuyMaxUsdc: "100", // when gas is high, it buys what the next copies need, up to this at a time
+    copyNowEth: "0.05", // about $105: a paid copy at once up to about 80 gwei, and 160 just after a top-up
   },
   testnet: {
     pulsechainRpcUrl: "https://rpc.v4.testnet.pulsechain.com",
@@ -149,6 +156,7 @@ export const NETWORK_DEFAULTS: Record<
     ethLow: "0.002",
     ethBuyUsdc: "2",
     ethBuyMaxUsdc: "10",
+    copyNowEth: "0.005",
   },
 };
 
@@ -226,6 +234,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       ethLow: coins(optional("ETH_LOW") ?? defaults.ethLow),
       ethBuyUsdc: usdc(optional("ETH_BUY_USDC") ?? defaults.ethBuyUsdc),
       ethBuyMaxUsdc: usdc(optional("ETH_BUY_MAX_USDC") ?? defaults.ethBuyMaxUsdc),
+      copyNowEth: coins(optional("COPY_NOW_ETH") ?? defaults.copyNowEth),
       ethereumUsdc: address("ETHEREUM_USDC", defaults.ethereumUsdc),
       homeBridge: address("PULSECHAIN_TOKEN_BRIDGE", defaults.homeBridge),
       foreignBridge: address("ETHEREUM_TOKEN_BRIDGE", defaults.foreignBridge),

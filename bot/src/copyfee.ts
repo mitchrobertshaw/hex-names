@@ -7,10 +7,12 @@
 // copy goes out. New names and renewals nobody paid for wait for Ethereum's fees to fall (see
 // holdReason in relay.ts). The fees go to the bot's working balance, which buys its ETH.
 //
-// The admin turns the fee on by choosing this bot as the copy bot on the admin page, and caps it:
-// above the cap, copying at once isn't offered, and those copies wait.
+// The admin turns the fee on by choosing this bot as the copy bot on the admin page, and caps it, as a
+// safety limit. Copying at once is offered only while the bot holds the ETH to do it straight away
+// (COPY_NOW_ETH, bought while Ethereum is cheap): otherwise it sets UNAVAILABLE, so nobody pays for a
+// copy it couldn't make at once.
 
-import { type Address, isAddressEqual } from "viem";
+import { type Address, formatEther, isAddressEqual } from "viem";
 
 import { checkoutAbi, routerAbi } from "./abis.ts";
 import type { Context } from "./context.ts";
@@ -23,6 +25,21 @@ export const FEE_EVERY_SECONDS = 60n;
 export const COPY_GAS = 1_100_000n;
 const HOUR = 3600n;
 const CENT = 10_000n;
+/** The fee that says copying at once isn't available just now: above any cap, so nothing can be paid. */
+export const UNAVAILABLE = 2n ** 256n - 1n;
+
+/**
+ * The ETH a paid copy's claim needs on hand: what it may use at `gasPrice`, twice over, as a claim
+ * is sent with room for its gas and for the gas price to rise before it's mined.
+ */
+export function paidCopyNeed(gasPrice: bigint, gas: bigint): bigint {
+  return gasPrice * gas * 2n;
+}
+
+/** The fee to set: the fee, unless there is one and the bot can't make a paid copy at once. */
+export function feeToSet(fee: bigint, ethBalance: bigint, need: bigint): bigint {
+  return fee === 0n || ethBalance >= need ? fee : UNAVAILABLE;
+}
 
 /** The gas a copy uses: the most of the last few the bot claimed, or COPY_GAS before it has claimed any. */
 export function copyGas(relay: Pick<RelayState, "copyGas"> | undefined): bigint {
@@ -67,6 +84,7 @@ export async function weiPerUsdc(ctx: Context): Promise<bigint | undefined> {
 /** The fee, in words, for the log. */
 export function feeText(fee: bigint, cap: bigint): string {
   if (fee === 0n) return "none: copies are free";
+  if (fee === UNAVAILABLE) return "copying at once paused: the bot hasn't the ETH to do it straight away";
   if (fee > cap) return `${usdc(fee)} USDC, over the ${usdc(cap)} USDC cap: copying at once isn't offered, and new copies wait for fees to fall`;
   return `${usdc(fee)} USDC to copy a name at once`;
 }
@@ -113,13 +131,24 @@ export async function runCopyFee(ctx: Context): Promise<void> {
     return;
   }
 
-  const [gasPrice, perUsdc] = await Promise.all([ctx.eth.getGasPrice(), weiPerUsdc(ctx)]);
+  const [gasPrice, perUsdc, eth] = await Promise.all([
+    ctx.eth.getGasPrice(),
+    weiPerUsdc(ctx),
+    ctx.eth.getBalance({ address: ctx.account.address }),
+  ]);
   if (perUsdc) {
-    const cost = copyCost(copyGas(ctx.state.relay), gasPrice, perUsdc);
-    const fee = feeFor(cost, config.relayLimits.freeCopyUsdc);
+    const gas = copyGas(ctx.state.relay);
+    const cost = copyCost(gas, gasPrice, perUsdc);
+    const need = paidCopyNeed(gasPrice, gas);
+    const fee = feeToSet(feeFor(cost, config.relayLimits.freeCopyUsdc), eth, need);
     if (worthUpdating(current, fee, cap)) {
       const tx = await send(ctx, "pls", { ...checkout, functionName: "setCopyFee", args: [fee] });
-      ctx.log(`copy fee: ${feeText(fee, cap)} (a copy costs about ${usdc(cost)} USDC on Ethereum now) (${tx})`);
+      const why =
+        fee === UNAVAILABLE
+          ? `a copy costs about ${usdc(cost)} USDC on Ethereum now, and a paid one needs ${formatEther(need)} ETH on hand; ` +
+            `it holds ${formatEther(eth)}, and tops up while copies are free (COPY_NOW_ETH)`
+          : `a copy costs about ${usdc(cost)} USDC on Ethereum now`;
+      ctx.log(`copy fee: ${feeText(fee, cap)} (${why}) (${tx})`);
       current = fee;
     } else {
       note(ctx, state, now, `copy fee: on, at most ${usdc(cap)} USDC; now ${feeText(current, cap)}`);
@@ -129,6 +158,7 @@ export async function runCopyFee(ctx: Context): Promise<void> {
   }
   state.fee = current.toString();
   state.offered = current > 0n && current <= cap;
+  state.free = current === 0n;
 }
 
 /** Logs `text` at most once an hour. */

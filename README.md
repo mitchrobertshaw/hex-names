@@ -91,9 +91,11 @@ copies at November 2026's gas prices. The rest wait until the next day (UTC).
   between their copy going free once Ethereum's fees fall, or at once for the fee, in the same
   payment and in the same token. Sending a name through the app pays it too, so the new owner shows
   on Ethereum at once. Changes of owner made elsewhere, and names the admin hands out, are copied at
-  once at the project's cost. The fee goes to the bot, which buys its ETH with it. The admin
-  chooses the bot and caps the fee ($100 at deploy): when a copy would cost more than that, copying
-  at once isn't offered, and copies wait for fees to fall.
+  once at the project's cost. The fee goes to the bot, which buys its ETH with it. Buyers can pay to
+  copy at once however busy Ethereum is, as long as the bot holds the ETH to do it straight away: it
+  keeps some for that while the fee is on (`COPY_NOW_ETH`, bought while Ethereum is cheap), and the
+  app says when copying at once isn't available. The admin chooses the bot, and caps the fee as a
+  safety limit ($1,000 at deploy, which Ethereum would reach at about 1,500 gwei).
 - **Addresses.** By default a name resolves to its owner's address, for Ethereum (coin type 60),
   PulseChain (ENSIP-11 coin type `0x80000171`) and any EVM chain's default (ENSIP-19). This is the
   `OwnerResolver` set on `.hex` itself.

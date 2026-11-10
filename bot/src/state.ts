@@ -63,7 +63,8 @@ export type CopyFeeState = {
   lastRun?: string; // unix seconds
   on: boolean; // this bot is the checkout's copy bot, and the admin hasn't switched the fee off
   offered: boolean; // a fee can be paid now: above zero and within the admin's cap
-  fee: string; // the fee it set, in USDC units
+  fee: string; // the fee it set, in USDC units (UNAVAILABLE in copyfee.ts: copying at once paused)
+  free?: boolean; // copies cost no more than the project pays just now: when it buys the ETH for paid copies
   admin?: string; // the checkout's owner: its copies are copied at once
   noted: Record<string, string>; // what it last said, and when (unix seconds)
 };

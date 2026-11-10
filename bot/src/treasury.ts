@@ -24,7 +24,7 @@ import { ORDER_STATUS, erc20Abi, foreignAmbAbi, homeAmbAbi, orderBookAbi, regist
 import { parseAmbMessage } from "./amb.ts";
 import type { Treasury } from "./config.ts";
 import type { Context } from "./context.ts";
-import { copyGas, weiPerUsdc as readWeiPerUsdc } from "./copyfee.ts";
+import { weiPerUsdc as readWeiPerUsdc } from "./copyfee.ts";
 import { receiptOf, send, short, submit } from "./orders.ts";
 import { CLAIM_GAS, REFILL_GAS, ownTransfer, spentToday } from "./relay.ts";
 import type { Submitted, TreasuryState } from "./state.ts";
@@ -49,17 +49,39 @@ export type Balances = {
   budget: bigint; // what the payments wallet lets it draw: the smaller of its allowance and its USDC
   ethUnknown?: boolean; // Ethereum couldn't be read just now: leave its gas alone this time
   /**
-   * The ETH (wei) the next copy of a name needs at Ethereum's gas price now, with what's kept back
-   * for claiming its own USDC: 0 when no copy can go today anyway (today's limit, RELAY_DAILY_ETH,
-   * and nobody can pay the copy fee for one to go regardless).
+   * The ETH (wei) it should hold now: what the next copy of a name needs at Ethereum's gas price,
+   * with what's kept back for claiming its own USDC (0 when no copy can go today anyway: today's
+   * limit, RELAY_DAILY_ETH), or the ETH kept for paid copies, if that's more.
    */
   ethNeed?: bigint;
   weiPerUsdc?: bigint; // what 1 USDC buys on Uniswap now, to size a purchase: unknown if it couldn't be read
 };
 
 /**
- * The ETH it keeps at least: ETH_LOW, or what the next copy needs if gas is high enough that that's
- * more, so a copy waits for gas only when today's limit says it should.
+ * The ETH (wei) to hold, beyond ETH_LOW:
+ * - what the next copy needs at today's gas, with what's kept back for claiming its own USDC, while
+ *   one fits today's limit at the most a claim may take. Past that, topping up over the bridge costs
+ *   more than it's worth, and copies wait for gas to fall, or use the ETH below.
+ * - while the copy fee is on, COPY_NOW_ETH for paid copies, bought only while copies are free (gas is
+ *   cheap), and used when someone pays to copy at once, however busy Ethereum gets.
+ */
+export function ethToHold(o: {
+  gasPrice: bigint;
+  spent: bigint;
+  relay: boolean;
+  dailyEth: bigint;
+  copyNow: boolean;
+  copyNowEth: bigint;
+}): bigint {
+  const cost = o.gasPrice * CLAIM_GAS;
+  const next = o.relay && o.spent + cost <= o.dailyEth ? cost + o.gasPrice * REFILL_GAS : 0n;
+  const forPaid = o.copyNow ? o.copyNowEth : 0n;
+  return next > forPaid ? next : forPaid;
+}
+
+/**
+ * The ETH it keeps at least: ETH_LOW, or what it should hold now (ethToHold) if that's more, so a
+ * copy waits for gas only when today's limit says it should.
  */
 export function ethLine(b: Pick<Balances, "ethNeed">, t: Pick<Treasury, "ethLow">): bigint {
   const need = b.ethNeed ?? 0n;
@@ -249,14 +271,14 @@ async function readBalances(ctx: Context, payments: Address, now: bigint): Promi
       ctx.eth.getGasPrice(),
       readWeiPerUsdc(ctx), // undefined if it couldn't be read: sized at ETH_BUY_USDC, then
     ]);
-    // What the next copy needs, if one can go today: the relay holds copies back otherwise. A copy
-    // someone pays the copy fee for goes whatever today's limit, so while the fee can be paid, the
-    // bot is ready for one.
-    // Whether one fits today's allowance is counted as the relay counts it, at what copies really
-    // use; what's kept on hand for it is the most a claim may take.
-    const fits = spentToday(ctx.state.relay, now) + gasPrice * copyGas(ctx.state.relay) <= config.relayLimits.dailyEth;
-    const canCopy = config.relay && (fits || ctx.state.copyFee?.offered === true);
-    const ethNeed = canCopy ? gasPrice * (CLAIM_GAS + REFILL_GAS) : 0n;
+    const ethNeed = ethToHold({
+      gasPrice,
+      spent: spentToday(ctx.state.relay, now),
+      relay: config.relay,
+      dailyEth: config.relayLimits.dailyEth,
+      copyNow: ctx.state.copyFee?.on === true && ctx.state.copyFee.free === true,
+      copyNowEth: t.copyNowEth,
+    });
     return { pls, float, eth, ethUsdc, budget, ethNeed, weiPerUsdc };
   } catch (error) {
     ctx.log(`balance: couldn't read Ethereum just now (${short(error)}); looking after PulseChain only this time`);

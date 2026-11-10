@@ -523,7 +523,7 @@ async function payCopyStep(progress: Progress, label: string, token: PayToken): 
   if (!q) {
     const why =
       current.kind === "busy"
-        ? "Ethereum's fees rose too high to copy it at once: it's copied once they fall. Nothing was paid."
+        ? "Copying at once isn't available just now: it's copied once Ethereum's fees fall. Nothing was paid."
         : "Ethereum's fees fell, so it's copied free. Nothing was paid.";
     if (!token.native) progress.done("approve", { detail: "Not needed." });
     progress.done("copy", { detail: why });

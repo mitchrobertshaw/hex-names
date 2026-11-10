@@ -28,8 +28,10 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
   quoted). Sending a name pays it after the transfer (`payCopyFee`, in PLS or USDC), so the new owner
   shows on Ethereum at once. A name's page reads its copy on Ethereum (found from the checkout's
   `MIRROR_SYNC`, its partner there, and that one's registry) and, while it's behind and there's a
-  fee, offers **Copy it now**. When a copy would cost more than the admin's cap, the panels say
-  Ethereum is very busy and offer nothing to pay. A checkout from before the copy fee has none, and
+  fee, offers **Copy it now**. Copying at once is offered at any price up to the admin's safety
+  limit ($1,000), while the bot holds the ETH to do it straight away; when it doesn't (the bot sets
+  the fee to the most there is), or a copy would cost more than the limit, the panels say copying
+  at once isn't available and offer nothing to pay. A checkout from before the copy fee has none, and
   the app pays the old way.
 - **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
 

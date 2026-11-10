@@ -29,7 +29,7 @@ import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
 import { amountText, errorText, shortText, testnetFees } from "./flows";
 import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
-import { capText, copyFeeOf, feeText } from "./copy";
+import { capText, copyFeeOf, feeText, UNAVAILABLE } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
@@ -377,12 +377,14 @@ describe("the payout report page", () => {
 });
 
 describe("the Ethereum copy fee", () => {
-  it("is offered between nothing and the admin's cap; above it, copying at once isn't offered", () => {
-    const cap = 100_000_000n; // $100, as deployed
+  it("is offered at any price up to the admin's safety limit, unless the bot pauses it", () => {
+    const cap = 1_000_000_000n; // $1,000, as deployed
     expect(copyFeeOf(0n, cap)).toEqual({ kind: "free" });
     expect(copyFeeOf(1_250_000n, cap)).toEqual({ kind: "offered", fee: 1_250_000n });
+    expect(copyFeeOf(155_400_000n, cap)).toEqual({ kind: "offered", fee: 155_400_000n }); // 200 gwei
     expect(copyFeeOf(cap, cap)).toEqual({ kind: "offered", fee: cap });
-    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy", cap });
+    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy", cap, overCap: true });
+    expect(copyFeeOf(UNAVAILABLE, cap)).toEqual({ kind: "busy", cap, overCap: false }); // the bot hasn't the ETH
     expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }); // switched off by the admin
   });
 

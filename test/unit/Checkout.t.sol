@@ -25,7 +25,7 @@ contract CheckoutTest is HexTestBase {
     uint256 internal constant TAXED_RATE = 0.01e6; // 1 TAX (18 decimals) = $0.01
     uint256 internal constant TAX_BPS = 500;
     uint256 internal constant FEE = 3e6; // a copy fee of $3
-    uint256 internal constant MAX_FEE = 100e6; // set at deploy: $100
+    uint256 internal constant MAX_FEE = 1000e6; // set at deploy: $1,000
 
     address internal copyBot = makeAddr("copyBot");
 
@@ -361,7 +361,7 @@ contract CheckoutTest is HexTestBase {
     function test_copyFee_isOffUntilTheAdminChoosesTheBot() public {
         assertEq(checkout.owner(), admin);
         assertEq(checkout.copyBot(), address(0));
-        assertEq(checkout.maxCopyFee(), MAX_FEE, "at most $100");
+        assertEq(checkout.maxCopyFee(), MAX_FEE, "at most $1,000");
         assertEq(checkout.copyFee(), 0);
         vm.expectRevert(AnyTokenCheckout.NotCopyBot.selector);
         checkout.setCopyFee(FEE);
@@ -557,6 +557,39 @@ contract CheckoutTest is HexTestBase {
         assertEq(change, FEE - 1);
         assertEq(hub.core.hexRegistry.findOwner("alice"), alice);
         _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_aHighFeeCanStillBePaid() public {
+        // Ethereum is extremely busy (200 gwei): copying at once costs $155.31, and a buyer may pay it.
+        uint256 high = 155_310_000;
+        _turnOnCopyFee(high);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        (uint256 price, uint256 fee, uint256 amountIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(0), new address[](0));
+        assertEq(fee, high);
+        _fundAndApprove(plsUsdc, alice, amountIn);
+        vm.prank(alice);
+        (,, uint256 charged) = checkout.registerWithTokenAndCopy(reg, plsUsdc, amountIn, _noSwap(), high);
+        assertEq(charged, high);
+        assertEq(plsUsdc.balanceOf(copyBot), high);
+        assertEq(plsUsdc.balanceOf(beneficiary), price);
+        _assertNothingLeft();
+    }
+
+    function test_copyFee_theBotCanSayCopyingAtOnceIsUnavailable() public {
+        // The bot hasn't the ETH to copy at once just now: it sets the most there is, so nothing is
+        // offered, and nobody pays for a copy it couldn't make straight away.
+        _turnOnCopyFee(type(uint256).max);
+        (, uint256 fee,) = checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(0), new address[](0));
+        assertEq(fee, 0);
+        (fee,) = checkout.quoteCopyFee(address(0), new address[](0));
+        assertEq(fee, 0);
+        _registerDirect("alice", alice, ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, 10e6);
+        vm.prank(alice);
+        vm.expectRevert(AnyTokenCheckout.NoCopyFee.selector);
+        checkout.payCopyFee("alice", plsUsdc, 10e6, _noSwap());
     }
 
     function test_registerAndCopy_aFeeAboveTheCapIsNotOffered() public {

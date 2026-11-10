@@ -3,7 +3,18 @@ import { test } from "node:test";
 
 import { parseGwei } from "viem";
 
-import { COPY_GAS, copyCost, copyGas, feeFor, feeText, recordCopyGas, worthUpdating } from "../src/copyfee.ts";
+import {
+  COPY_GAS,
+  UNAVAILABLE,
+  copyCost,
+  copyGas,
+  feeFor,
+  feeText,
+  feeToSet,
+  paidCopyNeed,
+  recordCopyGas,
+  worthUpdating,
+} from "../src/copyfee.ts";
 import type { RelayState } from "../src/state.ts";
 
 const WEI_PER_USDC = 475_000_000_000_000n; // 1 USDC buys 0.000475 ETH: ETH at about $2,105, 10 November 2026
@@ -57,4 +68,21 @@ test("what it logs about the fee", () => {
   assert.equal(feeText(0n, CAP), "none: copies are free");
   assert.equal(feeText(1_250_000n, CAP), "1.25 USDC to copy a name at once");
   assert.match(feeText(120_000_000n, CAP), /over the 100 USDC cap: copying at once isn't offered/);
+});
+
+test("copying at once is offered only while the bot holds the ETH to do it straight away", () => {
+  // At 200 gwei a copy of 300,000 gas costs about $126, and its claim needs 0.12 ETH on hand.
+  const gas = 300_000n;
+  const need = paidCopyNeed(parseGwei("200"), gas);
+  assert.equal(need, 120_000_000_000_000_000n);
+  const fee = feeFor(copyCost(gas, parseGwei("200"), WEI_PER_USDC), FREE);
+  assert.ok(fee > 150_000_000n && fee < 160_000_000n, "about $155: more than $100, and still offered");
+  assert.equal(feeToSet(fee, need, need), fee, "it holds enough: offered");
+  assert.equal(feeToSet(fee, need - 1n, need), UNAVAILABLE, "it doesn't: copying at once is paused");
+  assert.equal(feeToSet(0n, 0n, need), 0n, "copies are free: nothing to pause");
+  assert.ok(UNAVAILABLE > 1_000_000_000n, "above any cap, so nothing can be paid");
+  assert.equal(worthUpdating(fee, UNAVAILABLE, 1_000_000_000n), true, "pausing is sent at once");
+  assert.equal(worthUpdating(UNAVAILABLE, fee, 1_000_000_000n), true, "and so is offering again");
+  assert.match(feeText(UNAVAILABLE, 1_000_000_000n), /copying at once paused/);
+  assert.equal(feeText(fee, 1_000_000_000n), "155.4 USDC to copy a name at once");
 });

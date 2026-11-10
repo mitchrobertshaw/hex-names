@@ -32,9 +32,11 @@ export function CopyChoice({
   if (copy?.kind === "busy") {
     return (
       <p className="checkout__hint copy-choice__busy" role="status">
-        Ethereum is very busy right now: copying to it at once would cost more than {capText(copy.cap)}, the most a copy
-        can cost, so it isn&rsquo;t offered. {what[0].toUpperCase() + what.slice(1)} is copied there free once
-        Ethereum&rsquo;s fees fall, and works on PulseChain straight away.
+        {copy.overCap
+          ? `Ethereum is extremely busy right now: copying to it at once would cost more than ${capText(copy.cap)}, the most a copy can cost, so it isn't offered.`
+          : "Ethereum is extremely busy right now, and copying to it at once isn't available at the moment."}{" "}
+        {what[0].toUpperCase() + what.slice(1)} is copied there free once Ethereum&rsquo;s fees fall, and works on
+        PulseChain straight away.
       </p>
     );
   }

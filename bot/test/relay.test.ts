@@ -5,6 +5,7 @@ import { type Hex, getAddress, parseGwei } from "viem";
 
 import { parseAmbMessage } from "../src/amb.ts";
 import { loadConfig } from "../src/config.ts";
+import { paidCopyNeed } from "../src/copyfee.ts";
 import { CLAIM_GAS, REFILL_GAS, claimGas, holdReason, ownTransfer } from "../src/relay.ts";
 import type { RelayState } from "../src/state.ts";
 
@@ -115,4 +116,14 @@ test("today's allowance counts what copies really cost, so a change of owner sti
   assert.equal(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay() }), null);
   assert.match(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay(config.relayLimits.dailyEth - gas * 300_000n + 1n) })!, /today's limit/);
   assert.match(holdReason({ ...high, relay: relay() })!, /today's limit/, "without what copies use, it plans for the most");
+});
+
+test("a paid copy needs only the ETH for its own claim: it may use what's kept back for the bot's own refill", () => {
+  const gas = parseGwei("200");
+  const need = paidCopyNeed(gas, 300_000n); // 0.12 ETH
+  const busy = { ...base, kind: "mirror" as const, label: "alice", relay: relay(), cost: gas * CLAIM_GAS, reserve: gas * REFILL_GAS, paidNeed: need };
+  assert.equal(holdReason({ ...busy, priority: "paid", ethBalance: need }), null, "0.12 ETH is enough, though the reserve alone is 0.6");
+  assert.match(holdReason({ ...busy, priority: "paid", ethBalance: need - 1n })!, /low on ETH for a paid copy/);
+  assert.match(holdReason({ ...busy, priority: "admin", ethBalance: need })!, /low on ETH/, "the admin's copies keep the reserve");
+  assert.match(holdReason({ ...busy, ownerChange: true, ethBalance: need })!, /low on ETH/, "and so do the project's own");
 });
