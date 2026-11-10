@@ -39,6 +39,8 @@ export type MessageRecord = {
   own?: { usdc: string }; // the bot's own USDC, sent to Ethereum over the bridge to buy ETH
   claimTx?: Hex; // a claim sent and not yet mined: waited for, never sent twice
   claimSentAt?: string; // unix seconds
+  paid?: { fee: string }; // a copy someone paid the copy fee for (USDC units): copied at once
+  admin?: boolean; // a copy the admin sent (after handing out a name, say): copied at once
 };
 
 /** USDC the bot sent home from Ethereum over the bridge, until it arrives on PulseChain. */
@@ -53,6 +55,17 @@ export type RelayState = {
   spent: string; // wei spent on those claims that day
   lastClaim: Record<string, string>; // when each name was last copied, by label (unix seconds)
   noted: Record<string, string>; // what it last said it was holding back, and when (unix seconds)
+  copyGas?: string[]; // the gas the last few copies used, to know what one costs
+};
+
+/** The copy fee, as the bot last saw and set it on the checkout. */
+export type CopyFeeState = {
+  lastRun?: string; // unix seconds
+  on: boolean; // this bot is the checkout's copy bot, and the admin hasn't switched the fee off
+  offered: boolean; // a fee can be paid now: above zero and within the admin's cap
+  fee: string; // the fee it set, in USDC units
+  admin?: string; // the checkout's owner: its copies are copied at once
+  noted: Record<string, string>; // what it last said, and when (unix seconds)
 };
 
 export type TreasuryState = {
@@ -71,6 +84,7 @@ export type State = {
   messages: Record<string, MessageRecord>;
   treasury?: TreasuryState;
   relay?: RelayState;
+  copyFee?: CopyFeeState;
 };
 
 export function loadState(file: string): State | undefined {

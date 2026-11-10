@@ -2,7 +2,8 @@
 
 import { loadConfig } from "./config.ts";
 import { createContext } from "./context.ts";
-import { processOrders, scanOrders, short } from "./orders.ts";
+import { runCopyFee } from "./copyfee.ts";
+import { processOrders, scanOrders, short, usdc } from "./orders.ts";
 import { claimMessages, scanMessages } from "./relay.ts";
 import { runTreasury } from "./treasury.ts";
 import { type State, loadState, saveState } from "./state.ts";
@@ -40,6 +41,12 @@ ctx.log(
   `  fill orders: ${config.fill}, claim bridge messages: ${config.relay}, copy name changes: ${config.sync}, ` +
     `pay its own gas: ${config.treasury.enabled}`,
 );
+ctx.log(
+  config.checkout
+    ? `  copy fee: kept up to date on ${config.checkout} once the admin chooses this bot as the copy bot; ` +
+        `the project pays up to ${usdc(config.relayLimits.freeCopyUsdc)} USDC a copy`
+    : "  copy fee: off (PULSECHAIN_CHECKOUT not set), so every copy is free",
+);
 ctx.log(`  remembers its place in ${config.stateFile}`);
 if (config.railway && !config.railway.volume) {
   ctx.log(
@@ -72,6 +79,8 @@ while (!stopping) {
     });
   }
   if (config.relay) {
+    // First, so the claims below know whether the copy fee is on, and who the admin is.
+    await step("copy fee", () => runCopyFee(ctx));
     // Apart, so a scan that fails (a busy RPC, say) doesn't hold up claiming what it already found.
     await step("bridge", () => scanMessages(ctx));
     await step("bridge claims", () => claimMessages(ctx));

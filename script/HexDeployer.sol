@@ -78,6 +78,10 @@ abstract contract HexDeployer {
     ///      can extend either.
     uint64 internal constant RESERVATION_PERIOD = 5 * 365 days;
 
+    /// @dev The most anyone can be charged to have a name copied to Ethereum at once, in dollars.
+    ///      The admin can change it, or switch the copy fee off, and chooses the bot that sets it.
+    uint256 internal constant MAX_COPY_FEE_DOLLARS = 100;
+
     uint64 internal constant MAX_EXPIRY = type(uint64).max;
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;
     uint256 internal constant PULSECHAIN_CHAIN_ID = 369;
@@ -113,7 +117,7 @@ abstract contract HexDeployer {
 
     struct HubConfig {
         address deployer; // the account sending the deployment; gives up its roles at the end
-        address admin; // may raise or lower all prices, change payment tokens and add registrars; can't take names
+        address admin; // may raise or lower all prices, change payment tokens, add registrars and run the copy fee; can't take names
         address beneficiary; // receives every registration and renewal payment
         IAMB amb; // the bridge's message contract on PulseChain
         uint256 ethereumChainId; // where the Ethereum copy lives: Ethereum (1), or Sepolia on the testnet
@@ -205,8 +209,16 @@ abstract contract HexDeployer {
             cfg.usdc,
             cfg.settleGas
         );
+        // The copy fee starts off: the admin turns it on by choosing the bot, once it runs.
         hub.checkout = new AnyTokenCheckout(
-            hub.registrar, cfg.usdc, cfg.wpls, cfg.routers, IHexMirrorSync(address(hub.mirrorSync))
+            hub.registrar,
+            cfg.usdc,
+            cfg.wpls,
+            cfg.routers,
+            IHexMirrorSync(address(hub.mirrorSync)),
+            cfg.admin,
+            address(0),
+            MAX_COPY_FEE_DOLLARS * 10 ** IERC20Metadata(address(cfg.usdc)).decimals()
         );
 
         // Hand over: the admin may add registrars and renewers later (a registrar can register a

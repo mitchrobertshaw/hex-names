@@ -1,4 +1,5 @@
-// Buying, renewing and sending names: each a few wallet steps, reported as they go.
+// Buying, renewing and sending names: each a few wallet steps, reported as they go. Each can also
+// pay the Ethereum copy fee, while Ethereum is busy, to have the name copied there at once (copy.ts).
 
 import {
   type Address,
@@ -15,6 +16,7 @@ import { usdcText } from "../lib/payouts";
 import { formatToken } from "../lib/quotes";
 import type { ChainKey, PayToken } from "../lib/tokens";
 import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, registrarAbi, registryAbi } from "./abis";
+import { copyFeePaid, readCopyFee } from "./copy";
 import { clients, deployment, network, PAY } from "./network";
 import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR } from "./order";
 import { switchTo, walletClient } from "./wallet";
@@ -83,42 +85,90 @@ export function tokenAddress(key: ChainKey, token: PayToken): Address | null {
   return token.path[0] as Address;
 }
 
-type Quote = { router: Address; path: Address[]; price: bigint; amountIn: bigint };
+/** A quote: the price, the copy fee (0 if none is paid), and how much of the token pays both. */
+type Quote = { router: Address; path: Address[]; price: bigint; fee: bigint; amountIn: bigint };
+
+/** Asks each of PulseChain's routers (just the one for USDC itself), and takes the one needing the least. */
+async function cheapest(token: PayToken, ask: (router: Address, path: Address[]) => Promise<Quote>): Promise<Quote> {
+  const path = (token.path ?? []) as Address[];
+  const routers = (token.path ? PAY.pulsechain.routers : [zeroAddress]) as Address[];
+  const answers = await Promise.allSettled(routers.map((router) => ask(router, path)));
+  const quotes = answers.flatMap((a) => (a.status === "fulfilled" ? [a.value] : []));
+  if (quotes.length === 0) throw (answers[0] as PromiseRejectedResult).reason;
+  return quotes.reduce((best, q) => (q.amountIn < best.amountIn ? q : best));
+}
 
 /**
  * The checkout's price for registering or renewing `label`, and how much of `token` pays it, asked
  * along each of PulseChain's routers. The one needing the least wins: pools differ in depth (PLS
  * cost up to 6.6% more on PulseX V2 than V1 in November 2026) and change over time. For USDC it's
- * the price itself, to the last unit: exactly what paying takes.
+ * the price itself, to the last unit: exactly what paying takes. With `withCopy`, it includes the
+ * copy fee, if there is one to pay.
  */
 export async function bestQuote(
   fn: "quoteRegister" | "quoteRenew",
   label: string,
   duration: bigint,
   token: PayToken,
+  withCopy = false,
 ): Promise<Quote> {
-  const d = required();
-  const path = (token.path ?? []) as Address[];
-  const routers = (token.path ? PAY.pulsechain.routers : [zeroAddress]) as Address[];
-  const answers = await Promise.allSettled(
-    routers.map(async (router) => {
-      const [price, amountIn] = await clients.pulsechain.readContract({
-        address: d.pulsechain.checkout,
+  const checkout = required().pulsechain.checkout;
+  return cheapest(token, async (router, path) => {
+    if (withCopy) {
+      const [price, fee, amountIn] = await clients.pulsechain.readContract({
+        address: checkout,
         abi: checkoutAbi,
-        functionName: fn,
+        functionName: fn === "quoteRegister" ? "quoteRegisterAndCopy" : "quoteRenewAndCopy",
         args: [label, duration, router, path],
       });
-      return { router, path, price, amountIn };
-    }),
-  );
-  const quotes = answers.flatMap((a) => (a.status === "fulfilled" ? [a.value] : []));
-  if (quotes.length === 0) throw (answers[0] as PromiseRejectedResult).reason;
-  return quotes.reduce((best, q) => (q.amountIn < best.amountIn ? q : best));
+      return { router, path, price, fee, amountIn };
+    }
+    const [price, amountIn] = await clients.pulsechain.readContract({
+      address: checkout,
+      abi: checkoutAbi,
+      functionName: fn,
+      args: [label, duration, router, path],
+    });
+    return { router, path, price, fee: 0n, amountIn };
+  });
 }
 
-/** The swap the checkout makes along `q`: at least the price in USDC, or none for USDC itself. */
+/** The copy fee to pay on its own now, and how much of `token` pays it; null if there's none to pay. */
+async function bestCopyQuote(token: PayToken): Promise<Quote | null> {
+  const checkout = required().pulsechain.checkout;
+  const q = await cheapest(token, async (router, path) => {
+    const [fee, amountIn] = await clients.pulsechain.readContract({
+      address: checkout,
+      abi: checkoutAbi,
+      functionName: "quoteCopyFee",
+      args: [router, path],
+    });
+    return { router, path, price: 0n, fee, amountIn };
+  });
+  return q.fee === 0n ? null : q;
+}
+
+/** The swap the checkout makes along `q`: at least the price and fee in USDC, or none for USDC itself. */
 function swapOf(token: PayToken, q: Quote) {
-  return { router: q.router, path: q.path, amountOutMin: token.path ? q.price : 0n, deadline: BigInt(now() + 20 * 60) };
+  return {
+    router: q.router,
+    path: q.path,
+    amountOutMin: token.path ? q.price + q.fee : 0n,
+    deadline: BigInt(now() + 20 * 60),
+  };
+}
+
+/**
+ * Sends a payment to the checkout from the connected wallet, with room in its gas (withGasRoom).
+ * `args` must match `functionName` in checkoutAbi.
+ */
+async function payCheckout(call: { functionName: string; args: readonly unknown[]; value?: bigint }): Promise<Hex> {
+  const wallet = walletClient("pulsechain");
+  const request = { address: required().pulsechain.checkout, abi: checkoutAbi, ...call };
+  const gas = await withGasRoom(
+    clients.pulsechain.estimateContractGas({ ...request, account: wallet.account.address } as never),
+  );
+  return wallet.writeContract({ ...request, gas, ...(await fees()) } as never);
 }
 
 /**
@@ -260,15 +310,18 @@ function clearPending() {
 
 /**
  * Buys a name on PulseChain: reserve it with a sealed commitment, wait out the registrar's minute
- * (approving the token meanwhile), then pay through AnyTokenCheckout in one transaction.
+ * (approving the token meanwhile), then pay through AnyTokenCheckout in one transaction. With
+ * `copyNow`, the payment adds the copy fee, if there is one then, to copy the name to Ethereum at
+ * once. Says what copy fee was paid: 0 if none.
  */
 export async function buyOnPulseChain(o: {
   label: string;
   years: number;
   token: PayToken;
   referrer: Hex;
+  copyNow?: boolean;
   report: Report;
-}) {
+}): Promise<{ copyFee: bigint }> {
   const d = required();
   const progress = new Progress(
     [
@@ -312,7 +365,7 @@ export async function buyOnPulseChain(o: {
     const commitment = commitmentOf(purchase);
     progress.start("commit");
     // A wallet that can't pay stops here, before spending fees on reserving and allowing.
-    const first = await bestQuote("quoteRegister", o.label, duration, o.token);
+    const first = await bestQuote("quoteRegister", o.label, duration, o.token, o.copyNow);
     await requireFunds(o.token, owner, o.token.path ? withBuffer(first.amountIn) : first.amountIn);
     if (!committedAt) {
       savePending(purchase);
@@ -350,7 +403,7 @@ export async function buyOnPulseChain(o: {
     progress.done("wait");
 
     progress.start("pay");
-    const q = await bestQuote("quoteRegister", o.label, duration, o.token);
+    const q = await bestQuote("quoteRegister", o.label, duration, o.token, o.copyNow);
     const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
     await requireFunds(o.token, owner, pay);
     if (token) {
@@ -359,51 +412,27 @@ export async function buyOnPulseChain(o: {
       progress.done("approve");
       progress.start("pay");
     }
-    // TypeScript 7 loses viem's type for this struct inside writeContract; RegistrationArg (below)
-    // checks the purchase has exactly the shape the contract takes.
-    const reg = purchase as never;
+    // RegistrationArg (below) checks the purchase has exactly the shape the contract takes. With a
+    // copy fee, it's paid up to the amount just quoted, and never more.
+    const reg: RegistrationArg = purchase;
     const swap = swapOf(o.token, q);
-    const checkout = d.pulsechain.checkout;
-    const fee = await fees();
+    const copy = q.fee > 0n;
     const hash = token
-      ? await wallet.writeContract({
-          address: checkout,
-          abi: checkoutAbi,
-          functionName: "registerWithToken",
-          args: [reg, token, pay, swap],
-          gas: await withGasRoom(
-            client.estimateContractGas({
-              address: checkout,
-              abi: checkoutAbi,
-              functionName: "registerWithToken",
-              args: [reg, token, pay, swap],
-              account: owner,
-            }),
-          ),
-          ...fee,
-        })
-      : await wallet.writeContract({
-          address: checkout,
-          abi: checkoutAbi,
-          functionName: "registerWithPLS",
-          args: [reg, swap],
-          value: pay,
-          gas: await withGasRoom(
-            client.estimateContractGas({
-              address: checkout,
-              abi: checkoutAbi,
-              functionName: "registerWithPLS",
-              args: [reg, swap],
-              value: pay,
-              account: owner,
-            }),
-          ),
-          ...fee,
-        });
+      ? await payCheckout(
+          copy
+            ? { functionName: "registerWithTokenAndCopy", args: [reg, token, pay, swap, q.fee] }
+            : { functionName: "registerWithToken", args: [reg, token, pay, swap] },
+        )
+      : await payCheckout(
+          copy
+            ? { functionName: "registerWithPLSAndCopy", args: [reg, swap, q.fee], value: pay }
+            : { functionName: "registerWithPLS", args: [reg, swap], value: pay },
+        );
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
-    await confirm("pulsechain", hash);
+    const receipt = await confirm("pulsechain", hash);
     clearPending();
     progress.done("pay");
+    return { copyFee: copyFeePaid(receipt) };
   } catch (error) {
     progress.fail(errorText(error));
     throw error;
@@ -414,8 +443,18 @@ export async function buyOnPulseChain(o: {
 type RegistrationArg = ContractFunctionArgs<typeof checkoutAbi, "nonpayable", "registerWithToken">[0];
 export const purchaseFitsTheContract = (p: Purchase): RegistrationArg => p;
 
-/** Renews a name on PulseChain for `years` more. Anyone can renew any name; it stays its owner's. */
-export async function renew(o: { label: string; years: number; token: PayToken; referrer: Hex; report: Report }) {
+/**
+ * Renews a name on PulseChain for `years` more. Anyone can renew any name; it stays its owner's.
+ * With `copyNow`, it pays the copy fee too, if there is one: see buyOnPulseChain.
+ */
+export async function renew(o: {
+  label: string;
+  years: number;
+  token: PayToken;
+  referrer: Hex;
+  copyNow?: boolean;
+  report: Report;
+}): Promise<{ copyFee: bigint }> {
   const d = required();
   const progress = new Progress(
     [
@@ -431,7 +470,7 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     progress.done("chain");
     const wallet = walletClient("pulsechain");
     const duration = BigInt(o.years) * SECONDS_PER_YEAR;
-    const q = await bestQuote("quoteRenew", o.label, duration, o.token);
+    const q = await bestQuote("quoteRenew", o.label, duration, o.token, o.copyNow);
     const pay = o.token.path ? withBuffer(q.amountIn) : q.amountIn;
     const account = wallet.account.address;
     await requireFunds(o.token, account, pay);
@@ -443,59 +482,84 @@ export async function renew(o: { label: string; years: number; token: PayToken; 
     progress.start("pay");
     const ren = { label: o.label, duration, referrer: o.referrer };
     const swap = swapOf(o.token, q);
-    const checkout = d.pulsechain.checkout;
-    const fee = await fees();
+    const copy = q.fee > 0n;
     const hash = token
-      ? await wallet.writeContract({
-          address: checkout,
-          abi: checkoutAbi,
-          functionName: "renewWithToken",
-          args: [ren, token, pay, swap],
-          gas: await withGasRoom(
-            clients.pulsechain.estimateContractGas({
-              address: checkout,
-              abi: checkoutAbi,
-              functionName: "renewWithToken",
-              args: [ren, token, pay, swap],
-              account,
-            }),
-          ),
-          ...fee,
-        })
-      : await wallet.writeContract({
-          address: checkout,
-          abi: checkoutAbi,
-          functionName: "renewWithPLS",
-          args: [ren, swap],
-          value: pay,
-          gas: await withGasRoom(
-            clients.pulsechain.estimateContractGas({
-              address: checkout,
-              abi: checkoutAbi,
-              functionName: "renewWithPLS",
-              args: [ren, swap],
-              value: pay,
-              account,
-            }),
-          ),
-          ...fee,
-        });
+      ? await payCheckout(
+          copy
+            ? { functionName: "renewWithTokenAndCopy", args: [ren, token, pay, swap, q.fee] }
+            : { functionName: "renewWithToken", args: [ren, token, pay, swap] },
+        )
+      : await payCheckout(
+          copy
+            ? { functionName: "renewWithPLSAndCopy", args: [ren, swap, q.fee], value: pay }
+            : { functionName: "renewWithPLS", args: [ren, swap], value: pay },
+        );
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
-    await confirm("pulsechain", hash);
+    const receipt = await confirm("pulsechain", hash);
     progress.done("pay");
+    return { copyFee: copyFeePaid(receipt) };
   } catch (error) {
     progress.fail(errorText(error));
     throw error;
   }
 }
 
-/** Sends a name to another wallet on PulseChain. Its Ethereum copy follows by itself. */
-export async function send(o: { label: string; to: Address; report: Report }) {
+/** Steps for paying the copy fee on its own with `token`: allowing it first, unless it's PLS. */
+function copySteps(token: PayToken): [string, string][] {
+  return [
+    ...(token.native ? [] : ([["approve", `Allow ${token.label ?? token.symbol}`]] as [string, string][])),
+    ["copy", "Pay to copy it to Ethereum now"],
+  ];
+}
+
+/**
+ * Pays the copy fee for `label` with `token`, as the "copy" step: the checkout sends the name's
+ * copy to Ethereum and the fee to the bot, which copies it at once. If there's no fee to pay by
+ * now, the step says so and nothing is paid. Says what was paid.
+ */
+async function payCopyStep(progress: Progress, label: string, token: PayToken): Promise<bigint> {
+  const current = await readCopyFee();
+  const q = current.kind === "offered" ? await bestCopyQuote(token) : null;
+  if (!q) {
+    const why =
+      current.kind === "busy"
+        ? "Ethereum's fees rose too high to copy it at once: it's copied once they fall. Nothing was paid."
+        : "Ethereum's fees fell, so it's copied free. Nothing was paid.";
+    if (!token.native) progress.done("approve", { detail: "Not needed." });
+    progress.done("copy", { detail: why });
+    return 0n;
+  }
+  const owner = walletClient("pulsechain").account.address;
+  const pay = token.path ? withBuffer(q.amountIn) : q.amountIn;
+  await requireFunds(token, owner, pay);
+  const address = tokenAddress("pulsechain", token);
+  if (address) {
+    await ensureAllowance("pulsechain", address, required().pulsechain.checkout, pay, progress);
+    progress.done("approve");
+  }
+  progress.start("copy");
+  const swap = { ...swapOf(token, q), amountOutMin: token.path ? q.fee : 0n };
+  const hash = address
+    ? await payCheckout({ functionName: "payCopyFee", args: [label, address, pay, swap] })
+    : await payCheckout({ functionName: "payCopyFeeWithPLS", args: [label, swap], value: pay });
+  progress.set("copy", { tx: { chain: "pulsechain", hash } });
+  const receipt = await confirm("pulsechain", hash);
+  progress.done("copy");
+  return copyFeePaid(receipt);
+}
+
+/**
+ * Sends a name to another wallet on PulseChain. Its Ethereum copy follows by itself; with
+ * `copyWith`, while there's a copy fee, it's paid with that token after sending, so the new owner
+ * shows on Ethereum at once. Says what copy fee was paid.
+ */
+export async function send(o: { label: string; to: Address; copyWith?: PayToken; report: Report }): Promise<{ copyFee: bigint }> {
   const d = required();
   const progress = new Progress(
     [
       ["chain", `Switch to ${PAY.pulsechain.name}`],
       ["send", "Send it"],
+      ...(o.copyWith ? copySteps(o.copyWith) : []),
     ],
     o.report,
   );
@@ -510,6 +574,11 @@ export async function send(o: { label: string; to: Address; report: Report }) {
       functionName: "getState",
       args: [labelId(o.label)],
     });
+    if (o.copyWith) {
+      // A wallet that can't pay the fee finds out before the name moves.
+      const q = await bestCopyQuote(o.copyWith);
+      if (q) await requireFunds(o.copyWith, wallet.account.address, o.copyWith.path ? withBuffer(q.amountIn) : q.amountIn);
+    }
     progress.start("send");
     const hash = await wallet.writeContract({
       address: d.pulsechain.registry,
@@ -521,6 +590,22 @@ export async function send(o: { label: string; to: Address; report: Report }) {
     progress.set("send", { tx: { chain: "pulsechain", hash } });
     await confirm("pulsechain", hash);
     progress.done("send");
+    // After the name has moved, so the copy shows its new owner.
+    return { copyFee: o.copyWith ? await payCopyStep(progress, o.label, o.copyWith) : 0n };
+  } catch (error) {
+    progress.fail(errorText(error));
+    throw error;
+  }
+}
+
+/** Pays the copy fee to have `label` copied to Ethereum at once, from its page. Says what was paid. */
+export async function copyNow(o: { label: string; token: PayToken; report: Report }): Promise<bigint> {
+  const progress = new Progress([["chain", `Switch to ${PAY.pulsechain.name}`], ...copySteps(o.token)], o.report);
+  try {
+    progress.start("chain");
+    await switchTo("pulsechain");
+    progress.done("chain");
+    return await payCopyStep(progress, o.label, o.token);
   } catch (error) {
     progress.fail(errorText(error));
     throw error;
@@ -622,6 +707,9 @@ const REFUSALS: Record<string, string> = {
   CommitmentTooOld: "Its reservation ran out. Try again to reserve it afresh.",
   CommitmentTooNew: "Its minute isn't quite over. Try again in a moment.",
   TooFarAhead: "A name can be paid for at most 5 years ahead.",
+  NoCopyFee: "There's no copy fee to pay now: it's copied free.",
+  CopyFailed: "Its copy couldn't be sent to Ethereum just now. Try again in a moment.",
+  OwnableUnauthorizedAccount: "This wallet isn't allowed to do that.",
   // The admin page's actions (admin.ts).
   LabelAlreadyRegistered: "Someone owns it.",
   LabelAlreadyReserved: "It's already held.",

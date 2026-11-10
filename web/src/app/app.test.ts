@@ -28,7 +28,8 @@ import { PAY_CHAINS, type PayToken } from "../lib/tokens";
 import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
 import { amountText, errorText, shortText, testnetFees } from "./flows";
-import { anyPower, OWNER_ROLES, parseNames, powersOf } from "./admin";
+import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
+import { copyFeeOf, feeText } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
@@ -317,12 +318,13 @@ describe("the admin page", () => {
     // What the deploy gives the admin on the .hex registry (HexDeployer).
     const deployed =
       adminOf(1n) | adminOf(1n << 16n) | (1n << 4n) | adminOf(1n << 4n) | (1n << 36n) | adminOf(1n << 36n);
-    const all = { pause: true, prices: true, hold: true, handOut: true, extend: true, leftover: 0n };
-    expect(powersOf(deployed, true)).toEqual(all);
-    const none = { pause: false, prices: false, hold: false, handOut: false, extend: false, leftover: 0n };
+    const all = { pause: true, prices: true, hold: true, handOut: true, extend: true, copyFee: true, leftover: 0n };
+    expect(powersOf(deployed, true, true)).toEqual(all);
+    const none = { pause: false, prices: false, hold: false, handOut: false, extend: false, copyFee: false, leftover: 0n };
     expect(powersOf(0n, false)).toEqual(none);
     expect(anyPower(powersOf(0n, false))).toBe(false);
     expect(anyPower(powersOf(0n, true))).toBe(true); // prices only, say, with the rest given up
+    expect(anyPower(powersOf(0n, false, true))).toBe(true); // the copy fee only: the checkout's owner
     // Left holding the power to register names, by an action that didn't finish: it's offered back.
     expect(powersOf(deployed | 1n, true).leftover).toBe(1n);
     // The roles a buyer gets with a name (ETHRegistrar's REGISTRATION_ROLE_BITMAP).
@@ -371,5 +373,33 @@ describe("the payout report page", () => {
     expect(usdcText(1_000_000n)).toBe("1.00");
     expect(usdcText(7n)).toBe("0.000007");
     expect(usdcText(1_234_567_891_230n)).toBe("1,234,567.89123");
+  });
+});
+
+describe("the Ethereum copy fee", () => {
+  it("is offered between nothing and the admin's cap; above it, copying at once isn't offered", () => {
+    const cap = 100_000_000n; // $100, as deployed
+    expect(copyFeeOf(0n, cap)).toEqual({ kind: "free" });
+    expect(copyFeeOf(1_250_000n, cap)).toEqual({ kind: "offered", fee: 1_250_000n });
+    expect(copyFeeOf(cap, cap)).toEqual({ kind: "offered", fee: cap });
+    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy" });
+    expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }, "switched off by the admin");
+  });
+
+  it("shows fees in dollars and cents", () => {
+    expect(feeText(1_250_000n)).toBe("$1.25");
+    expect(feeText(270_000n)).toBe("$0.27");
+    expect(feeText(80_400_000n)).toBe("$80.40");
+  });
+
+  it("takes the most a copy can cost as dollars, up to $10,000", () => {
+    expect(capFrom("100")).toBe(100_000_000n);
+    expect(capFrom("2.5")).toBe(2_500_000n);
+    expect(capFrom("0")).toBe(0n);
+    expect(capFrom(" 12.34 ")).toBe(12_340_000n);
+    expect(capFrom("1.234")).toBeNull();
+    expect(capFrom("-1")).toBeNull();
+    expect(capFrom("10001")).toBeNull();
+    expect(capFrom("")).toBeNull();
   });
 });

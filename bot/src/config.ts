@@ -24,6 +24,11 @@ export type Config = {
   mirrorSync: Address;
   pulsechainUsdc: Address;
   homeAmb: Address;
+  /**
+   * AnyTokenCheckout (PULSECHAIN_CHECKOUT, optional). With it, and once the admin has chosen this
+   * bot as the copy bot, the bot keeps the copy fee up to date and copies names paid for first.
+   */
+  checkout: Address | undefined;
 
   // Ethereum (from deploy step 2)
   orderBook: Address;
@@ -54,6 +59,12 @@ export type Config = {
 export type RelayLimits = {
   dailyEth: bigint; // RELAY_DAILY_ETH: the most ETH (in wei) a day it spends copying names
   nameCooldown: bigint; // RELAY_NAME_COOLDOWN_MINUTES, in seconds: how long after copying a name it copies it again
+  /**
+   * COPY_FREE_USDC, in USDC units: what the project pays for one copy. While the copy fee is on and
+   * a copy costs more, new names and renewals nobody paid the fee for wait for Ethereum's fees to
+   * fall, and the copy fee is the rest (and a quarter more).
+   */
+  freeCopyUsdc: bigint;
 };
 
 /** What the bot needs to keep itself going: its float, its gas, and where to swap and bridge. */
@@ -203,6 +214,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     mirrorSync: address("PULSECHAIN_MIRROR_SYNC"),
     pulsechainUsdc: address("PULSECHAIN_USDC", defaults.pulsechainUsdc),
     homeAmb: address("PULSECHAIN_AMB", defaults.homeAmb),
+    checkout: optional("PULSECHAIN_CHECKOUT") === undefined ? undefined : address("PULSECHAIN_CHECKOUT"),
     orderBook: address("ETHEREUM_ORDER_BOOK"),
     mirrorRegistrar: address("ETHEREUM_MIRROR_REGISTRAR"),
     foreignAmb: address("ETHEREUM_AMB", defaults.foreignAmb),
@@ -237,6 +249,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       // high gas; beyond it, copies wait for the next day.
       dailyEth: coins(optional("RELAY_DAILY_ETH") ?? "0.02"),
       nameCooldown: BigInt(Number(optional("RELAY_NAME_COOLDOWN_MINUTES") ?? "60") * 60),
+      freeCopyUsdc: usdc(optional("COPY_FREE_USDC") ?? "2"),
     },
   };
 }

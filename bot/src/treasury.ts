@@ -24,6 +24,7 @@ import { ORDER_STATUS, erc20Abi, foreignAmbAbi, homeAmbAbi, orderBookAbi, regist
 import { parseAmbMessage } from "./amb.ts";
 import type { Treasury } from "./config.ts";
 import type { Context } from "./context.ts";
+import { weiPerUsdc as readWeiPerUsdc } from "./copyfee.ts";
 import { receiptOf, send, short, submit } from "./orders.ts";
 import { CLAIM_GAS, REFILL_GAS, ownTransfer, spentToday } from "./relay.ts";
 import type { Submitted, TreasuryState } from "./state.ts";
@@ -49,7 +50,8 @@ export type Balances = {
   ethUnknown?: boolean; // Ethereum couldn't be read just now: leave its gas alone this time
   /**
    * The ETH (wei) the next copy of a name needs at Ethereum's gas price now, with what's kept back
-   * for claiming its own USDC: 0 when no copy can go today anyway (today's limit, RELAY_DAILY_ETH).
+   * for claiming its own USDC: 0 when no copy can go today anyway (today's limit, RELAY_DAILY_ETH,
+   * and nobody can pay the copy fee for one to go regardless).
    */
   ethNeed?: bigint;
   weiPerUsdc?: bigint; // what 1 USDC buys on Uniswap now, to size a purchase: unknown if it couldn't be read
@@ -245,14 +247,14 @@ async function readBalances(ctx: Context, payments: Address, now: bigint): Promi
       ctx.eth.getBalance({ address: bot }),
       ctx.eth.readContract({ address: t.ethereumUsdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
       ctx.eth.getGasPrice(),
-      ctx.eth
-        .readContract({ address: t.uniswapRouter, abi: routerAbi, functionName: "getAmountsOut", args: [1_000_000n, [t.ethereumUsdc, t.weth]] })
-        .then((amounts) => amounts[amounts.length - 1])
-        .catch(() => undefined), // sized at ETH_BUY_USDC, then
+      readWeiPerUsdc(ctx), // undefined if it couldn't be read: sized at ETH_BUY_USDC, then
     ]);
-    // What the next copy needs, if one can go today: the relay holds copies back otherwise.
+    // What the next copy needs, if one can go today: the relay holds copies back otherwise. A copy
+    // someone pays the copy fee for goes whatever today's limit, so while the fee can be paid, the
+    // bot is ready for one.
     const cost = gasPrice * CLAIM_GAS;
-    const canCopy = config.relay && spentToday(ctx.state.relay, now) + cost <= config.relayLimits.dailyEth;
+    const canCopy =
+      config.relay && (spentToday(ctx.state.relay, now) + cost <= config.relayLimits.dailyEth || ctx.state.copyFee?.offered === true);
     const ethNeed = canCopy ? cost + gasPrice * REFILL_GAS : 0n;
     return { pls, float, eth, ethUsdc, budget, ethNeed, weiPerUsdc };
   } catch (error) {

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IETHRegistrar} from "@ensv2/registrar/interfaces/IETHRegistrar.sol";
 import {IRegistry} from "@ensv2/registry/interfaces/IRegistry.sol";
+import {Vm} from "forge-std/Vm.sol";
 
 import {ZeroAddress} from "../../src/common/Errors.sol";
 import {SwapPayments} from "../../src/common/SwapPayments.sol";
@@ -22,6 +24,10 @@ contract CheckoutTest is HexTestBase {
     uint256 internal constant WPLS_RATE = 0.00002e6; // 1 PLS = $0.00002
     uint256 internal constant TAXED_RATE = 0.01e6; // 1 TAX (18 decimals) = $0.01
     uint256 internal constant TAX_BPS = 500;
+    uint256 internal constant FEE = 3e6; // a copy fee of $3
+    uint256 internal constant MAX_FEE = 100e6; // set at deploy: $100
+
+    address internal copyBot = makeAddr("copyBot");
 
     AnyTokenCheckout internal checkout;
     MockTaxedERC20 internal taxed;
@@ -278,11 +284,36 @@ contract CheckoutTest is HexTestBase {
         address[] memory routers = new address[](0);
         vm.expectRevert(ZeroAddress.selector);
         new AnyTokenCheckout(
-            IETHRegistrar(address(0)), plsUsdc, IERC20(address(wpls)), routers, IHexMirrorSync(address(0))
+            IETHRegistrar(address(0)),
+            plsUsdc,
+            IERC20(address(wpls)),
+            routers,
+            IHexMirrorSync(address(0)),
+            admin,
+            address(0),
+            MAX_FEE
         );
         vm.expectRevert(ZeroAddress.selector);
         new AnyTokenCheckout(
-            hub.registrar, IERC20(address(0)), IERC20(address(wpls)), routers, IHexMirrorSync(address(0))
+            hub.registrar,
+            IERC20(address(0)),
+            IERC20(address(wpls)),
+            routers,
+            IHexMirrorSync(address(0)),
+            admin,
+            address(0),
+            MAX_FEE
+        );
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
+        new AnyTokenCheckout(
+            hub.registrar,
+            plsUsdc,
+            IERC20(address(wpls)),
+            routers,
+            IHexMirrorSync(address(0)),
+            address(0),
+            address(0),
+            MAX_FEE
         );
     }
 
@@ -320,6 +351,471 @@ contract CheckoutTest is HexTestBase {
         assertEq(plsUsdc.balanceOf(beneficiary), price, "registrar paid exactly the price");
         assertEq(change, got - price);
         assertEq(plsUsdc.balanceOf(alice), change);
+        _assertNothingLeft();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The copy fee: paying to have a name copied to Ethereum at once, while Ethereum is busy
+    // ------------------------------------------------------------------------------------------
+
+    function test_copyFee_isOffUntilTheAdminChoosesTheBot() public {
+        assertEq(checkout.owner(), admin);
+        assertEq(checkout.copyBot(), address(0));
+        assertEq(checkout.maxCopyFee(), MAX_FEE, "at most $100");
+        assertEq(checkout.copyFee(), 0);
+        vm.expectRevert(AnyTokenCheckout.NotCopyBot.selector);
+        checkout.setCopyFee(FEE);
+    }
+
+    function test_copyFee_onlyTheAdminChoosesTheBotAndTheCap() public {
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        checkout.setCopyBot(alice);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
+        checkout.setMaxCopyFee(1e12);
+        vm.stopPrank();
+
+        vm.startPrank(admin);
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.CopyBotSet(copyBot);
+        checkout.setCopyBot(copyBot);
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.MaxCopyFeeSet(20e6);
+        checkout.setMaxCopyFee(20e6);
+        vm.stopPrank();
+        assertEq(checkout.copyBot(), copyBot);
+        assertEq(checkout.maxCopyFee(), 20e6);
+    }
+
+    function test_copyFee_onlyTheBotSetsIt_andTheAdminCanSwitchItOff() public {
+        vm.prank(admin);
+        checkout.setCopyBot(copyBot);
+        vm.prank(alice);
+        vm.expectRevert(AnyTokenCheckout.NotCopyBot.selector);
+        checkout.setCopyFee(FEE);
+        vm.expectRevert(AnyTokenCheckout.NotCopyBot.selector);
+        vm.prank(admin);
+        checkout.setCopyFee(FEE);
+
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.CopyFeeSet(FEE);
+        vm.prank(copyBot);
+        checkout.setCopyFee(FEE);
+        assertEq(checkout.copyFee(), FEE);
+
+        // A cap of zero switches it off, and so does choosing no bot.
+        vm.prank(admin);
+        checkout.setMaxCopyFee(0);
+        assertEq(checkout.copyFee(), 0);
+        vm.prank(admin);
+        checkout.setMaxCopyFee(MAX_FEE);
+        assertEq(checkout.copyFee(), FEE);
+        vm.prank(admin);
+        checkout.setCopyBot(address(0));
+        assertEq(checkout.copyFee(), 0);
+        // A new bot starts from no fee.
+        vm.prank(admin);
+        checkout.setCopyBot(copyBot);
+        assertEq(checkout.copyFee(), 0);
+    }
+
+    function test_copyFee_settingsAreFixedOnceTheAdminGivesThemUp() public {
+        _turnOnCopyFee(FEE);
+        vm.prank(admin);
+        checkout.renounceOwnership();
+        vm.startPrank(admin);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, admin));
+        checkout.setMaxCopyFee(0);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, admin));
+        checkout.setCopyBot(admin);
+        vm.stopPrank();
+        vm.prank(copyBot);
+        checkout.setCopyFee(FEE * 2); // the bot still keeps the fee up to date
+        assertEq(checkout.copyFee(), FEE * 2);
+    }
+
+    function test_registerAndCopy_paysTheFeeToTheBot() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        (uint256 price, uint256 fee, uint256 amountIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(0), new address[](0));
+        assertEq(price, 10e6);
+        assertEq(fee, FEE);
+        assertEq(amountIn, price + FEE, "the price and the fee, in USDC");
+        _fundAndApprove(plsUsdc, alice, amountIn);
+        uint256 messageId = homeAmb.outboxLength();
+
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.CopyPaid("alice", alice, FEE, bytes32(messageId));
+        vm.prank(alice);
+        (, uint256 change, uint256 charged) = checkout.registerWithTokenAndCopy(reg, plsUsdc, amountIn, _noSwap(), FEE);
+        assertEq(charged, FEE);
+        assertEq(change, 0);
+        assertEq(plsUsdc.balanceOf(alice), 0);
+        assertEq(plsUsdc.balanceOf(beneficiary), price, "the registrar was paid exactly the price");
+        assertEq(plsUsdc.balanceOf(copyBot), FEE, "the fee went to the bot");
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice);
+        assertEq(homeAmb.outboxLength(), messageId + 1, "one copy went out");
+        _relayToEthereum();
+        assertEq(mirror.core.hexRegistry.findOwner("alice"), alice);
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_withHEX() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        (uint256 price,, uint256 amountIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(pulsex), _path(address(pHex)));
+        amountIn = amountIn * 102 / 100;
+        uint256 got = amountIn * HEX_RATE / 1e18;
+        _fundAndApprove(pHex, alice, amountIn);
+        vm.prank(alice);
+        (, uint256 change, uint256 fee) = checkout.registerWithTokenAndCopy(
+            reg, IERC20(address(pHex)), amountIn, _swap(address(pHex), price + FEE), FEE
+        );
+        assertEq(fee, FEE);
+        assertEq(change, got - price - FEE);
+        assertEq(plsUsdc.balanceOf(alice), change, "change in USDC");
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(plsUsdc.balanceOf(beneficiary), price);
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_withPLS() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("plsname", alice);
+        _commitReg(reg);
+        (uint256 price,, uint256 plsIn) =
+            checkout.quoteRegisterAndCopy("plsname", ONE_YEAR, address(pulsex), _path(address(wpls)));
+        plsIn = plsIn * 102 / 100;
+        vm.deal(alice, plsIn);
+        vm.prank(alice);
+        (, uint256 change, uint256 fee) =
+            checkout.registerWithPLSAndCopy{value: plsIn}(reg, _swap(address(wpls), price + FEE), FEE);
+        assertEq(fee, FEE);
+        assertEq(hub.core.hexRegistry.findOwner("plsname"), alice);
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(plsUsdc.balanceOf(alice), change, "change in USDC");
+        assertEq(plsUsdc.balanceOf(beneficiary), price);
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_isAPlainPurchaseWhenCopiesAreFree() public {
+        vm.prank(admin);
+        checkout.setCopyBot(copyBot); // the bot runs, and Ethereum isn't busy: no fee
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        (uint256 price, uint256 fee, uint256 amountIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(0), new address[](0));
+        assertEq(fee, 0);
+        assertEq(amountIn, price);
+        _fundAndApprove(plsUsdc, alice, price + FEE);
+        vm.recordLogs();
+        vm.prank(alice);
+        (, uint256 change, uint256 charged) =
+            checkout.registerWithTokenAndCopy(reg, plsUsdc, price + FEE, _noSwap(), FEE);
+        assertEq(charged, 0);
+        assertEq(change, FEE, "anything over the price comes back");
+        _assertNoCopyPaid();
+        assertEq(homeAmb.outboxLength(), 1, "the copy went out, free");
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_aFeeRaisedAboveTheBuyersLimitIsNotCharged() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        uint256 price = _registerPrice("alice", ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, price + 2 * FEE);
+        vm.prank(copyBot);
+        checkout.setCopyFee(FEE + 1); // gas rose after the buyer's quote
+        vm.recordLogs();
+        vm.prank(alice);
+        (, uint256 change, uint256 fee) =
+            checkout.registerWithTokenAndCopy(reg, plsUsdc, price + 2 * FEE, _noSwap(), FEE);
+        assertEq(fee, 0);
+        assertEq(change, 2 * FEE, "everything over the price comes back");
+        assertEq(plsUsdc.balanceOf(copyBot), 0);
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice, "the purchase still went through");
+        assertEq(homeAmb.outboxLength(), 1, "and the copy went out, unpaid");
+        _assertNoCopyPaid();
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_aFeeAboveWhatIsLeftOfThePaymentIsNotCharged() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        uint256 price = _registerPrice("alice", ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, price + FEE - 1);
+        vm.prank(alice);
+        (, uint256 change, uint256 fee) =
+            checkout.registerWithTokenAndCopy(reg, plsUsdc, price + FEE - 1, _noSwap(), FEE);
+        assertEq(fee, 0);
+        assertEq(change, FEE - 1);
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice);
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_aFeeAboveTheCapIsNotOffered() public {
+        // Ethereum is so busy the copy would cost more than the cap: copying at once isn't offered.
+        _turnOnCopyFee(MAX_FEE + 1);
+        assertEq(checkout.copyFee(), MAX_FEE + 1, "the website can tell");
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        (uint256 price, uint256 fee, uint256 amountIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(0), new address[](0));
+        assertEq(fee, 0);
+        assertEq(amountIn, price);
+        (fee, amountIn) = checkout.quoteCopyFee(address(0), new address[](0));
+        assertEq(fee, 0);
+        assertEq(amountIn, 0);
+
+        _fundAndApprove(plsUsdc, alice, price + MAX_FEE + 1);
+        vm.prank(alice);
+        uint256 change;
+        (, change, fee) =
+            checkout.registerWithTokenAndCopy(reg, plsUsdc, price + MAX_FEE + 1, _noSwap(), type(uint256).max);
+        assertEq(fee, 0);
+        assertEq(change, MAX_FEE + 1);
+        assertEq(plsUsdc.balanceOf(copyBot), 0);
+        _assertNothingLeft();
+    }
+
+    function test_registerAndCopy_nothingIsChargedIfTheCopyFails() public {
+        _turnOnCopyFee(FEE);
+        vm.mockCallRevert(address(hub.mirrorSync), abi.encodeWithSelector(IHexMirrorSync.sync.selector), "bridge down");
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        uint256 price = _registerPrice("alice", ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, price + FEE);
+        vm.recordLogs();
+        vm.prank(alice);
+        (, uint256 change, uint256 fee) = checkout.registerWithTokenAndCopy(reg, plsUsdc, price + FEE, _noSwap(), FEE);
+        assertEq(fee, 0);
+        assertEq(change, FEE);
+        assertEq(hub.core.hexRegistry.findOwner("alice"), alice, "the purchase still went through");
+        _assertNoCopyPaid();
+        _assertNothingLeft();
+    }
+
+    function test_renewAndCopy_withToken() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        uint64 before = hub.core.hexRegistry.findExpiry("alice");
+        (uint256 price, uint256 fee, uint256 amountIn) =
+            checkout.quoteRenewAndCopy("alice", ONE_YEAR, address(pulsex), _path(address(pHex)));
+        assertEq(fee, FEE);
+        amountIn = amountIn * 102 / 100;
+        _fundAndApprove(pHex, bob, amountIn);
+        uint256 messageId = homeAmb.outboxLength();
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.CopyPaid("alice", bob, FEE, bytes32(messageId));
+        vm.prank(bob); // anyone may renew any name, and pay to copy it
+        (, uint256 charged) = checkout.renewWithTokenAndCopy(
+            AnyTokenCheckout.Renewal("alice", ONE_YEAR, bytes32(0)),
+            IERC20(address(pHex)),
+            amountIn,
+            _swap(address(pHex), price + FEE),
+            FEE
+        );
+        assertEq(charged, FEE);
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(plsUsdc.balanceOf(beneficiary), 2 * price, "the purchase and the renewal");
+        assertEq(hub.core.hexRegistry.findExpiry("alice"), before + ONE_YEAR);
+        _relayToEthereum();
+        assertEq(mirror.core.hexRegistry.findExpiry("alice"), before + ONE_YEAR, "copied to Ethereum");
+        _assertNothingLeft();
+    }
+
+    function test_renewAndCopy_withPLS() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        uint64 before = hub.core.hexRegistry.findExpiry("alice");
+        (uint256 price,, uint256 plsIn) =
+            checkout.quoteRenewAndCopy("alice", ONE_YEAR, address(pulsex), _path(address(wpls)));
+        plsIn = plsIn * 102 / 100;
+        vm.deal(bob, plsIn);
+        vm.prank(bob);
+        (uint256 change, uint256 fee) = checkout.renewWithPLSAndCopy{value: plsIn}(
+            AnyTokenCheckout.Renewal("alice", ONE_YEAR, bytes32(0)), _swap(address(wpls), price + FEE), FEE
+        );
+        assertEq(fee, FEE);
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(plsUsdc.balanceOf(bob), change);
+        assertEq(hub.core.hexRegistry.findExpiry("alice"), before + ONE_YEAR);
+        _assertNothingLeft();
+    }
+
+    function test_oldFunctionsNeverChargeTheFee() public {
+        _turnOnCopyFee(FEE);
+        AnyTokenCheckout.Registration memory reg = _registration("alice", alice);
+        _commitReg(reg);
+        uint256 price = _registerPrice("alice", ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, price + FEE);
+        vm.recordLogs();
+        vm.prank(alice);
+        (, uint256 change) = checkout.registerWithToken(reg, plsUsdc, price + FEE, _noSwap());
+        assertEq(change, FEE);
+
+        uint256 renewal = hub.registrar.getRenewPrice("alice", ONE_YEAR, plsUsdc);
+        _fundAndApprove(plsUsdc, alice, renewal + FEE);
+        vm.prank(alice);
+        change = checkout.renewWithToken(
+            AnyTokenCheckout.Renewal("alice", ONE_YEAR, bytes32(0)), plsUsdc, renewal + FEE, _noSwap()
+        );
+        assertEq(change, FEE);
+        assertEq(plsUsdc.balanceOf(copyBot), 0);
+        assertEq(homeAmb.outboxLength(), 2, "both copies went out, unpaid");
+        _assertNoCopyPaid();
+        _assertNothingLeft();
+    }
+
+    function test_payCopyFee_afterSendingAName() public {
+        uint256 tokenId = _registerDirect("alice", alice, ONE_YEAR);
+        hub.mirrorSync.sync("alice");
+        _relayToEthereum();
+        assertEq(mirror.core.hexRegistry.findOwner("alice"), alice);
+
+        // Ethereum is busy. Alice sends the name to Bob, and pays to have Ethereum follow at once.
+        vm.prank(alice);
+        hub.core.hexRegistry.safeTransferFrom(alice, bob, tokenId, 1, "");
+        _turnOnCopyFee(FEE);
+        (uint256 fee, uint256 amountIn) = checkout.quoteCopyFee(address(0), new address[](0));
+        assertEq(fee, FEE);
+        assertEq(amountIn, FEE);
+        _fundAndApprove(plsUsdc, alice, FEE);
+        uint256 messageId = homeAmb.outboxLength();
+        vm.expectEmit(address(checkout));
+        emit AnyTokenCheckout.CopyPaid("alice", alice, FEE, bytes32(messageId));
+        vm.prank(alice);
+        uint256 change;
+        (fee, change) = checkout.payCopyFee("alice", plsUsdc, FEE, _noSwap());
+        assertEq(fee, FEE);
+        assertEq(change, 0);
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(homeAmb.outboxLength(), messageId + 1);
+        _relayToEthereum();
+        assertEq(mirror.core.hexRegistry.findOwner("alice"), bob, "Ethereum shows the new owner");
+        _assertNothingLeft();
+    }
+
+    function test_payCopyFee_withPLS() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        (uint256 fee, uint256 plsIn) = checkout.quoteCopyFee(address(pulsex), _path(address(wpls)));
+        assertEq(fee, FEE);
+        plsIn = plsIn * 102 / 100;
+        uint256 got = plsIn * WPLS_RATE / 1e18;
+        vm.deal(alice, plsIn);
+        vm.prank(alice);
+        uint256 change;
+        (fee, change) = checkout.payCopyFeeWithPLS{value: plsIn}("alice", _swap(address(wpls), FEE));
+        assertEq(fee, FEE);
+        assertEq(change, got - FEE);
+        assertEq(plsUsdc.balanceOf(copyBot), FEE);
+        assertEq(plsUsdc.balanceOf(alice), change, "change in USDC");
+        _assertNothingLeft();
+    }
+
+    function test_revert_payCopyFee_whenThereIsNoFeeToPay() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, FEE);
+        vm.startPrank(alice);
+        vm.expectRevert(AnyTokenCheckout.NoCopyFee.selector); // the fee is off
+        checkout.payCopyFee("alice", plsUsdc, FEE, _noSwap());
+        vm.stopPrank();
+
+        _turnOnCopyFee(0); // copies are cheap: free
+        vm.prank(alice);
+        vm.expectRevert(AnyTokenCheckout.NoCopyFee.selector);
+        checkout.payCopyFee("alice", plsUsdc, FEE, _noSwap());
+
+        vm.prank(copyBot);
+        checkout.setCopyFee(MAX_FEE + 1); // too dear to offer
+        vm.deal(alice, 1e18);
+        vm.prank(alice);
+        vm.expectRevert(AnyTokenCheckout.NoCopyFee.selector);
+        checkout.payCopyFeeWithPLS{value: 1e18}("alice", _swap(address(wpls), 0));
+    }
+
+    function test_revert_payCopyFee_whenThePaymentFallsShort() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        _fundAndApprove(plsUsdc, alice, FEE);
+        vm.prank(copyBot);
+        checkout.setCopyFee(FEE + 1); // gas rose after the quote
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(SwapPayments.InsufficientPayment.selector, FEE, FEE + 1));
+        checkout.payCopyFee("alice", plsUsdc, FEE, _noSwap());
+    }
+
+    function test_revert_payCopyFee_whenTheCopyFails() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        vm.mockCallRevert(address(hub.mirrorSync), abi.encodeWithSelector(IHexMirrorSync.sync.selector), "bridge down");
+        _fundAndApprove(plsUsdc, alice, FEE);
+        vm.prank(alice);
+        vm.expectRevert(AnyTokenCheckout.CopyFailed.selector);
+        checkout.payCopyFee("alice", plsUsdc, FEE, _noSwap());
+    }
+
+    function test_revert_tokenReentersPayCopyFee() public {
+        _registerDirect("alice", alice, ONE_YEAR);
+        _turnOnCopyFee(FEE);
+        ReentrantToken bad = new ReentrantToken();
+        pulsex.setRate(address(bad), address(plsUsdc), 1e6);
+        bad.mint(alice, 1e18);
+        bad.arm(checkout);
+        vm.startPrank(alice);
+        bad.approve(address(checkout), 1e18);
+        vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        checkout.payCopyFee("alice", IERC20(address(bad)), 1e18, _swap(address(bad), 0));
+        vm.stopPrank();
+    }
+
+    function test_quotes_withTheCopyFee() public {
+        _turnOnCopyFee(FEE);
+        (uint256 price, uint256 amountIn) =
+            checkout.quoteRegister("alice", ONE_YEAR, address(pulsex), _path(address(pHex)));
+        (uint256 price2, uint256 fee, uint256 bothIn) =
+            checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(pulsex), _path(address(pHex)));
+        (, uint256 feeIn) = checkout.quoteCopyFee(address(pulsex), _path(address(pHex)));
+        assertEq(price2, price);
+        assertEq(fee, FEE);
+        assertApproxEqAbs(bothIn, amountIn + feeIn, 2, "the price's and the fee's amounts together");
+
+        vm.prank(copyBot);
+        checkout.setCopyFee(0);
+        (, fee, bothIn) = checkout.quoteRegisterAndCopy("alice", ONE_YEAR, address(pulsex), _path(address(pHex)));
+        assertEq(fee, 0);
+        assertEq(bothIn, amountIn, "with no fee, the same as without the copy");
+        (fee, feeIn) = checkout.quoteCopyFee(address(pulsex), _path(address(pHex)));
+        assertEq(fee, 0);
+        assertEq(feeIn, 0);
+    }
+
+    function testFuzz_registerAndCopy_accounting(uint256 fee, uint256 limit, uint256 extra) public {
+        fee = bound(fee, 0, 2 * MAX_FEE);
+        limit = bound(limit, 0, 2 * MAX_FEE);
+        extra = bound(extra, 0, 2 * MAX_FEE);
+        _turnOnCopyFee(fee);
+        AnyTokenCheckout.Registration memory reg = _registration("fuzzed", alice);
+        _commitReg(reg);
+        uint256 price = _registerPrice("fuzzed", ONE_YEAR);
+        _fundAndApprove(plsUsdc, alice, price + extra);
+        vm.prank(alice);
+        (, uint256 change, uint256 charged) =
+            checkout.registerWithTokenAndCopy(reg, plsUsdc, price + extra, _noSwap(), limit);
+        bool due = fee != 0 && fee <= MAX_FEE && fee <= limit && fee <= extra;
+        assertEq(charged, due ? fee : 0);
+        assertEq(plsUsdc.balanceOf(copyBot), charged);
+        assertEq(change, extra - charged);
+        assertEq(plsUsdc.balanceOf(alice), change);
+        assertEq(plsUsdc.balanceOf(beneficiary), price, "the registrar was paid exactly the price");
+        assertEq(hub.core.hexRegistry.findOwner("fuzzed"), alice);
         _assertNothingLeft();
     }
 
@@ -382,6 +878,22 @@ contract CheckoutTest is HexTestBase {
         token.mint(who, amount);
         vm.prank(who);
         token.approve(address(checkout), amount);
+    }
+
+    function _turnOnCopyFee(uint256 fee) internal {
+        vm.prank(admin);
+        checkout.setCopyBot(copyBot);
+        vm.prank(copyBot);
+        checkout.setCopyFee(fee);
+    }
+
+    function _assertNoCopyPaid() internal {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; ++i) {
+            if (logs[i].emitter == address(checkout)) {
+                assertTrue(logs[i].topics[0] != AnyTokenCheckout.CopyPaid.selector, "no copy fee was charged");
+            }
+        }
     }
 
     function _assertNothingLeft() internal view {

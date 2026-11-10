@@ -48,6 +48,16 @@ export const mirrorSyncAbi = parseAbi([
   "function sync(string label) returns (bytes32 messageId)",
 ]);
 
+/** AnyTokenCheckout's copy fee: the bot keeps it up to date, and copies names paid for first. */
+export const checkoutAbi = parseAbi([
+  "event CopyPaid(string label, address indexed payer, uint256 fee, bytes32 indexed messageId)",
+  "function copyBot() view returns (address)",
+  "function maxCopyFee() view returns (uint256)",
+  "function copyFee() view returns (uint256)",
+  "function owner() view returns (address)",
+  "function setCopyFee(uint256 fee)",
+]);
+
 export const erc20Abi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function allowance(address owner, address spender) view returns (uint256)",
