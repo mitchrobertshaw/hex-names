@@ -25,7 +25,7 @@ import { parseAmbMessage } from "./amb.ts";
 import type { Treasury } from "./config.ts";
 import type { Context } from "./context.ts";
 import { receiptOf, send, short, submit } from "./orders.ts";
-import { ownTransfer } from "./relay.ts";
+import { CLAIM_GAS, REFILL_GAS, ownTransfer, spentToday } from "./relay.ts";
 import type { Submitted, TreasuryState } from "./state.ts";
 
 /** How often it looks at its balances, unless an order is waiting on the float. */
@@ -47,7 +47,35 @@ export type Balances = {
   ethUsdc: bigint; // USDC on Ethereum
   budget: bigint; // what the payments wallet lets it draw: the smaller of its allowance and its USDC
   ethUnknown?: boolean; // Ethereum couldn't be read just now: leave its gas alone this time
+  /**
+   * The ETH (wei) the next copy of a name needs at Ethereum's gas price now, with what's kept back
+   * for claiming its own USDC: 0 when no copy can go today anyway (today's limit, RELAY_DAILY_ETH).
+   */
+  ethNeed?: bigint;
+  weiPerUsdc?: bigint; // what 1 USDC buys on Uniswap now, to size a purchase: unknown if it couldn't be read
 };
+
+/**
+ * The ETH it keeps at least: ETH_LOW, or what the next copy needs if gas is high enough that that's
+ * more, so a copy waits for gas only when today's limit says it should.
+ */
+export function ethLine(b: Pick<Balances, "ethNeed">, t: Pick<Treasury, "ethLow">): bigint {
+  const need = b.ethNeed ?? 0n;
+  return need > t.ethLow ? need : t.ethLow;
+}
+
+/**
+ * How much USDC of ETH to buy, below the line: enough to reach twice it, so it doesn't buy again at
+ * once, but at least ETH_BUY_USDC, and at most ETH_BUY_MAX_USDC at a time (the next round buys more
+ * if that wasn't enough). At ETH_BUY_USDC if ETH's price couldn't be read.
+ */
+export function ethPurchase(b: Pick<Balances, "eth" | "ethNeed" | "weiPerUsdc">, t: Pick<Treasury, "ethLow" | "ethBuyUsdc" | "ethBuyMaxUsdc">): bigint {
+  if (!b.weiPerUsdc) return t.ethBuyUsdc;
+  const wanted = ethLine(b, t) * 2n - b.eth;
+  const usdc = (wanted * 1_000_000n + b.weiPerUsdc - 1n) / b.weiPerUsdc;
+  const most = t.ethBuyMaxUsdc > t.ethBuyUsdc ? t.ethBuyMaxUsdc : t.ethBuyUsdc;
+  return usdc < t.ethBuyUsdc ? t.ethBuyUsdc : usdc > most ? most : usdc;
+}
 
 export type Pending = {
   repayments: bigint; // what orders the bot filled will pay it back
@@ -76,7 +104,11 @@ export function margin(floatUsdc: bigint): bigint {
  * What to do, given the balances and what's on its way. Pure, so it's easy to test. Anything drawn
  * from the payments wallet comes first, as one draw, so it's there for what spends it.
  */
-export function plan(b: Balances, p: Pending, t: Pick<Treasury, "floatUsdc" | "plsLow" | "plsBuyUsdc" | "ethLow" | "ethBuyUsdc">): Action[] {
+export function plan(
+  b: Balances,
+  p: Pending,
+  t: Pick<Treasury, "floatUsdc" | "plsLow" | "plsBuyUsdc" | "ethLow" | "ethBuyUsdc" | "ethBuyMaxUsdc">,
+): Action[] {
   const actions: Action[] = [];
   const warnings: Action[] = [];
   let float = b.float;
@@ -99,13 +131,14 @@ export function plan(b: Balances, p: Pending, t: Pick<Treasury, "floatUsdc" | "p
     else warnings.push({ kind: "warn", key: "pls", message: "low on PLS for gas, with no USDC or budget left to buy more" });
   }
 
-  // 2. Gas on Ethereum, unless Ethereum couldn't be read just now.
-  if (!b.ethUnknown && b.eth < t.ethLow) {
-    if (ethUsdc >= t.ethBuyUsdc) {
-      actions.push({ kind: "buy-eth", usdc: t.ethBuyUsdc });
-      ethUsdc -= t.ethBuyUsdc;
+  // 2. Gas on Ethereum, unless Ethereum couldn't be read just now: at least what the next copy needs.
+  if (!b.ethUnknown && b.eth < ethLine(b, t)) {
+    const buy = ethPurchase(b, t);
+    if (ethUsdc >= buy) {
+      actions.push({ kind: "buy-eth", usdc: buy });
+      ethUsdc -= buy;
     } else if (p.out === 0n) {
-      const usdc = t.ethBuyUsdc - ethUsdc + OUT_EXTRA;
+      const usdc = buy - ethUsdc + OUT_EXTRA;
       if (spend(usdc)) actions.push({ kind: "send-out", usdc });
       else warnings.push({ kind: "warn", key: "eth", message: "low on ETH for gas, with no USDC or budget left to buy more" });
     }
@@ -168,7 +201,7 @@ export async function runTreasury(ctx: Context): Promise<void> {
 
   const payments = await ctx.pls.readContract({ address: ctx.config.registrar, abi: registrarAbi, functionName: "BENEFICIARY" });
   if (ctx.config.fill) await collectOwed(ctx).catch((error) => ctx.log(`balance: couldn't check the order book (${short(error)})`));
-  const [balances, pending] = await Promise.all([readBalances(ctx, payments), readPending(ctx, state, now)]);
+  const [balances, pending] = await Promise.all([readBalances(ctx, payments, now), readPending(ctx, state, now)]);
   for (const action of plan(balances, pending, t)) {
     if (action.kind === "warn") {
       warn(ctx, state, now, action.key, action.message);
@@ -183,7 +216,7 @@ export async function runTreasury(ctx: Context): Promise<void> {
 
   if (!state.lastReport || now - BigInt(state.lastReport) >= DAY) {
     state.lastReport = now.toString();
-    const after = await readBalances(ctx, payments);
+    const after = await readBalances(ctx, payments, now);
     const bridging =
       state.home.filter((h) => !h.arrived).reduce((sum, h) => sum + BigInt(h.usdc), 0n) +
       Object.values(ctx.state.messages).reduce((sum, m) => sum + (m.own && m.status === "waiting" ? BigInt(m.own.usdc) : 0n), 0n);
@@ -196,7 +229,7 @@ export async function runTreasury(ctx: Context): Promise<void> {
   }
 }
 
-async function readBalances(ctx: Context, payments: Address): Promise<Balances> {
+async function readBalances(ctx: Context, payments: Address, now: bigint): Promise<Balances> {
   const { config } = ctx;
   const t = config.treasury;
   const bot = ctx.account.address;
@@ -208,11 +241,20 @@ async function readBalances(ctx: Context, payments: Address): Promise<Balances> 
   ]);
   const budget = allowance < held ? allowance : held;
   try {
-    const [eth, ethUsdc] = await Promise.all([
+    const [eth, ethUsdc, gasPrice, weiPerUsdc] = await Promise.all([
       ctx.eth.getBalance({ address: bot }),
       ctx.eth.readContract({ address: t.ethereumUsdc, abi: erc20Abi, functionName: "balanceOf", args: [bot] }),
+      ctx.eth.getGasPrice(),
+      ctx.eth
+        .readContract({ address: t.uniswapRouter, abi: routerAbi, functionName: "getAmountsOut", args: [1_000_000n, [t.ethereumUsdc, t.weth]] })
+        .then((amounts) => amounts[amounts.length - 1])
+        .catch(() => undefined), // sized at ETH_BUY_USDC, then
     ]);
-    return { pls, float, eth, ethUsdc, budget };
+    // What the next copy needs, if one can go today: the relay holds copies back otherwise.
+    const cost = gasPrice * CLAIM_GAS;
+    const canCopy = config.relay && spentToday(ctx.state.relay, now) + cost <= config.relayLimits.dailyEth;
+    const ethNeed = canCopy ? cost + gasPrice * REFILL_GAS : 0n;
+    return { pls, float, eth, ethUsdc, budget, ethNeed, weiPerUsdc };
   } catch (error) {
     ctx.log(`balance: couldn't read Ethereum just now (${short(error)}); looking after PulseChain only this time`);
     return { pls, float, eth: 0n, ethUsdc: 0n, budget, ethUnknown: true };

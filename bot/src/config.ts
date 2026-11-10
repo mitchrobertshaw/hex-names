@@ -64,6 +64,7 @@ export type Treasury = {
   plsBuyUsdc: bigint; // PLS_BUY_USDC: how much USDC of PLS it buys at a time
   ethLow: bigint; // ETH_LOW: below this much ETH (in wei), it buys more
   ethBuyUsdc: bigint; // ETH_BUY_USDC: how much USDC of ETH it buys at a time
+  ethBuyMaxUsdc: bigint; // ETH_BUY_MAX_USDC: the most one ETH purchase spends, when gas is high
   ethereumUsdc: Address; // USDC on Ethereum (or Sepolia): what orders are paid in
   homeBridge: Address; // the official bridge's token contract on PulseChain
   foreignBridge: Address; // ... and on Ethereum
@@ -94,6 +95,7 @@ export const NETWORK_DEFAULTS: Record<
     plsBuyUsdc: string;
     ethLow: string;
     ethBuyUsdc: string;
+    ethBuyMaxUsdc: string;
   }
 > = {
   // Checked on-chain on 8 November 2026.
@@ -115,6 +117,7 @@ export const NETWORK_DEFAULTS: Record<
     plsBuyUsdc: "2",
     ethLow: "0.003", // about 80 copies of names at 10 November 2026's gas prices
     ethBuyUsdc: "15",
+    ethBuyMaxUsdc: "100", // when gas is high, it buys what the next copies need, up to this at a time
   },
   testnet: {
     pulsechainRpcUrl: "https://rpc.v4.testnet.pulsechain.com",
@@ -134,6 +137,7 @@ export const NETWORK_DEFAULTS: Record<
     plsBuyUsdc: "1",
     ethLow: "0.002",
     ethBuyUsdc: "2",
+    ethBuyMaxUsdc: "10",
   },
 };
 
@@ -209,6 +213,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       plsBuyUsdc: usdc(optional("PLS_BUY_USDC") ?? defaults.plsBuyUsdc),
       ethLow: coins(optional("ETH_LOW") ?? defaults.ethLow),
       ethBuyUsdc: usdc(optional("ETH_BUY_USDC") ?? defaults.ethBuyUsdc),
+      ethBuyMaxUsdc: usdc(optional("ETH_BUY_MAX_USDC") ?? defaults.ethBuyMaxUsdc),
       ethereumUsdc: address("ETHEREUM_USDC", defaults.ethereumUsdc),
       homeBridge: address("PULSECHAIN_TOKEN_BRIDGE", defaults.homeBridge),
       foreignBridge: address("ETHEREUM_TOKEN_BRIDGE", defaults.foreignBridge),
