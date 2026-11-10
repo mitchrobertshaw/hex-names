@@ -659,6 +659,18 @@ function cancelled(error: unknown): boolean {
 }
 
 /**
+ * Whether `found` is delivered within about half a minute: when sending it would fail, someone
+ * else's copy may be on its way (the bot's, say, as Ethereum's fees fell), waiting for a block.
+ */
+async function deliveredSoon(found: CopyMessage): Promise<boolean> {
+  for (let i = 0; i < 10; i++) {
+    if ((await copyStatus(found).catch(() => null))?.kind === "done") return true;
+    await sleep(3000);
+  }
+  return false;
+}
+
+/**
  * Delivers `found` on Ethereum from the connected wallet, paying Ethereum's fee in ETH, once the
  * bridge has signed it (waiting for that if need be). It looks again just before asking the wallet,
  * and if someone else delivers it first (the bot, or another tab), says so rather than fail: the
@@ -695,8 +707,8 @@ async function deliverCopy(progress: Progress, found: CopyMessage): Promise<Self
   try {
     cost = await selfCopyCost(status, wallet.account.address);
   } catch (error) {
-    // Working out its gas fails if it was delivered a moment ago.
-    if ((await copyStatus(found)).kind === "done") return finish("already");
+    // Working out its gas fails if it was delivered a moment ago, or someone else's copy is about to be.
+    if (await deliveredSoon(found)) return finish("already");
     throw error;
   }
   if (cost.balance < cost.need) throw new Error(ethShortText(cost));
@@ -717,7 +729,7 @@ async function deliverCopy(progress: Progress, found: CopyMessage): Promise<Self
     await confirm("ethereum", hash);
   } catch (error) {
     // Another copy went first: this one did nothing, or was never sent.
-    if (!cancelled(error) && (await copyStatus(found).catch(() => null))?.kind === "done") return finish(sent ? "someone-else" : "already");
+    if (!cancelled(error) && (await deliveredSoon(found))) return finish(sent ? "someone-else" : "already");
     throw error;
   }
   return finish("copied");
