@@ -5,7 +5,7 @@ import { type Hex, getAddress, parseGwei } from "viem";
 
 import { parseAmbMessage } from "../src/amb.ts";
 import { loadConfig } from "../src/config.ts";
-import { CLAIM_GAS, REFILL_GAS, holdReason, ownTransfer } from "../src/relay.ts";
+import { CLAIM_GAS, REFILL_GAS, claimGas, holdReason, ownTransfer } from "../src/relay.ts";
 import type { RelayState } from "../src/state.ts";
 
 // A real message from the official bridge, made on a copy of PulseChain on 8 November 2026: 16 USDC
@@ -42,6 +42,15 @@ const base = {
   reserve: gasPrice * REFILL_GAS,
   limits: config.relayLimits,
 };
+
+test("claims are sent with the gas Ethereum says they need, and room to spare", () => {
+  // A copy of yourfriendsommi.hex on Sepolia, 10 November 2026: its message asks for 1 million gas,
+  // and Sepolia worked out the claim needs 1,596,252. The old fixed 1.3 million reverted.
+  assert.equal(claimGas(1_596_252n), 1_915_502n);
+  assert.ok(claimGas(1_596_252n) > 1_596_252n);
+  assert.ok(CLAIM_GAS >= 1_596_252n, "the allowance plans for a claim's real gas");
+  assert.ok(REFILL_GAS >= 2_600_000n, "enough kept back to claim its own USDC (2 million gas of its own)");
+});
 
 test("a copy of a name is claimed when it can be", () => {
   assert.equal(holdReason({ ...base, kind: "mirror", label: "alice", relay: relay() }), null);

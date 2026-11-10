@@ -73,7 +73,7 @@ Timed over its last 25 messages each way on 5 November 2026:
 The bot gets no special powers: it can only deliver what the bridge has signed.
 
 So that nobody can run up its gas by changing a name over and over, the bot copies each name at most
-once an hour (the newest change wins), and spends at most 0.02 ETH a day copying names, about 1,600
+once an hour (the newest change wins), and spends at most 0.02 ETH a day copying names, about 550
 copies at November 2026's gas prices. The rest wait until the next day (UTC).
 
 ## How names work on both chains
@@ -283,7 +283,7 @@ workflow **test**).
     restyle them.
 - **Fork tests** (`test/fork/`): 10 tests against live copies of PulseChain and Ethereum. They use the
   real bridge contracts, PulseX, Uniswap, USDC, DAI, PLS, ETH and HEX on both chains.
-- **Bot tests** (`bot/test/`): 46 tests, including hashes checked against the deployed contracts, a
+- **Bot tests** (`bot/test/`): 47 tests, including hashes checked against the deployed contracts, a
   real bridge message, each network's settings, how it pays its own gas, and its limits on copying
   names.
 
