@@ -137,6 +137,11 @@ export function holdReason(h: Hold): string | null {
 
 const utcDay = (now: bigint) => new Date(Number(now) * 1000).toISOString().slice(0, 10);
 
+/** What copying names has spent on Ethereum today (UTC), in wei. */
+export function spentToday(relay: RelayState | undefined, now: bigint): bigint {
+  return relay && relay.day === utcDay(now) ? BigInt(relay.spent) : 0n;
+}
+
 /** The relay's own records, with the day's spending started afresh each UTC day. */
 function relayState(ctx: Context, now: bigint): RelayState {
   const relay = (ctx.state.relay ??= { day: utcDay(now), spent: "0", lastClaim: {}, noted: {} });

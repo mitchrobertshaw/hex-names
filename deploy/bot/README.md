@@ -152,12 +152,18 @@ registrar pays each price to your payments wallet. That was fixed in step 1. The
 a sale.
 
 **Gas comes out of revenue.** The bot keeps a small working balance of USDC on PulseChain, $20
-(`FLOAT_USDC`). When its gas runs low it buys more with it: PLS on PulseX ($2 at a time, over
-300,000 PLS) and ETH on Uniswap ($15 at a time, sent to Ethereum over the bridge first, which
-charges 0.3% in that direction). When the working balance runs low, it draws what it needs from your
-payments wallet, up to the budget you set on the app's payments page. If the working balance can't
-cover a purchase of gas, it draws the difference first. If it ever holds more than it needs, the
-extra comes back to your payments wallet.
+(`FLOAT_USDC`). When its gas runs low it buys more with it: PLS on PulseX ($2 at a time, under
+200,000 PLS) and ETH on Uniswap ($15 at a time under 0.003 ETH, sent to Ethereum over the bridge
+first, which charges 0.3% in that direction). When the working balance runs low, it draws what it
+needs from your payments wallet, up to the budget you set on the app's payments page. If the
+working balance can't cover a purchase of gas, it draws the difference first. If it ever holds more
+than it needs, the extra comes back to your payments wallet.
+
+**When Ethereum's gas is high,** the next copy can need more than 0.003 ETH. Then the bot keeps
+enough for it at the gas price of the moment, buying what that takes, up to $100 at a time
+(`ETH_BUY_MAX_USDC`), so copies don't wait for gas to fall. It only does so while today's limit on
+copying (below) leaves room: ETH it couldn't spend would just sit there. The settings `ETH_LOW`
+(0.003), `ETH_BUY_USDC` (15), `PLS_LOW` (200000) and `PLS_BUY_USDC` (2) change the rest.
 
 **It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
 knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends
@@ -178,8 +184,9 @@ then.)
 **Limits on copying names.** So that nobody can run up its Ethereum gas by changing a name over and
 over, it copies each name at most once an hour (the newest change wins), and spends at most 0.02 ETH
 a day copying names, about 550 copies at November 2026's gas prices. The rest wait until the next
-day (UTC). The settings `RELAY_NAME_COOLDOWN_MINUTES` (60) and `RELAY_DAILY_ETH` (0.02) change
-these.
+day (UTC): nothing is lost, as a name works on PulseChain all along and its copy only lags. The
+limit is in ETH, so fewer copies fit when gas is high: about 20 a day at 1 gwei. If gas stays high,
+raise it. The settings `RELAY_NAME_COOLDOWN_MINUTES` (60) and `RELAY_DAILY_ETH` (0.02) change these.
 
 ## Keeping it safe
 

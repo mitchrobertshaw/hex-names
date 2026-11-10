@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { parseEther } from "viem";
 
 import { loadConfig } from "../src/config.ts";
-import { type Action, type Balances, type Pending, margin, plan, usdcText } from "../src/treasury.ts";
+import { type Action, type Balances, type Pending, ethLine, ethPurchase, margin, plan, usdcText } from "../src/treasury.ts";
 
 const usdc = (dollars: number) => BigInt(Math.round(dollars * 1_000_000));
 const ADDRESS = "0x000000000000000000000000000000000000dEaD";
@@ -37,6 +37,7 @@ test("mainnet's defaults: no Ethereum orders, a $20 working balance, and gas bou
   assert.equal(t.plsBuyUsdc, usdc(2));
   assert.equal(t.ethLow, parseEther("0.003"));
   assert.equal(t.ethBuyUsdc, usdc(15));
+  assert.equal(t.ethBuyMaxUsdc, usdc(100), "the most it buys at once when gas is high");
   assert.equal(t.homeBridge, "0x4fD0aaa7506f3d9cB8274bdB946Ec42A1b8751Ef");
   assert.equal(t.foreignBridge, "0x1715a3E4A142d8b698131108995174F37aEBA10D");
   assert.equal(margin(t.floatUsdc), usdc(30));
@@ -140,4 +141,44 @@ test("USDC amounts read as dollars and cents", () => {
   assert.equal(usdcText(usdc(10.25)), "10.25");
   assert.equal(usdcText(1234n), "0.001234");
   assert.equal(usdcText(-usdc(3.5)), "-3.50");
+});
+
+test("when gas is high, it buys what the next copy needs, a limited amount at a time", () => {
+  const weiPerUsdc = parseEther("0.0003"); // 1 USDC buys 0.0003 ETH: ETH at about $3,333
+  const at = (gwei: number) => parseEther(String((4_600_000 * gwei) / 1e9)); // a copy and what's kept back: 4.6M gas
+  const priced = { ...healthy, weiPerUsdc }; // holding 0.01 ETH, and no USDC on Ethereum
+
+  // At ordinary gas, a copy needs less than ETH_LOW, so nothing changes: it buys under 0.003 as before.
+  assert.equal(ethLine({ ethNeed: at(0.1) }, t), parseEther("0.003"));
+  assert.deepEqual(kinds(plan({ ...priced, ethNeed: at(0.1) }, nothing, t)), []);
+
+  // At 2 gwei the next copy needs 0.0092 ETH, and it holds 0.01: enough.
+  assert.deepEqual(kinds(plan({ ...priced, ethNeed: at(2) }, nothing, t)), []);
+
+  // At 3 gwei it needs 0.0138: it buys enough to hold twice that, 0.0176 ETH more, about $58.67.
+  assert.equal(ethLine({ ethNeed: at(3) }, t), parseEther("0.0138"));
+  assert.deepEqual(kinds(plan({ ...priced, ethUsdc: usdc(60), ethNeed: at(3) }, nothing, t)), ["buy-eth 58.666667"]);
+
+  // At 20 gwei it would want about $580 of ETH: it buys $100 at a time, ETH_BUY_MAX_USDC.
+  assert.deepEqual(kinds(plan({ ...priced, ethUsdc: usdc(100), ethNeed: at(20) }, nothing, t)), ["buy-eth 100.00"]);
+
+  // And never less than ETH_BUY_USDC.
+  // (At 0.7 gwei a copy needs 0.00322 ETH: reaching twice that from 0.0032 would take about $10.80.)
+  assert.equal(ethPurchase({ eth: parseEther("0.0032"), ethNeed: at(0.7), weiPerUsdc }, t), usdc(15));
+
+  // When no copy can go today (today's limit), it keeps only ETH_LOW: buying more would sit unused.
+  assert.deepEqual(kinds(plan({ ...priced, ethNeed: 0n }, nothing, t)), []);
+
+  // Without ETH's price, it buys ETH_BUY_USDC.
+  assert.deepEqual(kinds(plan({ ...healthy, ethUsdc: usdc(15), ethNeed: at(3) }, nothing, t)), ["buy-eth 15.00"]);
+
+  // With no USDC on Ethereum, it sends what the purchase needs over the bridge first, drawing from
+  // the payments wallet's budget what the float can't spare.
+  const out = plan({ ...healthy, weiPerUsdc, ethNeed: at(3) }, nothing, t);
+  assert.deepEqual(kinds(out), ["draw 59.666667", "send-out 59.666667"]);
+});
+
+test("the most it buys at once can be changed, and the testnets have their own", () => {
+  assert.equal(loadConfig({ ...DEPLOYED, ETH_BUY_MAX_USDC: "250" }).treasury.ethBuyMaxUsdc, usdc(250));
+  assert.equal(loadConfig({ ...DEPLOYED, NETWORK: "testnet", PULSECHAIN_USDC: ADDRESS }).treasury.ethBuyMaxUsdc, usdc(10));
 });
