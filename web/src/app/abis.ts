@@ -11,6 +11,19 @@ export const registrarAbi = parseAbi([
   "function isAvailable(string label) view returns (bool)",
   "function getRegisterPrice(string label, uint64 duration, address paymentToken) view returns (uint256 base, uint256 premium)",
   "function BENEFICIARY() view returns (address)",
+  "function rentPriceOracle() view returns (address)",
+]);
+
+/** HexNameRules, between the registrar and its price oracle. */
+export const rulesAbi = parseAbi(["function ORACLE() view returns (address)"]);
+
+/** ENSv2's StandardRentPriceOracle: what the admin's "all prices together" changes. */
+export const oracleAbi = parseAbi([
+  "function getBaseRates() view returns (uint256[])",
+  "function getPaymentTokenRatio(address paymentToken) view returns (uint128 numer, uint128 denom)",
+  "function updatePaymentToken(address paymentToken, uint128 numer, uint128 denom)",
+  "function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)",
+  "event PaymentTokenUpdated(address indexed paymentToken, uint128 numer, uint128 denom)",
 ]);
 
 /**
@@ -30,6 +43,20 @@ export const registryAbi = parseAbi([
   "function getOwner(uint256 anyId) view returns (address)",
   "function LABEL_STORE() view returns (address)",
   "function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)",
+  // The admin's powers (the admin page): roles, holding names and handing them out, adding time.
+  "function roles(uint256 resource, address account) view returns (uint256)",
+  "function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)",
+  "function grantRootRoles(uint256 roleBitmap, address account) returns (bool)",
+  "function revokeRootRoles(uint256 roleBitmap, address account) returns (bool)",
+  "function register(string label, address owner, address registry, address resolver, uint256 roleBitmap, uint64 expiry) returns (uint256)",
+  "function renew(uint256 anyId, uint64 newExpiry)",
+  "event LabelReserved(uint256 indexed tokenId, bytes32 indexed labelHash, string label, uint64 expiry, address indexed sender)",
+  "error LabelAlreadyRegistered(string label)",
+  "error LabelAlreadyReserved(string label)",
+  "error CannotSetPastExpiry(uint64 expiry)",
+  "error EACUnauthorizedAccountRoles(uint256 resource, uint256 roleBitmap, address account)",
+  "error EACCannotGrantRoles(uint256 resource, uint256 roleBitmap, address account)",
+  "error EACCannotRevokeRoles(uint256 resource, uint256 roleBitmap, address account)",
 ]);
 
 /** ENSv2's LabelStore: each name's label, by its id (keccak256 of the label, as referral tags are). */

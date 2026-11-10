@@ -8,6 +8,7 @@ import { captureReferral, referralLink } from "../lib/referral";
 import type { PayToken } from "../lib/tokens";
 import { erc20Abi } from "./abis";
 import { amountText, bestQuote, buyOnPulseChain, type Step, tokenAddress, withBuffer } from "./flows";
+import { usePriceLevel, useSalesOpen } from "./live";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
 import { clients, deployment, PAY } from "./network";
@@ -227,7 +228,9 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const chain = PAY.pulsechain;
   const [symbol, setSymbol] = useState(chain.tokens[0].symbol);
   const token = chain.tokens.find((t) => t.symbol === symbol) ?? chain.tokens[0];
-  const price = priceOf(info, years);
+  const level = usePriceLevel();
+  const salesOpen = useSalesOpen();
+  const price = priceOf(info, years, level);
   const total = Math.round(price.total * 100) / 100;
   const quote = useQuote(token, info.label, years, total);
   const need = quote.status === "ok" ? (token.path ? withBuffer(quote.amount) : quote.amount) : null;
@@ -396,6 +399,11 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
         <button type="button" className="button button--primary buy__cta" disabled={!choosing} onClick={buy}>
           {choosing ? "Walk through buying it" : "Walking through…"}
         </button>
+      ) : salesOpen === false ? (
+        <p className="buy__paused" role="status">
+          <b>Sales are paused for now.</b> Names can&rsquo;t be bought until they restart. Names already registered can
+          still be renewed.
+        </p>
       ) : !wallet.connected ? (
         <div className="buy__connect">
           <p className="checkout__label">Connect a wallet to buy it</p>

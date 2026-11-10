@@ -55,6 +55,25 @@ also owns the referring name) and tags that aren't a name anyone owns are set as
 titled "Referral payouts", also shows the bot's balances and sets the budget it may draw from this
 wallet for gas ([how](../deploy/bot/README.md#money)).
 
+**The admin page.** `app.hexns.domains/admin` (not in the menu) opens for a wallet the contracts give
+admin powers to, and shows only the powers it has, without saying which wallet it's for
+([`src/app/AdminPage.tsx`](src/app/AdminPage.tsx), the calls in [`src/app/admin.ts`](src/app/admin.ts)):
+
+- **Sales.** Pausing takes the registrar's `ROLE_REGISTRAR` on the .hex registry, so nobody can buy
+  a name, and restarting gives it back. The registrar keeps `ROLE_RENEW`, so renewals carry on. A
+  name's page says when sales are paused, instead of offering to buy.
+- **Prices.** All prices as a share of the list prices: it sets the price oracle's exchange rate for
+  every token the registrar takes (USDC and DAI, read from the oracle's `PaymentTokenUpdated`
+  events), so none stays cheaper, keeping each price exact to the cent. The app reads the level
+  ([`src/app/live.ts`](src/app/live.ts)) and shows prices at it; the homepage's prices are text.
+- **Held names.** The names held now (from the registry's `LabelReserved` events), and: hold more,
+  hand one to its owner with the roles a buyer gets, and add time to a held or owned name. Holding
+  and adding time take `ROLE_REGISTRAR` or `ROLE_RENEW` for those steps only and give it back after;
+  if an action stops halfway, the page offers to give it back.
+
+Each change is checked before it's sent, so one the contracts would refuse says why instead of
+asking the wallet for a fee.
+
 **Pay all** pays every referrer from the connected wallet in one transaction, in USDC on PulseChain,
 through [Disperse](https://disperse.app) (`0xD152f549545093347A162Dce210e7293f1452150`, with the same
 code on PulseChain and PulseChain Testnet v4): an approval of the exact total, then one

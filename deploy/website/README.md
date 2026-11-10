@@ -117,6 +117,23 @@ until when.
 
 After launch you can delete the `hexns-testnet` project, or keep it for trying changes.
 
+## The admin page
+
+The admin wallet's everyday powers have a page in the app: `app.hexns.domains/admin`, or `/app/admin`
+on the testnet copy. It isn't in the menu. Connect the admin wallet; any other wallet is told only
+that the page is private. Each change is a transaction from the admin wallet.
+
+- **Sales:** **Pause sales** stops new names being bought, until **Restart sales**. Renewals carry on,
+  so nobody loses a name meanwhile, and a name's page says sales are paused.
+- **Prices:** type all prices as a % of the list prices ($10, $160 and $320 a year), say 120, and
+  click **Set prices**. It's one transaction per token the registrar takes (USDC and DAI). Buying and
+  renewing, the multi-year discounts and the premium for expired names all follow, exactly, and the
+  app shows the new prices at once. The homepage's prices are text: ask for them to be updated.
+- **Held names:** the names held now and until when. **Hold more names** takes a list (each a
+  transaction, plus one before and one after). **Hand a held name to its owner** makes it theirs
+  until its hold would have ended, and its Ethereum copy follows. **Add time** holds a name longer,
+  or gives an owned name free time.
+
 ## Paying referrers
 
 During the launch offer, referrers earn 10% of what the buyers they bring pay. You pay them from the
