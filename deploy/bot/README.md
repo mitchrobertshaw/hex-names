@@ -209,8 +209,9 @@ safety limit, in case the bot ever sets a wrong fee.
 **It never clogs on copies that wait.** Copies held back for Ethereum's fees stay queued in its
 records, and it looks at each again every five minutes rather than every few seconds, so a long busy
 spell costs it little. One its owner copied meanwhile is left alone ("was delivered on Ethereum by
-someone else" in its log); the rest go free once fees fall. Finished messages are forgotten after a
-week, so its records stay small.
+someone else" in its log). The rest go free within a minute or so of fees falling, or of the fee
+being switched off: it looks at them all again then ("copies held back for Ethereum's fees now go").
+Finished messages are forgotten after a week, so its records stay small.
 
 **It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
 knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends

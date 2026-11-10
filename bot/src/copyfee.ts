@@ -18,7 +18,7 @@ import { type Address, formatEther, isAddressEqual } from "viem";
 import { checkoutAbi, routerAbi } from "./abis.ts";
 import type { Context } from "./context.ts";
 import { send, short, usdc } from "./orders.ts";
-import type { CopyFeeState, RelayState } from "./state.ts";
+import type { CopyFeeState, MessageRecord, RelayState } from "./state.ts";
 
 /** How often it looks at Ethereum's gas for the copy fee. */
 export const FEE_EVERY_SECONDS = 60n;
@@ -118,18 +118,49 @@ export function feeText(fee: bigint, cap: bigint): string {
   return `${usdc(fee)} USDC to copy a name at once`;
 }
 
+/** Whether copies of new names and renewals may be waiting for Ethereum's fees: the fee is on, and copies aren't free. */
+export const holdsCopies = (s: Pick<CopyFeeState, "on" | "free">): boolean => s.on && s.free === false;
+
+/**
+ * Has every copy held back looked at again on the bot's next pass, rather than at its next look
+ * (every few minutes): for when the fee is switched off, or copies are free again. Says how many.
+ */
+export function recheckHeld(messages: Record<string, MessageRecord>): number {
+  let held = 0;
+  for (const m of Object.values(messages)) {
+    if (m.status !== "waiting" || !m.recheckAt) continue;
+    delete m.recheckAt;
+    held++;
+  }
+  return held;
+}
+
 /**
  * Keeps the copy fee up to date, about once a minute, once the admin has chosen this bot as the
- * copy bot. Also remembers the checkout's owner (the admin), whose copies are copied at once.
+ * copy bot. Also remembers the checkout's owner (the admin), whose copies are copied at once. When
+ * copies stop waiting for Ethereum's fees (the fee is switched off, or they're free again), those
+ * held back go on the next pass.
  */
 export async function runCopyFee(ctx: Context): Promise<void> {
-  const { config } = ctx;
-  if (!config.checkout) return;
+  if (!ctx.config.checkout) return;
   const now = BigInt(Math.floor(Date.now() / 1000));
   const state = (ctx.state.copyFee ??= { on: false, offered: false, fee: "0", noted: {} });
   if (state.lastRun && now - BigInt(state.lastRun) < FEE_EVERY_SECONDS) return;
   state.lastRun = now.toString();
+  const holding = holdsCopies(state);
+  try {
+    await updateCopyFee(ctx, state, now);
+  } finally {
+    if (holding && !holdsCopies(state)) {
+      const held = recheckHeld(ctx.state.messages);
+      if (held > 0) ctx.log(`copy fee: ${held} ${held === 1 ? "copy" : "copies"} held back for Ethereum's fees now go`);
+    }
+  }
+}
 
+async function updateCopyFee(ctx: Context, state: CopyFeeState, now: bigint): Promise<void> {
+  const config = ctx.config;
+  if (!config.checkout) return;
   const checkout = { address: config.checkout, abi: checkoutAbi } as const;
   let bot: Address, cap: bigint, current: bigint, admin: Address;
   try {

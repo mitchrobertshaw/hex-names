@@ -14,12 +14,14 @@ import {
   feeFor,
   feeText,
   feeToSet,
+  holdsCopies,
   paidCopyNeed,
+  recheckHeld,
   recordClaimLimit,
   recordCopyGas,
   worthUpdating,
 } from "../src/copyfee.ts";
-import type { RelayState } from "../src/state.ts";
+import type { MessageRecord, RelayState } from "../src/state.ts";
 
 const WEI_PER_USDC = 475_000_000_000_000n; // 1 USDC buys 0.000475 ETH: ETH at about $2,105, 10 November 2026
 const FREE = 2_000_000n; // the project pays up to $2 a copy
@@ -115,4 +117,32 @@ test("copying at once is offered only while the bot holds the ETH to do it strai
   assert.equal(worthUpdating(UNAVAILABLE, fee, 1_000_000_000n), true, "and so is offering again");
   assert.match(feeText(UNAVAILABLE, 1_000_000_000n), /copying at once paused/);
   assert.equal(feeText(fee, 1_000_000_000n), "155.4 USDC to copy a name at once");
+});
+
+test("when the fee is switched off, or copies are free again, the copies held back go on the next pass", () => {
+  assert.equal(holdsCopies({ on: true, free: false }), true, "the fee is on and copies cost more than the project pays");
+  assert.equal(holdsCopies({ on: true, free: true }), false, "copies are free again");
+  assert.equal(holdsCopies({ on: false, free: false }), false, "the fee is off");
+  assert.equal(holdsCopies({ on: true }), false, "not known yet");
+  const message = (over: Partial<MessageRecord>): MessageRecord => ({
+    messageId: `0x${"01".repeat(32)}`,
+    encoded: "0x",
+    hash: `0x${"02".repeat(32)}`,
+    gasLimit: "1000000",
+    sender: "0x000000000000000000000000000000000000dEaD",
+    seenAtBlock: "1",
+    status: "waiting",
+    ...over,
+  });
+  const messages = {
+    a: message({ recheckAt: "2000" }),
+    b: message({ recheckAt: "2000" }),
+    c: message({}),
+    d: message({ status: "claimed", recheckAt: "2000" }),
+  };
+  assert.equal(recheckHeld(messages), 2, "the two held back");
+  assert.equal(messages.a.recheckAt, undefined);
+  assert.equal(messages.b.recheckAt, undefined);
+  assert.equal(messages.d.recheckAt, "2000", "finished ones are left as they are");
+  assert.equal(recheckHeld(messages), 0);
 });

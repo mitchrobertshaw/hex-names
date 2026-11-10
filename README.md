@@ -104,7 +104,8 @@ copies at November 2026's gas prices. The rest wait until the next day (UTC).
   shows Ethereum's fee first, and stops before the wallet is asked if it doesn't hold the ETH a
   copy needs on hand (Ethereum sets aside the whole million gas a copy may use, and gives back
   what it didn't). The bot keeps every copy it's holding back queued, looks at each again every
-  five minutes, leaves any delivered meanwhile, and copies the rest free once fees fall. If two
+  five minutes, leaves any delivered meanwhile, and copies the rest free within a minute or so of
+  fees falling. If two
   people copy a name in the same block, one copies it, and the other stops without copying; the app
   says so, rather than fail.
 - **Addresses.** By default a name resolves to its owner's address, for Ethereum (coin type 60),

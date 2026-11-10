@@ -13,7 +13,8 @@
 // While a copy waits, its owner may deliver it themselves on Ethereum, paying the fee in ETH (the
 // app's "Copy it myself"). The bot then finds it delivered and leaves it. Copies held back are looked
 // at again every few minutes rather than on every pass, so a long wait doesn't swamp the bot or its
-// RPCs, and finished messages are forgotten after a week.
+// RPCs, and all at once when fees fall or the fee is switched off (copyfee.ts). Finished messages
+// are forgotten after a week.
 
 import {
   type Address,
