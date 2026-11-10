@@ -28,9 +28,23 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
   quoted). Sending a name pays it after the transfer (`payCopyFee`, in PLS or USDC), so the new owner
   shows on Ethereum at once. A name's page reads its copy on Ethereum (found from the checkout's
   `MIRROR_SYNC`, its partner there, and that one's registry) and, while it's behind and there's a
-  fee, offers **Copy it now**. When a copy would cost more than the admin's cap, the panels say
-  Ethereum is very busy and offer nothing to pay. A checkout from before the copy fee has none, and
-  the app pays the old way.
+  fee, offers **Copy it now**. Copying at once is offered at any price up to the admin's safety
+  limit ($1,000), while the bot holds the ETH to do it straight away. When it doesn't (the bot sets
+  the fee to the most there is), or a copy would cost more than the limit, the panels offer
+  **Later, free** or **Myself, in ETH** instead. A checkout from before the copy fee has none, and the
+  app pays the old way.
+- **Copying it yourself** (`copyOnEthereum` and the purchase flows in [`flows.ts`](src/app/flows.ts),
+  the bridge's messages in [`copy.ts`](src/app/copy.ts) and [`lib/amb.ts`](src/lib/amb.ts)). With
+  **Myself, in ETH**, after paying it finds the name's copy message in the payment's receipt, waits
+  for the bridge's validators to sign it, switches the wallet to Ethereum and calls the bridge's
+  `executeSignatures` there, paying Ethereum's fee in ETH. A name's page does the same for its
+  newest copy message (found from `HexMirrorSync`'s `Synced` events), with the fee shown on the
+  button: the gas it uses, from `eth_createAccessList`, at today's gas price. Before the wallet is
+  asked, it checks the wallet holds the copy's whole gas limit at its highest fee (the bridge sets
+  aside the million gas a copy may use) and says how much if not. It looks again just before
+  sending: a copy someone else delivered first (the bot, as fees fell, or another person) ends as
+  **already copied**, with nothing sent, or, if both went into one block, says someone else copied
+  it a moment before.
 - **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
 
 Wallets: any browser wallet that announces itself (MetaMask, Rabby, Internet Money and others) or

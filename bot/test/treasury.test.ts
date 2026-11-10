@@ -4,7 +4,9 @@ import { test } from "node:test";
 import { parseEther } from "viem";
 
 import { loadConfig } from "../src/config.ts";
-import { type Action, type Balances, type Pending, ethLine, ethPurchase, margin, plan, usdcText } from "../src/treasury.ts";
+import { parseGwei } from "viem";
+
+import { type Action, type Balances, type Pending, ethLine, ethPurchase, ethToHold, margin, plan, usdcText } from "../src/treasury.ts";
 
 const usdc = (dollars: number) => BigInt(Math.round(dollars * 1_000_000));
 const ADDRESS = "0x000000000000000000000000000000000000dEaD";
@@ -181,4 +183,23 @@ test("when gas is high, it buys what the next copy needs, a limited amount at a 
 test("the most it buys at once can be changed, and the testnets have their own", () => {
   assert.equal(loadConfig({ ...DEPLOYED, ETH_BUY_MAX_USDC: "250" }).treasury.ethBuyMaxUsdc, usdc(250));
   assert.equal(loadConfig({ ...DEPLOYED, NETWORK: "testnet", PULSECHAIN_USDC: ADDRESS }).treasury.ethBuyMaxUsdc, usdc(10));
+});
+
+test("while the copy fee is on, it keeps ETH for paid copies, bought only while copies are free", () => {
+  const relay = { relay: true, spent: 0n, dailyEth: parseEther("0.02"), copyNowEth: parseEther("0.02") };
+  assert.equal(defaults.treasury.copyNowEth, parseEther("0.02"), "about $42 on mainnet");
+  assert.equal(loadConfig({ ...DEPLOYED, COPY_NOW_ETH: "0.15" }).treasury.copyNowEth, parseEther("0.15"));
+  assert.equal(loadConfig({ ...DEPLOYED, NETWORK: "testnet", PULSECHAIN_USDC: ADDRESS }).treasury.copyNowEth, parseEther("0.002"));
+  // Gas is cheap and the fee is on: it holds the 0.02 ETH, and buys towards twice that.
+  const cheap = ethToHold({ ...relay, gasPrice: parseGwei("0.06"), copyNow: true });
+  assert.equal(cheap, parseEther("0.02"));
+  assert.equal(ethLine({ ethNeed: cheap }, t), parseEther("0.02"));
+  assert.equal(ethPurchase({ eth: parseEther("0.01"), ethNeed: cheap, weiPerUsdc: 475_000_000_000_000n }, t), 63_157_895n, "a top-up to 0.04 ETH: about $63");
+  // The fee is off: just ETH_LOW, as before.
+  assert.equal(ethToHold({ ...relay, gasPrice: parseGwei("0.06"), copyNow: false }), parseGwei("0.06") * 4_600_000n);
+  // Ethereum is very busy (copies aren't free, so copyNow is false): it doesn't chase ETH it would
+  // pay a fortune to bring over, and uses what it holds.
+  assert.equal(ethToHold({ ...relay, gasPrice: parseGwei("200"), copyNow: false }), 0n);
+  // In between, while a copy fits today's limit at the most a claim may take, it buys for the next copy.
+  assert.equal(ethToHold({ ...relay, gasPrice: parseGwei("10"), copyNow: false }), parseGwei("10") * 4_600_000n);
 });

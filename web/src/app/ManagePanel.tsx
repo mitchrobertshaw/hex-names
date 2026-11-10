@@ -5,7 +5,7 @@ import { formatUsd } from "../lib/quotes";
 import { captureReferral, launchOffer, referralLink, referralOfferText } from "../lib/referral";
 import { MAX_YEARS, priceFor } from "../lib/names";
 import { feeText, useCopyFee } from "./copy";
-import { CopyChoice, FEE_TOKENS, FeeTokens } from "./CopyChoice";
+import { CopyChoice, type CopyWhen, FEE_TOKENS, FeeTokens } from "./CopyChoice";
 import { renew, send, type Step } from "./flows";
 import { usePriceLevel } from "./live";
 import { addressUrl, deployment, PAY } from "./network";
@@ -74,8 +74,9 @@ export function RenewPanel({
   const level = usePriceLevel();
   const price = priceFor(length, years);
   const copy = useCopyFee();
-  const [copyChosen, setCopyNow] = useState(false);
-  const copyFee = copy?.kind === "offered" && copyChosen ? copy.fee : null;
+  const [copyWhen, setCopyWhen] = useState<CopyWhen>("later");
+  const copyFee = copy?.kind === "offered" && copyWhen === "now" ? copy.fee : null;
+  const copyMyself = copy?.kind === "busy" && copyWhen === "myself";
 
   return (
     <section className="card manage" aria-labelledby="renew-title">
@@ -118,7 +119,7 @@ export function RenewPanel({
         </div>
       </div>
       <div className="manage__fee">
-        <CopyChoice copy={copy} now={copyChosen} onChange={setCopyNow} disabled={busy} what="the new date" />
+        <CopyChoice copy={copy} choice={copyWhen} onChange={setCopyWhen} disabled={busy} what="the new date" />
       </div>
       {!mine ? (
         <p className="manage__note">
@@ -145,6 +146,7 @@ export function RenewPanel({
               token,
               referrer: referralTag(captureReferral(), label),
               copyNow: copyFee !== null,
+              copyMyself,
               report: setSteps,
             });
             onChanged?.();
@@ -155,7 +157,7 @@ export function RenewPanel({
         }}
       >
         Renew for {yearsText(years)}, {formatUsd(Math.round(price.total * level * 100) / 100)}
-        {copyFee !== null ? ` + ${feeText(copyFee)} to copy now` : ""}
+        {copyFee !== null ? ` + ${feeText(copyFee)} to copy now` : copyMyself ? ", then copy it yourself" : ""}
       </button>
     </section>
   );

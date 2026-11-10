@@ -27,9 +27,10 @@ import { usdcText } from "../lib/payouts";
 import { PAY_CHAINS, type PayToken } from "../lib/tokens";
 import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
-import { amountText, errorText, shortText, testnetFees } from "./flows";
+import { ethText } from "./copy";
+import { amountText, errorText, ethShortText, selfCopiedText, shortText, testnetFees } from "./flows";
 import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
-import { capText, copyFeeOf, feeText } from "./copy";
+import { capText, copyFeeOf, feeText, UNAVAILABLE } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
@@ -377,12 +378,14 @@ describe("the payout report page", () => {
 });
 
 describe("the Ethereum copy fee", () => {
-  it("is offered between nothing and the admin's cap; above it, copying at once isn't offered", () => {
-    const cap = 100_000_000n; // $100, as deployed
+  it("is offered at any price up to the admin's safety limit, unless the bot pauses it", () => {
+    const cap = 1_000_000_000n; // $1,000, as deployed
     expect(copyFeeOf(0n, cap)).toEqual({ kind: "free" });
     expect(copyFeeOf(1_250_000n, cap)).toEqual({ kind: "offered", fee: 1_250_000n });
+    expect(copyFeeOf(155_400_000n, cap)).toEqual({ kind: "offered", fee: 155_400_000n }); // 200 gwei
     expect(copyFeeOf(cap, cap)).toEqual({ kind: "offered", fee: cap });
-    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy", cap });
+    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy", cap, overCap: true });
+    expect(copyFeeOf(UNAVAILABLE, cap)).toEqual({ kind: "busy", cap, overCap: false }); // the bot hasn't the ETH
     expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }); // switched off by the admin
   });
 
@@ -404,5 +407,30 @@ describe("the Ethereum copy fee", () => {
     expect(capFrom("-1")).toBeNull();
     expect(capFrom("10001")).toBeNull();
     expect(capFrom("")).toBeNull();
+  });
+});
+
+describe("copying a name yourself", () => {
+  it("shows ETH to 2 figures, rounded up, so a cost is never shown as less than it is", () => {
+    expect(ethText(0n)).toBe("0 ETH");
+    expect(ethText(61_200_000_000_000_000n)).toBe("0.062 ETH");
+    expect(ethText(316_800_000_000_000_000n)).toBe("0.32 ETH");
+    expect(ethText(320_000_000_000_000_000n)).toBe("0.32 ETH");
+    expect(ethText(1_500_000_000_000_000_000n)).toBe("1.5 ETH");
+    expect(ethText(2_100_000_000_000_000n)).toBe("0.0021 ETH");
+  });
+
+  it("says, before the wallet asks, when it hasn't the ETH on hand to send the copy, and why that's more than the fee", () => {
+    const text = ethShortText({ balance: 50_000_000_000_000_000n, need: 316_800_000_000_000_000n, cost: 60_100_000_000_000_000n });
+    expect(text).toContain("holds 0.05 ETH");
+    expect(text).toContain("needs 0.32 ETH on hand");
+    expect(text).toContain("charged only about 0.061 ETH");
+    expect(text).toContain("Nothing was paid.");
+  });
+
+  it("says plainly when someone else copied it first: it's copied either way", () => {
+    expect(selfCopiedText("copied")).toMatch(/^Copied/);
+    expect(selfCopiedText("already")).toMatch(/already been copied, so there was nothing to pay/);
+    expect(selfCopiedText("someone-else")).toMatch(/Someone else copied it a moment before you, so it's copied/);
   });
 });

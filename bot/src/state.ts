@@ -41,6 +41,8 @@ export type MessageRecord = {
   claimSentAt?: string; // unix seconds
   paid?: { fee: string }; // a copy someone paid the copy fee for (USDC units): copied at once
   admin?: boolean; // a copy the admin sent (after handing out a name, say): copied at once
+  recheckAt?: string; // held back: looked at again from then (unix seconds), so a long wait costs little
+  doneAt?: string; // when it was claimed or skipped (unix seconds): forgotten a week later
 };
 
 /** USDC the bot sent home from Ethereum over the bridge, until it arrives on PulseChain. */
@@ -56,6 +58,7 @@ export type RelayState = {
   lastClaim: Record<string, string>; // when each name was last copied, by label (unix seconds)
   noted: Record<string, string>; // what it last said it was holding back, and when (unix seconds)
   copyGas?: string[]; // the gas the last few copies used, to know what one costs
+  claimLimits?: string[]; // the gas limits the last few copies' claims were sent with: what one needs on hand
 };
 
 /** The copy fee, as the bot last saw and set it on the checkout. */
@@ -63,7 +66,8 @@ export type CopyFeeState = {
   lastRun?: string; // unix seconds
   on: boolean; // this bot is the checkout's copy bot, and the admin hasn't switched the fee off
   offered: boolean; // a fee can be paid now: above zero and within the admin's cap
-  fee: string; // the fee it set, in USDC units
+  fee: string; // the fee it set, in USDC units (UNAVAILABLE in copyfee.ts: copying at once paused)
+  free?: boolean; // copies cost no more than the project pays just now: when it buys the ETH for paid copies
   admin?: string; // the checkout's owner: its copies are copied at once
   noted: Record<string, string>; // what it last said, and when (unix seconds)
 };

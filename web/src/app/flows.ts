@@ -1,5 +1,6 @@
 // Buying, renewing and sending names: each a few wallet steps, reported as they go. Each can also
-// pay the Ethereum copy fee, while Ethereum is busy, to have the name copied there at once (copy.ts).
+// pay the Ethereum copy fee, while Ethereum is busy, to have the name copied there at once (copy.ts),
+// and buying or renewing can instead copy it yourself, paying Ethereum's fee in ETH.
 
 import {
   type Address,
@@ -9,14 +10,25 @@ import {
   ExecutionRevertedError,
   type Hex,
   parseGwei,
+  type TransactionReceipt,
   zeroAddress,
 } from "viem";
 
 import { usdcText } from "../lib/payouts";
 import { formatToken } from "../lib/quotes";
 import type { ChainKey, PayToken } from "../lib/tokens";
-import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, registrarAbi, registryAbi } from "./abis";
-import { copyFeePaid, readCopyFee } from "./copy";
+import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, foreignAmbAbi, registrarAbi, registryAbi } from "./abis";
+import {
+  type CopyMessage,
+  copyFeePaid,
+  copyMessageIn,
+  copyStatus,
+  ethText,
+  readCopyFee,
+  selfCopyCost,
+  type SelfCopyCost,
+  selfCopyMessage,
+} from "./copy";
 import { clients, deployment, network, PAY } from "./network";
 import { commitmentOf, labelId, newPurchase, type Purchase, SECONDS_PER_YEAR } from "./order";
 import { switchTo, walletClient } from "./wallet";
@@ -54,6 +66,11 @@ export class Progress {
   }
   start = (key: string, patch: Partial<Step> = {}) => this.set(key, { status: "active", ...patch });
   done = (key: string, patch: Partial<Step> = {}) => this.set(key, { status: "done", ...patch });
+  /** Leaves out steps that turned out not to be needed. */
+  drop(...keys: string[]) {
+    this.steps = this.steps.filter((s) => !keys.includes(s.key));
+    this.emit();
+  }
   /** Marks whatever was running as failed. */
   fail(detail: string) {
     const active = this.steps.find((s) => s.status === "active") ?? this.steps.find((s) => s.status === "todo");
@@ -312,7 +329,8 @@ function clearPending() {
  * Buys a name on PulseChain: reserve it with a sealed commitment, wait out the registrar's minute
  * (approving the token meanwhile), then pay through AnyTokenCheckout in one transaction. With
  * `copyNow`, the payment adds the copy fee, if there is one then, to copy the name to Ethereum at
- * once. Says what copy fee was paid: 0 if none.
+ * once; with `copyMyself`, the wallet copies it there itself after paying, paying Ethereum's fee
+ * in ETH. Says what copy fee was paid (0 if none), and how copying it yourself went.
  */
 export async function buyOnPulseChain(o: {
   label: string;
@@ -320,8 +338,9 @@ export async function buyOnPulseChain(o: {
   token: PayToken;
   referrer: Hex;
   copyNow?: boolean;
+  copyMyself?: boolean;
   report: Report;
-}): Promise<{ copyFee: bigint }> {
+}): Promise<{ copyFee: bigint; copied?: SelfCopied | "later" }> {
   const d = required();
   const progress = new Progress(
     [
@@ -331,6 +350,7 @@ export async function buyOnPulseChain(o: {
       ...(o.token.native ? [] : ([["approve", `Allow ${o.token.label ?? o.token.symbol}`]] as [string, string][])),
       ["wait", "Wait a minute"],
       ["pay", "Pay and register"],
+      ...(o.copyMyself ? SELF_COPY_STEPS : []),
     ],
     o.report,
   );
@@ -432,7 +452,7 @@ export async function buyOnPulseChain(o: {
     const receipt = await confirm("pulsechain", hash);
     clearPending();
     progress.done("pay");
-    return { copyFee: copyFeePaid(receipt) };
+    return { copyFee: copyFeePaid(receipt), copied: o.copyMyself ? await copyAfterPaying(progress, receipt, o.label) : undefined };
   } catch (error) {
     progress.fail(errorText(error));
     throw error;
@@ -445,7 +465,8 @@ export const purchaseFitsTheContract = (p: Purchase): RegistrationArg => p;
 
 /**
  * Renews a name on PulseChain for `years` more. Anyone can renew any name; it stays its owner's.
- * With `copyNow`, it pays the copy fee too, if there is one: see buyOnPulseChain.
+ * With `copyNow`, it pays the copy fee too, if there is one; with `copyMyself`, the wallet copies
+ * the new date to Ethereum itself after paying: see buyOnPulseChain.
  */
 export async function renew(o: {
   label: string;
@@ -453,14 +474,16 @@ export async function renew(o: {
   token: PayToken;
   referrer: Hex;
   copyNow?: boolean;
+  copyMyself?: boolean;
   report: Report;
-}): Promise<{ copyFee: bigint }> {
+}): Promise<{ copyFee: bigint; copied?: SelfCopied | "later" }> {
   const d = required();
   const progress = new Progress(
     [
       ["chain", `Switch to ${PAY.pulsechain.name}`],
       ...(o.token.native ? [] : ([["approve", `Allow ${o.token.label ?? o.token.symbol}`]] as [string, string][])),
       ["pay", "Pay and renew"],
+      ...(o.copyMyself ? SELF_COPY_STEPS : []),
     ],
     o.report,
   );
@@ -497,7 +520,7 @@ export async function renew(o: {
     progress.set("pay", { tx: { chain: "pulsechain", hash } });
     const receipt = await confirm("pulsechain", hash);
     progress.done("pay");
-    return { copyFee: copyFeePaid(receipt) };
+    return { copyFee: copyFeePaid(receipt), copied: o.copyMyself ? await copyAfterPaying(progress, receipt, o.label) : undefined };
   } catch (error) {
     progress.fail(errorText(error));
     throw error;
@@ -523,7 +546,7 @@ async function payCopyStep(progress: Progress, label: string, token: PayToken): 
   if (!q) {
     const why =
       current.kind === "busy"
-        ? "Ethereum's fees rose too high to copy it at once: it's copied once they fall. Nothing was paid."
+        ? "Copying at once isn't available just now: it's copied once Ethereum's fees fall. Nothing was paid."
         : "Ethereum's fees fell, so it's copied free. Nothing was paid.";
     if (!token.native) progress.done("approve", { detail: "Not needed." });
     progress.done("copy", { detail: why });
@@ -592,6 +615,152 @@ export async function send(o: { label: string; to: Address; copyWith?: PayToken;
     progress.done("send");
     // After the name has moved, so the copy shows its new owner.
     return { copyFee: o.copyWith ? await payCopyStep(progress, o.label, o.copyWith) : 0n };
+  } catch (error) {
+    progress.fail(errorText(error));
+    throw error;
+  }
+}
+
+/** What became of copying a name yourself. */
+export type SelfCopied =
+  | "copied" // this wallet copied it
+  | "already" // it had been copied before this wallet sent anything: by the bot as fees fell, or someone else
+  | "someone-else"; // another copy went a moment before this one, which stopped without copying
+
+/** Copying a name yourself: the bridge signs the copy, then the wallet delivers it on Ethereum. */
+const SELF_COPY_STEPS: [string, string][] = [
+  ["sign", "The bridge signs the copy"],
+  ["eth", `Switch to ${PAY.ethereum.name}`],
+  ["copy", "Copy it to Ethereum"],
+];
+
+/** How copying it yourself went, in words. */
+export function selfCopiedText(how: SelfCopied): string {
+  return how === "copied"
+    ? "Copied: Ethereum shows it in a moment."
+    : how === "already"
+      ? "It had already been copied, so there was nothing to pay."
+      : "Someone else copied it a moment before you, so it's copied. Yours stopped without copying, and was charged only for the little it ran.";
+}
+
+/** Why a wallet can't send the copy yet: said before it's asked to. */
+export function ethShortText(c: Pick<SelfCopyCost, "balance" | "need" | "cost">): string {
+  return (
+    `This wallet holds ${ethText(c.balance)} on ${PAY.ethereum.name}, and sending the copy needs ${ethText(c.need)} on hand. ` +
+    `It's charged only about ${ethText(c.cost)}: Ethereum sets the rest aside while the copy runs, then gives it back. ` +
+    "Add some ETH, then try again. Nothing was paid."
+  );
+}
+
+/** Whether the wallet's owner cancelled it. */
+function cancelled(error: unknown): boolean {
+  const e = error as { code?: number; message?: string; cause?: { code?: number } };
+  return e?.code === 4001 || e?.cause?.code === 4001 || /user (rejected|denied)/i.test(e?.message ?? "");
+}
+
+/**
+ * Whether `found` is delivered within about half a minute: when sending it would fail, someone
+ * else's copy may be on its way (the bot's, say, as Ethereum's fees fell), waiting for a block.
+ */
+async function deliveredSoon(found: CopyMessage): Promise<boolean> {
+  for (let i = 0; i < 10; i++) {
+    if ((await copyStatus(found).catch(() => null))?.kind === "done") return true;
+    await sleep(3000);
+  }
+  return false;
+}
+
+/**
+ * Delivers `found` on Ethereum from the connected wallet, paying Ethereum's fee in ETH, once the
+ * bridge has signed it (waiting for that if need be). It looks again just before asking the wallet,
+ * and if someone else delivers it first (the bot, or another tab), says so rather than fail: the
+ * name is copied either way.
+ */
+async function deliverCopy(progress: Progress, found: CopyMessage): Promise<SelfCopied> {
+  let status = await copyStatus(found);
+  if (status.kind === "signing") {
+    progress.start("sign", { detail: "Usually 10 to 15 minutes after paying. You can leave: copy it later from the name's page." });
+    while (status.kind === "signing") {
+      await sleep(15_000);
+      // A failed look (the RPC busy, say) just waits for the next one.
+      status = await copyStatus(found, status).catch(() => status);
+    }
+    progress.done("sign", { detail: undefined });
+  } else {
+    progress.drop("sign");
+  }
+  const finish = (how: SelfCopied) => {
+    if (progress.steps.find((s) => s.key === "eth")?.status !== "done") progress.drop("eth");
+    progress.done("copy", { detail: selfCopiedText(how) });
+    return how;
+  };
+  if (status.kind !== "ready") return finish("already");
+  progress.start("eth");
+  await switchTo("ethereum");
+  progress.done("eth");
+  progress.start("copy");
+  const wallet = walletClient("ethereum");
+  // Looked at again now: the bot may have copied it free while the bridge signed, or someone else.
+  status = await copyStatus(found, status);
+  if (status.kind !== "ready") return finish("already");
+  let cost: SelfCopyCost;
+  try {
+    cost = await selfCopyCost(status, wallet.account.address);
+  } catch (error) {
+    // Working out its gas fails if it was delivered a moment ago, or someone else's copy is about to be.
+    if (await deliveredSoon(found)) return finish("already");
+    throw error;
+  }
+  if (cost.balance < cost.need) throw new Error(ethShortText(cost));
+  progress.set("copy", { detail: `Ethereum's fee: about ${ethText(cost.cost)}.` });
+  let sent = false;
+  try {
+    const hash = await wallet.writeContract({
+      address: status.foreignAmb,
+      abi: foreignAmbAbi,
+      functionName: "executeSignatures",
+      args: [found.message, status.signatures],
+      gas: cost.gas,
+      maxFeePerGas: cost.maxFeePerGas,
+      maxPriorityFeePerGas: cost.maxPriorityFeePerGas,
+    });
+    sent = true;
+    progress.set("copy", { tx: { chain: "ethereum", hash } });
+    await confirm("ethereum", hash);
+  } catch (error) {
+    // Another copy went first: this one did nothing, or was never sent.
+    if (!cancelled(error) && (await deliveredSoon(found))) return finish(sent ? "someone-else" : "already");
+    throw error;
+  }
+  return finish("copied");
+}
+
+/** Said when copying it yourself after paying didn't happen: the purchase went through all the same. */
+const COPY_LATER = "Your name is yours either way: copy it from its page later, or it's copied free once Ethereum's fees fall.";
+
+/** After paying, copies the name yourself, as chosen. Whatever happens here, the payment went through. */
+async function copyAfterPaying(progress: Progress, receipt: TransactionReceipt, label: string): Promise<SelfCopied | "later"> {
+  try {
+    const found = await copyMessageIn(receipt, label);
+    if (!found) throw new Error("Its copy for Ethereum wasn't found in the payment.");
+    return await deliverCopy(progress, found);
+  } catch (error) {
+    progress.fail(`${errorText(error)} ${COPY_LATER}`);
+    return "later";
+  }
+}
+
+/**
+ * Copies `label` to Ethereum yourself, from its page: delivers its newest copy message, which says
+ * what PulseChain does now (`owner`, `expiry`), paying Ethereum's fee in ETH. Anyone may; the bridge
+ * checks the validators' signatures, so it can only ever write what PulseChain says.
+ */
+export async function copyOnEthereum(o: { label: string; owner: Address; expiry: number; report: Report }): Promise<SelfCopied> {
+  const progress = new Progress(SELF_COPY_STEPS, o.report);
+  try {
+    const found = await selfCopyMessage(o.label, o.owner, o.expiry);
+    if (!found) throw new Error("Its latest change hasn't gone over the bridge yet: that happens within minutes of a change. Try again shortly.");
+    return await deliverCopy(progress, found);
   } catch (error) {
     progress.fail(errorText(error));
     throw error;

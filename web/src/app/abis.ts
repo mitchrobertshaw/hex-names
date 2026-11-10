@@ -210,10 +210,30 @@ export const checkoutAbi = [
 export const mirrorSyncAbi = parseAbi([
   "function sync(string label) returns (bytes32 messageId)",
   "function peer() view returns (address)",
+  "function AMB() view returns (address)",
+  "event Synced(string label, address indexed owner, uint64 expiry, uint64 indexed nonce, bytes32 indexed messageId)",
 ]);
 
 /** HexMirrorRegistrar on Ethereum: writes the copies into Ethereum's .hex registry. */
-export const mirrorRegistrarAbi = parseAbi(["function REGISTRY() view returns (address)"]);
+export const mirrorRegistrarAbi = parseAbi([
+  "function REGISTRY() view returns (address)",
+  "function AMB() view returns (address)",
+  "function lastNonce(uint256 labelId) view returns (uint64)",
+]);
+
+/** The bridge's message contract on PulseChain: messages to Ethereum, and the validators' signatures. */
+export const homeAmbAbi = parseAbi([
+  "event UserRequestForSignature(bytes32 indexed messageId, bytes encodedData)",
+  "function numMessagesSigned(bytes32 message) view returns (uint256)",
+  "function signature(bytes32 hash, uint256 index) view returns (bytes)",
+  "function requiredSignatures() view returns (uint256)",
+]);
+
+/** The bridge's message contract on Ethereum: anyone may deliver a signed message, paying its fee. */
+export const foreignAmbAbi = parseAbi([
+  "function executeSignatures(bytes data, bytes signatures)",
+  "function relayedMessages(bytes32 messageId) view returns (bool)",
+]);
 
 export const erc20Abi = parseAbi([
   "function decimals() view returns (uint8)",

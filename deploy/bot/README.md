@@ -143,11 +143,12 @@ After steps 1 to 3 on mainnet:
    `web/src/deployment.ts` ([the website guide](../website/README.md)).
 4. **Give it a budget.** Once the website has the bot's wallet, open the app's payments page,
    `app.hexns.domains/referrals`, with your payments wallet (`0x1027…02C6`). Under **The bot**, set
-   a budget, say 100 USDC, and approve it in your wallet. That's what it may draw from your
-   payments wallet if gas ever leaves it short. Do the same on the testnet site in the rehearsal.
+   a budget, say 150 USDC, and approve it in your wallet. That's what it may draw from your
+   payments wallet for its gas, and for the ETH it keeps for copies people pay for (about $42 to
+   $84, [money](#money)). Do the same on the testnet site in the rehearsal.
 5. **Turn on the copy fee.** Open the app's admin page, `app.hexns.domains/admin`, with the admin
    wallet. Under **Ethereum copy fee**, check the bot's wallet is filled in (the first `0x…` in its
-   log), and click **Choose it**. Within a minute the bot's log says "copy fee: on, at most 100
+   log), and click **Choose it**. Within a minute the bot's log says "copy fee: on, at most 1000
    USDC". Until then every copy is free, as before ([money](#money)).
 
 After the rehearsal you can delete the `testnet` environment (project **Settings**, then
@@ -188,10 +189,29 @@ name through the app pays it. The bot copies:
 - a new name or renewal nobody paid for: once a copy costs $2 or less again.
 
 The fee goes to the bot's working balance, so what's over its $20 comes back to your payments
-wallet with everything else. You cap the fee on the admin page ($100 at deploy): when a copy would
-cost more, copying at once isn't offered, and copies wait. With the fee switched off there, or before
-you choose the bot, every copy is free, within the limits below. Each copy's real cost comes from the
-gas the bot's own copies used, so the fee follows Ethereum's upgrades by itself.
+wallet with everything else. With the fee switched off on the admin page, or before you choose the
+bot, every copy is free, within the limits below. Each copy's real cost comes from the gas the bot's
+own copies used, so the fee follows Ethereum's upgrades by itself.
+
+**Copies people pay for go at once**, so while the fee is on the bot keeps a little ETH on hand for
+them: `COPY_NOW_ETH`, 0.02 ETH (about $42). It buys it only while copies are free, when Ethereum is
+cheap: once gas is high, bringing ETH over the bridge costs more than it's worth. Ethereum only
+takes a transaction from a wallet holding its whole gas limit at its highest fee, and a copy's
+claim asks for far more gas than it uses (the bridge sets aside the full million a copy may use),
+so the bot offers copying at once only while it holds that, for every paid copy still to go. 0.02
+ETH covers that up to about 7 to 10 gwei, and twice that just after a top-up. Busier than that,
+paying the bot is paused, and buyers choose between a free copy once fees fall and **copying it
+themselves**: after paying, their wallet delivers the copy on Ethereum, paying Ethereum's fee in ETH,
+however busy it is. To offer paying the bot at busier times, raise `COPY_NOW_ETH`: 0.1 ETH covers up
+to about 35 to 50 gwei. The most a copy can cost, on the admin page ($1,000 at deploy), is only a
+safety limit, in case the bot ever sets a wrong fee.
+
+**It never clogs on copies that wait.** Copies held back for Ethereum's fees stay queued in its
+records, and it looks at each again every five minutes rather than every few seconds, so a long busy
+spell costs it little. One its owner copied meanwhile is left alone ("was delivered on Ethereum by
+someone else" in its log). The rest go free within a minute or so of fees falling, or of the fee
+being switched off: it looks at them all again then ("copies held back for Ethereum's fees now go").
+Finished messages are forgotten after a week, so its records stay small.
 
 **It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
 knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends
@@ -220,8 +240,9 @@ they do on Sepolia). If gas stays high, raise it. Copies paid for, and those the
 
 ## Keeping it safe
 
-- The bot's wallet only ever holds a little gas and its $20 working balance. The deployer's and
-  admin's keys never go on Railway.
+- The bot's wallet only ever holds a little gas, its $20 working balance and, while the copy fee is
+  on, the ETH it keeps for paid copies (0.05 to 0.1 ETH). The deployer's and admin's keys never go
+  on Railway.
 - A stolen bot key could take those, and draw up to the budget left in your payments wallet: that's
   why the budget has a limit. If you ever think the key has leaked, press **Stop it
   drawing** on the payments page, then give the bot a new wallet.

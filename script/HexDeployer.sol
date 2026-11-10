@@ -78,9 +78,11 @@ abstract contract HexDeployer {
     ///      can extend either.
     uint64 internal constant RESERVATION_PERIOD = 5 * 365 days;
 
-    /// @dev The most anyone can be charged to have a name copied to Ethereum at once, in dollars.
-    ///      The admin can change it, or switch the copy fee off, and chooses the bot that sets it.
-    uint256 internal constant MAX_COPY_FEE_DOLLARS = 100;
+    /// @dev The most anyone can be charged to have a name copied to Ethereum at once, in dollars: a
+    ///      safety limit against a faulty bot, which Ethereum would reach at about 1,500 gwei. Below
+    ///      it, buyers may pay whatever copying at once costs. The admin can change it, or switch the
+    ///      copy fee off, and chooses the bot that sets it.
+    uint256 internal constant MAX_COPY_FEE_DOLLARS = 1000;
 
     uint64 internal constant MAX_EXPIRY = type(uint64).max;
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;

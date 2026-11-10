@@ -8,8 +8,8 @@ import { captureReferral, referralLink } from "../lib/referral";
 import type { PayToken } from "../lib/tokens";
 import { erc20Abi } from "./abis";
 import { feeText, useCopyFee } from "./copy";
-import { CopyChoice } from "./CopyChoice";
-import { amountText, bestQuote, buyOnPulseChain, type Step, tokenAddress, withBuffer } from "./flows";
+import { CopyChoice, type CopyWhen } from "./CopyChoice";
+import { amountText, bestQuote, buyOnPulseChain, type SelfCopied, type Step, tokenAddress, withBuffer } from "./flows";
 import { usePriceLevel, useSalesOpen } from "./live";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
@@ -234,8 +234,10 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const level = usePriceLevel();
   const salesOpen = useSalesOpen();
   const copy = useCopyFee();
-  const [copyChosen, setCopyNow] = useState(false);
-  const copyFee = copy?.kind === "offered" && copyChosen ? copy.fee : null;
+  const [copyWhen, setCopyWhen] = useState<CopyWhen>("later");
+  const copyFee = copy?.kind === "offered" && copyWhen === "now" ? copy.fee : null;
+  // While HexNS can't copy it at once, the buyer may copy it themselves after paying, in ETH.
+  const copyMyself = copy?.kind === "busy" && copyWhen === "myself";
   const price = priceOf(info, years, level);
   const total = Math.round(price.total * 100) / 100;
   const quote = useQuote(token, info.label, years, total, copyFee !== null);
@@ -244,6 +246,7 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [phase, setPhase] = useState<"choose" | "buying" | "done" | "failed">("choose");
   const [copyPaid, setCopyPaid] = useState(0n);
+  const [copied, setCopied] = useState<SelfCopied | "later" | undefined>(undefined);
   const withFee = Math.round((total + (copyFee === null ? 0 : Number(copyFee) / 1e6)) * 100) / 100;
 
   async function buy() {
@@ -258,9 +261,11 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
           token,
           referrer,
           copyNow: copyFee !== null,
+          copyMyself,
           report: setSteps,
         });
         setCopyPaid(done.copyFee);
+        setCopied(done.copied);
       }
       setPhase("done");
     } catch {
@@ -322,7 +327,7 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
           <p className="checkout__hint">{token.note ?? `Holding another token? Swap it for PLS on ${chain.dex} first.`}</p>
         </div>
 
-        <CopyChoice copy={copy} now={copyChosen} onChange={setCopyNow} what="your name" />
+        <CopyChoice copy={copy} choice={copyWhen} onChange={setCopyWhen} what="your name" />
       </fieldset>
 
       <GetFunds funds={funds} total={withFee} token={token} />
@@ -350,6 +355,12 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
           <div>
             <dt>Copy to Ethereum now</dt>
             <dd>{feeText(copyFee)}</dd>
+          </div>
+        ) : null}
+        {copyMyself ? (
+          <div>
+            <dt>Copy to Ethereum yourself</dt>
+            <dd className="breakdown__note">Ethereum&rsquo;s fee, in ETH, after paying</dd>
           </div>
         ) : null}
         <div>
@@ -383,11 +394,19 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
             <p>
               {!deployment
                 ? "On the live site each step is a real transaction, confirmed in your wallet."
-                : copyPaid > 0n || copy?.kind === "free" || copy === null
-                  ? "It works on PulseChain now, and on Ethereum in about 15 minutes."
-                  : `It works on PulseChain now. Ethereum is busy, so its copy there follows once Ethereum's fees fall${
-                      copy?.kind === "offered" ? `, or for ${feeText(copy.fee)} at once from its page` : ""
-                    }.`}
+                : copied === "copied"
+                  ? "It works on PulseChain now, and you've copied it to Ethereum: it shows there in a moment."
+                  : copied === "already" || copied === "someone-else"
+                    ? "It works on PulseChain now, and it's been copied to Ethereum."
+                    : copied === "later"
+                      ? "It works on PulseChain now. Copy it to Ethereum from its page when you're ready, or it's copied free once Ethereum's fees fall."
+                      : copyPaid > 0n || copy?.kind === "free" || copy === null
+                        ? "It works on PulseChain now, and on Ethereum in about 15 minutes."
+                        : `It works on PulseChain now. Ethereum is busy, so its copy there follows once Ethereum's fees fall${
+                            copy?.kind === "offered"
+                              ? `, or for ${feeText(copy.fee)} at once from its page`
+                              : ", or copy it yourself from its page, paying Ethereum's fee in ETH"
+                          }.`}
             </p>
             {deployment ? (
               <p className="buy__share">

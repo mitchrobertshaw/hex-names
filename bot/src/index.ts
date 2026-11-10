@@ -1,5 +1,7 @@
 // The .hex bot. Run with: npm start (settings in .env or the environment; see .env.example).
 
+import { formatEther } from "viem";
+
 import { loadConfig } from "./config.ts";
 import { createContext } from "./context.ts";
 import { runCopyFee } from "./copyfee.ts";
@@ -44,7 +46,8 @@ ctx.log(
 ctx.log(
   config.checkout
     ? `  copy fee: kept up to date on ${config.checkout} once the admin chooses this bot as the copy bot; ` +
-        `the project pays up to ${usdc(config.relayLimits.freeCopyUsdc)} USDC a copy`
+        `the project pays up to ${usdc(config.relayLimits.freeCopyUsdc)} USDC a copy, and it keeps ` +
+        `${formatEther(config.treasury.copyNowEth)} ETH for copies paid for (COPY_NOW_ETH)`
     : "  copy fee: off (PULSECHAIN_CHECKOUT not set), so every copy is free",
 );
 ctx.log(`  remembers its place in ${config.stateFile}`);
