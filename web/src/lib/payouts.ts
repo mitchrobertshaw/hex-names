@@ -214,3 +214,60 @@ export function findPayout(report: PayoutReport, transfers: Transfer[], decimals
   }
   return null;
 }
+
+/** "HXNS": what starts the note a payout carries at the end of its transaction. */
+const NOTE_TAG = "48584e53";
+const DAY_MS = 86_400_000;
+/** A day ("2026-11-10") as a number: days since 1 January 1970. */
+export const dayNumber = (day: string) => Math.round(Date.parse(`${day}T00:00:00Z`) / DAY_MS);
+/** ... and back. */
+export const dayFrom = (n: number) => new Date(n * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * The note a payout carries at the end of its transaction, after what the payout contract reads:
+ * "HXNS", then the first and last days it paid for. The chain keeps it with the transaction, so any
+ * device can see which days are paid.
+ */
+export function payoutNote(first: string, last: string): Hex {
+  const word = (day: string) => dayNumber(day).toString(16).padStart(8, "0");
+  return `0x${NOTE_TAG}${word(first)}${word(last)}`;
+}
+
+/** The days a payout's transaction says it paid for, or null if it carries no note. */
+export function readPayoutNote(input: Hex): { first: string; last: string } | null {
+  const hex = input.toLowerCase().replace(/^0x/, "");
+  if (hex.length < 24 || !hex.slice(-24).startsWith(NOTE_TAG)) return null;
+  const first = parseInt(hex.slice(-16, -8), 16);
+  const last = parseInt(hex.slice(-8), 16);
+  return first <= last ? { first: dayFrom(first), last: dayFrom(last) } : null;
+}
+
+/** A payout the payments wallet made, and the days it says it paid for (none if it predates notes). */
+export interface Payout {
+  tx: Hex;
+  block: bigint;
+  days: { first: string; last: string } | null;
+}
+
+/** The last day paid for, by the payouts that say so. */
+export function paidThrough(payouts: Payout[]): string | null {
+  let last: string | null = null;
+  for (const payout of payouts) if (payout.days && (!last || payout.days.last > last)) last = payout.days.last;
+  return last;
+}
+
+/**
+ * The days the next payout covers: from the day after the last one paid (or the launch offer's first
+ * day) to yesterday, whole days only, within the offer. Null when there's nothing to pay yet.
+ */
+export function nextPeriod(o: {
+  offerFirst: string;
+  offerLast: string;
+  paidThrough: string | null;
+  today: string;
+}): { first: string; last: string } | null {
+  const first = o.paidThrough && o.paidThrough >= o.offerFirst ? dayFrom(dayNumber(o.paidThrough) + 1) : o.offerFirst;
+  const yesterday = dayFrom(dayNumber(o.today) - 1);
+  const last = yesterday < o.offerLast ? yesterday : o.offerLast;
+  return first <= last ? { first, last } : null;
+}

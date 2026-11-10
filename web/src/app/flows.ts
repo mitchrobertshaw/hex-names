@@ -531,7 +531,12 @@ export async function send(o: { label: string; to: Address; report: Report }) {
  * Pays referrers what they're owed, from the connected wallet, in one transaction: allow Disperse
  * the exact total in USDC, then Disperse sends each amount. `amounts` are in USDC's own units.
  */
-export async function payReferrers(o: { payments: { to: Address; amount: bigint }[]; report: Report }): Promise<Hex> {
+export async function payReferrers(o: {
+  payments: { to: Address; amount: bigint }[];
+  /** The days it pays for, recorded at the end of the transaction (lib/payouts.ts payoutNote). */
+  note?: Hex;
+  report: Report;
+}): Promise<Hex> {
   const d = required();
   const total = o.payments.reduce((sum, p) => sum + p.amount, 0n);
   const progress = new Progress(
@@ -562,6 +567,7 @@ export async function payReferrers(o: { payments: { to: Address; amount: bigint 
       abi: disperseAbi,
       functionName: "disperseToken",
       args: [d.pulsechain.usdc, o.payments.map((p) => p.to), o.payments.map((p) => p.amount)],
+      dataSuffix: o.note,
       ...(await fees()),
     });
     progress.set("pay", { tx: { chain: "pulsechain", hash } });

@@ -5,7 +5,7 @@
 import { type Address, type Hex, type PublicClient, zeroAddress, zeroHash } from "viem";
 
 import type { Deployment } from "../deployment";
-import type { ReferredPayment, Referrer, Token, Transfer } from "../lib/payouts";
+import { type Payout, type ReferredPayment, type Referrer, readPayoutNote, type Token, type Transfer } from "../lib/payouts";
 import { DISPERSE, erc20Abi, labelStoreAbi, registrarEvents, registryAbi, transferEvent } from "./abis";
 
 /** Blocks per log request, as the bot reads PulseChain. */
@@ -124,4 +124,24 @@ export async function readPayoutTransfers(client: PublicClient, token: Address, 
     for (const log of logs) out.push({ to: log.args.to!, value: log.args.value!, tx: log.transactionHash, block: log.blockNumber });
   }
   return out;
+}
+
+/**
+ * Every payout `payer` has made through Disperse from block `from` on, with the days each says it
+ * paid for. Disperse first takes a payout's whole total from the payer, so each payout is one
+ * transfer from the payer to Disperse; its note is at the end of the transaction that made it.
+ */
+export async function readPayouts(client: PublicClient, token: Address, payer: Address, from: bigint): Promise<Payout[]> {
+  const latest = await client.getBlockNumber();
+  const found: { tx: Hex; block: bigint }[] = [];
+  for (let start = from; start <= latest; start += RANGE) {
+    const end = start + RANGE - 1n < latest ? start + RANGE - 1n : latest;
+    const logs = await client.getLogs({ address: token, event: transferEvent[0], args: { from: payer, to: DISPERSE }, fromBlock: start, toBlock: end });
+    for (const log of logs) found.push({ tx: log.transactionHash, block: log.blockNumber });
+  }
+  return inBatches(found, async ({ tx, block }) => {
+    const sent = await client.getTransaction({ hash: tx });
+    const ours = sent.from.toLowerCase() === payer.toLowerCase() && sent.to?.toLowerCase() === DISPERSE.toLowerCase();
+    return { tx, block, days: ours ? readPayoutNote(sent.input) : null };
+  });
 }

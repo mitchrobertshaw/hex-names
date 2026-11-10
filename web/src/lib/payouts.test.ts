@@ -1,13 +1,19 @@
-import { keccak256, toBytes } from "viem";
+import { concat, encodeFunctionData, keccak256, toBytes } from "viem";
 import { describe, expect, it } from "vitest";
+
+import { disperseAbi } from "../app/abis";
 
 import {
   dollarsText,
   findPayout,
   microDollarsText,
+  nextPeriod,
+  paidThrough,
   payoutCsv,
+  payoutNote,
   payoutReport,
   payoutTransfers,
+  readPayoutNote,
   type ReferredPayment,
   type Referrer,
   tokenUnits,
@@ -138,5 +144,43 @@ describe("paying out", () => {
     expect(findPayout(report, [sent("0x02", A, usdc(1)), sent("0x03", B, usdc(0.25))], 6)).toBeNull();
     expect(findPayout(report, [sent(tx, A, usdc(1)), sent(tx, B, usdc(0.24))], 6)).toBeNull();
     expect(findPayout(report, [], 6)).toBeNull();
+  });
+});
+
+describe("a payout's record of the days it paid", () => {
+  const payee = "0x1096E7956173bF2778F51798B9D411E3F366f0ca";
+  const usdc = "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07";
+
+  it("rides at the end of the payout's transaction, where Disperse ignores it", () => {
+    const note = payoutNote("2026-11-01", "2026-11-30");
+    expect(note).toMatch(/^0x48584e53[0-9a-f]{16}$/); // "HXNS", then the two days
+    const call = encodeFunctionData({ abi: disperseAbi, functionName: "disperseToken", args: [usdc, [payee], [1_000_000n]] });
+    expect(readPayoutNote(concat([call, note]))).toEqual({ first: "2026-11-01", last: "2026-11-30" });
+    // A payout made before payouts carried notes says nothing.
+    expect(readPayoutNote(call)).toBeNull();
+    expect(readPayoutNote("0x")).toBeNull();
+  });
+
+  it("knows the last day paid from all the payouts made", () => {
+    const at = (first: string, last: string) => ({ tx: "0x01" as const, block: 1n, days: { first, last } });
+    expect(paidThrough([])).toBeNull();
+    expect(paidThrough([at("2026-11-01", "2026-11-14"), at("2026-11-15", "2026-11-30"), { tx: "0x02", block: 2n, days: null }])).toBe(
+      "2026-11-30",
+    );
+  });
+
+  it("starts the next payout the day after the last one, and pays whole days up to yesterday", () => {
+    const offer = { offerFirst: "2026-11-01", offerLast: "2026-12-28" };
+    // Nothing paid yet: from the first day of the offer.
+    expect(nextPeriod({ ...offer, paidThrough: null, today: "2026-11-20" })).toEqual({ first: "2026-11-01", last: "2026-11-19" });
+    // Paid up to the 19th: from the 20th.
+    expect(nextPeriod({ ...offer, paidThrough: "2026-11-19", today: "2026-12-01" })).toEqual({ first: "2026-11-20", last: "2026-11-30" });
+    // Paid up to yesterday: nothing until today is over.
+    expect(nextPeriod({ ...offer, paidThrough: "2026-11-30", today: "2026-12-01" })).toBeNull();
+    // The offer's first day isn't over yet.
+    expect(nextPeriod({ ...offer, paidThrough: null, today: "2026-11-01" })).toBeNull();
+    // After the offer, up to its last day only, and then nothing more.
+    expect(nextPeriod({ ...offer, paidThrough: "2026-12-20", today: "2027-02-01" })).toEqual({ first: "2026-12-21", last: "2026-12-28" });
+    expect(nextPeriod({ ...offer, paidThrough: "2026-12-28", today: "2027-02-01" })).toBeNull();
   });
 });
