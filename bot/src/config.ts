@@ -113,7 +113,7 @@ export const NETWORK_DEFAULTS: Record<
     floatUsdc: "20", // a working balance for buying gas; with FILL=true, it pays for orders too
     plsLow: "200000", // about $1 on 8 November 2026
     plsBuyUsdc: "2",
-    ethLow: "0.003", // about 250 claims at 8 November 2026's gas prices
+    ethLow: "0.003", // about 80 copies of names at 10 November 2026's gas prices
     ethBuyUsdc: "15",
   },
   testnet: {
@@ -228,7 +228,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     relay: flag("RELAY"),
     sync: flag("SYNC"),
     relayLimits: {
-      // About 1,600 copies a day at 8 November 2026's gas prices, and still a few at times of very
+      // About 550 copies a day at 10 November 2026's gas prices, and still a few at times of very
       // high gas; beyond it, copies wait for the next day.
       dailyEth: coins(optional("RELAY_DAILY_ETH") ?? "0.02"),
       nameCooldown: BigInt(Number(optional("RELAY_NAME_COOLDOWN_MINUTES") ?? "60") * 60),

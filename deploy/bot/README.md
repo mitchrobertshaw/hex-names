@@ -170,12 +170,14 @@ draw by the bot for gas. The app's payments page shows the bot's balances and th
 the bot on the same page. If its budget is running low, raise it. If the bot can't fix something
 itself, its log says so, once a day, starting "WARNING".
 
-**Costs.** Railway's Hobby plan, $5 a month. Gas, at 8 November 2026's prices: about 3 cents to copy
-each name, renewal or transfer to Ethereum. A $100 budget covers about 3,000 of those.
+**Costs.** Railway's Hobby plan, $5 a month. Gas, at 10 November 2026's prices: about 8 cents to copy
+each name, renewal or transfer to Ethereum. A $100 budget covers about 1,300 of those. (A copy uses
+about a million gas on Sepolia, which already runs Ethereum's next upgrade; less on Ethereum until
+then.)
 
 **Limits on copying names.** So that nobody can run up its Ethereum gas by changing a name over and
 over, it copies each name at most once an hour (the newest change wins), and spends at most 0.02 ETH
-a day copying names, about 1,600 copies at November 2026's gas prices. The rest wait until the next
+a day copying names, about 550 copies at November 2026's gas prices. The rest wait until the next
 day (UTC). The settings `RELAY_NAME_COOLDOWN_MINUTES` (60) and `RELAY_DAILY_ETH` (0.02) change
 these.
 

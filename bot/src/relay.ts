@@ -36,10 +36,24 @@ import { short, submit } from "./orders.ts";
 import type { MessageRecord, RelayState } from "./state.ts";
 
 const LOG_RANGE = 50_000n;
-/** About what a claim costs in gas, for the daily allowance and the ETH kept back. */
-export const CLAIM_GAS = 300_000n;
-/** Gas kept back from other claims for the bot's own refill: claiming its USDC, approving, buying ETH. */
-export const REFILL_GAS = 500_000n;
+/**
+ * About the gas a claim may take, for the daily allowance and the ETH kept back. The bridge runs a
+ * message only if all the gas the message asks for is still left once it has checked the
+ * signatures. Under Ethereum's next upgrade, which Sepolia already runs, that checking costs far
+ * more than it did, and in November 2026 a copy of a name (1 million gas of its own) needed 1.6
+ * million to claim on Sepolia, of which it used about 1.05 million.
+ */
+export const CLAIM_GAS = 1_600_000n;
+/**
+ * Gas kept back from other claims for the bot's own refill: claiming its USDC (the token bridge's
+ * messages ask for 2 million gas, so a claim needs about 2.6 million), approving, buying ETH.
+ */
+export const REFILL_GAS = 3_000_000n;
+
+/** The gas to send a claim with: what Ethereum works out it needs, and a fifth more to spare. */
+export function claimGas(estimate: bigint): bigint {
+  return estimate + estimate / 5n;
+}
 /** A claim not seen mined after this long is taken as dropped, and sent again. */
 const CLAIM_TIMEOUT = 15n * 60n;
 const HOUR = 3600n;
@@ -196,20 +210,23 @@ export async function claimMessages(ctx: Context): Promise<void> {
       for (let i = 0n; i < required; i++) {
         signatures.push(await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "signature", args: [message.hash, i] }));
       }
-      const hash = await submit(ctx, "eth", {
+      const claim = {
         address: ctx.config.foreignAmb,
         abi: foreignAmbAbi,
         functionName: "executeSignatures",
         args: [message.encoded, packSignatures(signatures)],
-        gas: BigInt(message.gasLimit) + 300_000n,
-      });
+      } as const;
+      // Asked of Ethereum each time, since what a claim needs changes with Ethereum's upgrades.
+      const gas = claimGas(await ctx.eth.estimateContractGas({ ...claim, account: ctx.account }));
+      const hash = await submit(ctx, "eth", { ...claim, gas });
       message.claimTx = hash;
       message.claimSentAt = now.toString();
       ctx.save();
       const cost = finishClaim(ctx, message, await ctx.eth.waitForTransactionReceipt({ hash }), relay, now);
       if (funds) funds.eth -= cost;
     } catch (error) {
-      ctx.log(`bridge message ${message.messageId}: ${short(error)} (will retry)`);
+      // Once an hour at most for the same trouble, rather than at every look.
+      noteOnce(ctx, relay, now, `bridge message ${message.messageId}: ${short(error)} (will retry)`);
     }
   }
 }
