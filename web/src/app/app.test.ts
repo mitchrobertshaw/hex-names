@@ -383,7 +383,7 @@ describe("the Ethereum copy fee", () => {
     expect(copyFeeOf(1_250_000n, cap)).toEqual({ kind: "offered", fee: 1_250_000n });
     expect(copyFeeOf(cap, cap)).toEqual({ kind: "offered", fee: cap });
     expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy" });
-    expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }, "switched off by the admin");
+    expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }); // switched off by the admin
   });
 
   it("shows fees in dollars and cents", () => {

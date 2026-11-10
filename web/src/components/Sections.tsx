@@ -68,7 +68,7 @@ export function BothChains() {
               <p className="chain__badge">Copied automatically</p>
             </div>
             <h3>Ethereum</h3>
-            <p>Every name is copied here about 15 minutes after a change, so Ethereum wallets and apps find it too.</p>
+            <p>Every name is copied here, usually about 15 minutes after a change, so Ethereum wallets and apps find it too.</p>
             <Resolves chain="Ethereum" />
           </article>
         </div>
@@ -313,7 +313,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Which chains does it work on?",
-    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. If you use both chains, or might one day, you're covered either way.",
+    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. When Ethereum is unusually busy, a new name's or renewal's copy waits for its fees to fall, unless you add a small fee to copy it at once. If you use both chains, or might one day, you're covered either way.",
   },
   {
     q: `Why ${PRICE} a year?`,

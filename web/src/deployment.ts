@@ -19,7 +19,7 @@ export interface Deployment {
     registry: Address;
     /** PULSECHAIN_REGISTRAR: takes commitments and sells names. */
     registrar: Address;
-    /** AnyTokenCheckout: buys and renews with any token. */
+    /** PULSECHAIN_CHECKOUT (AnyTokenCheckout): buys and renews with any token, and takes the Ethereum copy fee. */
     checkout: Address;
     /** PULSECHAIN_USDC: what names are priced and paid in. */
     usdc: Address;

@@ -6,7 +6,7 @@
 // once isn't offered, and copies wait.
 
 import { useEffect, useState } from "react";
-import { type Address, isAddressEqual, parseEventLogs, type TransactionReceipt } from "viem";
+import { type Address, getAbiItem, isAddressEqual, parseEventLogs, type TransactionReceipt } from "viem";
 
 import { checkoutAbi, mirrorRegistrarAbi, mirrorSyncAbi, registryAbi } from "./abis";
 import { clients, deployment } from "./network";
@@ -92,8 +92,28 @@ function ethereumRegistryAddress(): Promise<Address> {
   return ethereumRegistry;
 }
 
-/** Whether Ethereum's copy of a name shows its owner and paid-until date as PulseChain does. */
-export type EthereumCopy = "same" | "behind" | "unknown";
+/**
+ * Whether Ethereum's copy of a name shows its owner and paid-until date as PulseChain does: the
+ * same, behind, or behind with its copy fee paid (the bot copies it at once).
+ */
+export type EthereumCopy = "same" | "behind" | "paid" | "unknown";
+
+/** About 8 hours of PulseChain's blocks: far longer than a paid copy takes to go across. */
+const RECENT_BLOCKS = 3_000n;
+
+/** Whether someone paid the copy fee for `label` lately. */
+async function paidLately(label: string): Promise<boolean> {
+  const checkout = deployment?.pulsechain.checkout;
+  if (!checkout) return false;
+  const latest = await clients.pulsechain.getBlockNumber();
+  const logs = await clients.pulsechain.getLogs({
+    address: checkout,
+    event: getAbiItem({ abi: checkoutAbi, name: "CopyPaid" }),
+    fromBlock: latest > RECENT_BLOCKS ? latest - RECENT_BLOCKS : 0n,
+    toBlock: latest,
+  });
+  return logs.some((log) => log.args.label === label);
+}
 
 export async function readEthereumCopy(label: string, owner: Address, expiry: number): Promise<EthereumCopy> {
   try {
@@ -103,13 +123,14 @@ export async function readEthereumCopy(label: string, owner: Address, expiry: nu
       functionName: "getState",
       args: [labelId(label)],
     });
-    return isAddressEqual(state.latestOwner, owner) && Number(state.expiry) === expiry ? "same" : "behind";
+    if (isAddressEqual(state.latestOwner, owner) && Number(state.expiry) === expiry) return "same";
+    return (await paidLately(label).catch(() => false)) ? "paid" : "behind";
   } catch {
     return "unknown";
   }
 }
 
-/** Ethereum's copy of a name, read again every 30 seconds while it's behind: null until it's known. */
+/** Ethereum's copy of a name, read again every 30 seconds until it's up to date: null until it's known. */
 export function useEthereumCopy(label: string, owner: Address | null, expiry: number, version: number): EthereumCopy | null {
   const [copy, setCopy] = useState<EthereumCopy | null>(null);
   useEffect(() => {
@@ -121,7 +142,7 @@ export function useEthereumCopy(label: string, owner: Address | null, expiry: nu
       const result = await readEthereumCopy(label, owner, expiry);
       if (!alive) return;
       setCopy(result);
-      if (result === "behind") timer = setTimeout(read, 30_000);
+      if (result === "behind" || result === "paid") timer = setTimeout(read, 30_000);
     };
     void read();
     return () => {

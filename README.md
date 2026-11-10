@@ -38,7 +38,8 @@ pays along whichever needs less: in November 2026, $640 of PLS cost 6.6% more on
    nobody watching can see which name it is.
 2. **Wait** one minute.
 3. **Register** through `AnyTokenCheckout` with any token or PLS. It swaps to USDC on PulseX, pays the
-   registrar exactly the price, returns the change, and sends the name to Ethereum.
+   registrar exactly the price, returns the change, and sends the name to Ethereum. While Ethereum
+   is busy, the buyer can also pay the copy fee, to have it copied there at once (below).
 
 ### Coming from Ethereum or another chain
 
@@ -84,6 +85,15 @@ copies at November 2026's gas prices. The rest wait until the next day (UTC).
   minutes later, by bridge messages the bot claims on Ethereum. Copies on Ethereum can't be bought,
   renewed or transferred there; they follow PulseChain. A name renewed in its grace period is
   extended on Ethereum too, so its owner's Ethereum settings stay.
+- **When Ethereum is busy.** Each copy costs the bot Ethereum's gas: a few cents in November 2026.
+  The project pays up to $2 a copy. When a copy costs more, the bot sets a copy fee on the checkout:
+  the rest, and a quarter more for gas rising before the copy goes out. Buyers and renewers choose
+  between their copy going free once Ethereum's fees fall, or at once for the fee, in the same
+  payment and in the same token. Sending a name through the app pays it too, so the new owner shows
+  on Ethereum at once. Changes of owner made elsewhere, and names the admin hands out, are copied at
+  once at the project's cost. The fee goes to the bot, which buys its ETH with it. The admin
+  chooses the bot and caps the fee ($100 at deploy): when a copy would cost more than that, copying
+  at once isn't offered, and copies wait for fees to fall.
 - **Addresses.** By default a name resolves to its owner's address, for Ethereum (coin type 60),
   PulseChain (ENSIP-11 coin type `0x80000171`) and any EVM chain's default (ENSIP-19). This is the
   `OwnerResolver` set on `.hex` itself.
@@ -183,7 +193,9 @@ root with no roles at all.
 - hand held reserved names to their owners;
 - restyle the name cards wallets and marketplaces show (cosmetic: it changes no name or owner).
   On Ethereum nobody can;
-- add new endings to the root registry.
+- add new endings to the root registry;
+- choose the bot that sets the Ethereum copy fee, and cap the fee or switch it off. The fee is only
+  ever paid by those who choose to pay it.
 
 It can't unregister a live name, change a name's resolver, or move a name. Nor can it change the
 price of one length, the multi-year prices, the premium for expired names, which characters names
@@ -195,7 +207,7 @@ are settled.
 
 The app's admin page, `app.hexns.domains/admin` (not in the menu), makes the everyday ones easy from
 the admin wallet: pause and restart sales (renewals carry on), raise or lower all prices together,
-and hold names, hand them to their owners and add time to them. It opens only for a wallet with
+hold names, hand them to their owners and add time to them, and run the copy fee. It opens only for a wallet with
 admin powers, and doesn't say which wallet that is ([how](deploy/website/README.md#the-admin-page)). (A multisig such as a Safe would be stronger, but Safe's own app doesn't support
 PulseChain.)
 
@@ -205,12 +217,15 @@ they could write a false Ethereum copy, or redirect money held by open orders. T
 touch the real names on PulseChain. Every token bridged to PulseChain relies on the same validators.
 
 **The bot** affects only how soon Ethereum's copy is current. A stolen bot key loses only the bot's
-own gas and working balance, and what's left of the budget the payments wallet allows it. If the bot
-stops, names still work on PulseChain, and Ethereum's copy catches up when it's back.
+own gas and working balance, and what's left of the budget the payments wallet allows it. It could
+also set the copy fee as high as the admin's cap and receive what people chose to pay, until the
+admin chooses another bot or switches the fee off. If the bot stops, names still work on PulseChain,
+and Ethereum's copy catches up when it's back.
 
-**Nothing else has an owner.** `AnyTokenCheckout`, `HexOrderFiller`, `HexMirrorSync`,
-`HexOrderBook`, `HexMirrorRegistrar` and `HexNameCard` have no admin functions, no upgrades and no
-pause. Each
+**Nothing else has an owner.** `AnyTokenCheckout`'s owner, the admin, runs only the copy fee: it
+can't touch names, prices or what the registrar is paid, and a purchase never fails over the fee.
+`HexOrderFiller`, `HexMirrorSync`, `HexOrderBook`, `HexMirrorRegistrar` and `HexNameCard` have no
+admin functions. None of them can be upgraded or paused. Each
 bridge contract is linked once, by the deployer, to its partner on the other chain. After that,
 nothing can change.
 
@@ -225,7 +240,7 @@ nothing can change.
 | [`SafeVerifiableFactory`](src/common/SafeVerifiableFactory.sol) | deploys `VerifiableFactory` so nobody can take over the logic owners' own resolvers share (see below) |
 | [`OwnerResolver`](src/common/OwnerResolver.sol) | the default resolver: a name resolves to its owner |
 | [`HexNameCard`](src/common/HexNameCard.sol) | each name's card: what wallets and NFT marketplaces show for it (see below) |
-| [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai |
+| [`AnyTokenCheckout`](src/pulsechain/AnyTokenCheckout.sol) | buy or renew with any token or PLS, as for .pdai, with the Ethereum copy fee while Ethereum is busy |
 | [`HexOrderFiller`](src/pulsechain/HexOrderFiller.sol) | completes Ethereum orders and tells Ethereum over the bridge |
 | [`HexMirrorSync`](src/pulsechain/HexMirrorSync.sol) | sends a name's owner and expiry to Ethereum over the bridge |
 
@@ -342,6 +357,7 @@ and `production` for mainnet. Step by step: [the bot, on Railway](deploy/bot/REA
 3. Give it a Railway volume, where it remembers its place between restarts.
 4. Let it draw from the payments wallet, up to a budget, on the app's payments page
    (app.hexns.domains/referrals, titled "Referral payouts").
+5. Choose it as the copy bot on the app's admin page, which turns the Ethereum copy fee on.
 
 It runs on autopilot. It keeps a small working balance of USDC ($20), buys PLS and ETH with it when
 they run low, and tops the balance up from the payments wallet, within the budget. So its gas comes
@@ -354,9 +370,12 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 - **On PulseChain:**
   1. Get the price with `AnyTokenCheckout.quoteRegister`, on each PulseX router (V1 and V2), and use
-     whichever needs less.
+     whichever needs less. `quoteRegisterAndCopy` adds the copy fee, while there is one.
   2. Commit with `registrar.commit(registrar.makeCommitment(...))`.
-  3. After a minute, call `registerWithToken` or `registerWithPLS` with a 2% buffer.
+  3. After a minute, call `registerWithToken` or `registerWithPLS` with a 2% buffer. To pay the copy
+     fee too, call `registerWithTokenAndCopy` or `registerWithPLSAndCopy` with the most the buyer
+     agreed to pay for it: if the fee has risen above that, the name is bought without it and copied
+     free later. `payCopyFee` pays it on its own, after sending a name, say.
 - **On Ethereum** (only with a bot that fills orders, `FILL=true`; the official site and bot don't):
   1. Call `prepareOrder` from [`bot/src/buy.ts`](bot/src/buy.ts) with the bot's public key.
   2. Read the price from the PulseChain registrar.

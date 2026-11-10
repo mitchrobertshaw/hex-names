@@ -142,6 +142,9 @@ afterwards.
    - [ ] On the admin page (`/app/admin`), with the admin wallet: pause sales and check a name's
          page says so, then restart them. Hold a name, hand it to a wallet, and add a year to
          another held name.
+   - [ ] On a testnet deployed with the copy fee (from November 2026): choose the bot under
+         **Ethereum copy fee** on the admin page, and check its log says "copy fee: on". Sepolia's
+         gas is rarely high enough for a fee, so the rest was tested on local copies of both chains.
 
 ## Part 2: mainnet
 
@@ -168,6 +171,8 @@ When everything above has worked, and someone other than the author has reviewed
    referral launch offer, 10% for 58 days, counts from it). That switches on buying in the app and
    the live numbers on the homepage. Then add the domains and launch
    ([the website guide](website/README.md#mainnet-launch)).
+7. **Turn on the copy fee** on the admin page, choosing the bot
+   ([the bot guide](bot/README.md#mainnet), step 5). Until then every copy to Ethereum is free.
 
 Before step 2 on Ethereum, check the note on
 [Ethereum's next upgrade](ethereum/README.md#ethereums-next-upgrade).

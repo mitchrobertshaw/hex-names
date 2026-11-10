@@ -120,7 +120,7 @@ export function EthereumCopyRow({
   const text =
     copy === "same"
       ? "Up to date"
-      : paid
+      : paid || copy === "paid"
         ? "Paid for: copied in about 15 minutes"
         : fee?.kind === "offered"
           ? "Not yet: Ethereum is busy, so it's copied once its fees fall"

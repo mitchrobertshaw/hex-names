@@ -18,8 +18,19 @@ app.hexns.domains, where names are bought and managed. Built with Vite, React an
   November 2026, $640 of PLS cost 6.6% more on V2 than on V1. A token is allowed during the minute,
   with about 5% to spare in case its price moves. Just before paying, the app checks the allowance
   again, and asks for one more approval only if the price rose more than that room allows. If it's
-  taken: who owns it and until when. If it's yours: renew it, send it to another wallet, how to sell
-  it (on a PulseChain NFT marketplace, as .eth names sell on Ethereum's), and your referral link.
+  taken: who owns it and until when, and whether Ethereum's copy is up to date. If it's yours: renew
+  it, send it to another wallet, how to sell it (on a PulseChain NFT marketplace, as .eth names sell
+  on Ethereum's), and your referral link.
+- **The Ethereum copy fee** ([`src/app/copy.ts`](src/app/copy.ts), the panels in
+  [`src/app/CopyChoice.tsx`](src/app/CopyChoice.tsx)). While a copy costs over $2 on Ethereum, the
+  bot sets a fee on the checkout, and buying or renewing offers **Later, free** (the copy goes once
+  Ethereum's fees fall) or **Now, +$x** (the `...AndCopy` checkout functions, paying at most the fee
+  quoted). Sending a name pays it after the transfer (`payCopyFee`, in PLS or USDC), so the new owner
+  shows on Ethereum at once. A name's page reads its copy on Ethereum (found from the checkout's
+  `MIRROR_SYNC`, its partner there, and that one's registry) and, while it's behind and there's a
+  fee, offers **Copy it now**. When a copy would cost more than the admin's cap, the panels say
+  Ethereum is very busy and offer nothing to pay. A checkout from before the copy fee has none, and
+  the app pays the old way.
 - **My names** (`/names`): the names in the connected wallet, from the site's index of the registry.
 
 Wallets: any browser wallet that announces itself (MetaMask, Rabby, Internet Money and others) or
@@ -69,7 +80,12 @@ admin powers to, and shows only the powers it has, without saying which wallet i
 - **Held names.** The names held now (from the registry's `LabelReserved` events), and: hold more,
   hand one to its owner with the roles a buyer gets, and add time to a held or owned name. Holding
   and adding time take `ROLE_REGISTRAR` or `ROLE_RENEW` for those steps only and give it back after;
-  if an action stops halfway, the page offers to give it back.
+  if an action stops halfway, the page offers to give it back. Handing a name out also sends its
+  copy to Ethereum from the admin wallet, which the bot copies at once.
+- **Ethereum copy fee.** For the checkout's owner: the fee now, the copy bot (`setCopyBot`) and the
+  most a copy can cost (`setMaxCopyFee`, 0 switches it off), and **Copy a name to Ethereum now**,
+  which calls `HexMirrorSync.sync` from the admin wallet: the bot copies what the admin sends at
+  once, at the project's cost.
 
 Each change is checked before it's sent, so one the contracts would refuse says why instead of
 asking the wallet for a fee.

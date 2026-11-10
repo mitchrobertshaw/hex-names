@@ -36,7 +36,8 @@ Sepolia" address step 1 printed. On Railway, the state file goes on the attached
 | File | What it does |
 |---|---|
 | `src/orders.ts` | only with `FILL=true`: reads orders on Ethereum, commits and fills them on PulseChain, refunds the ones it can't fill |
-| `src/relay.ts` | claims signed bridge messages on Ethereum, its own USDC first, skipping ones that would change nothing; copies each name at most once an hour, within a daily ETH limit |
+| `src/relay.ts` | claims signed bridge messages on Ethereum, its own USDC first, skipping ones that would change nothing; copies each name at most once an hour, within a daily ETH limit; copies paid for, and the admin's, go at once, and unpaid new names and renewals wait while a copy costs over `COPY_FREE_USDC` |
+| `src/copyfee.ts` | keeps the Ethereum copy fee on the checkout in step with Ethereum's gas, once the admin chooses this bot as the copy bot |
 | `src/sync.ts` | copies registrations, renewals and transfers made outside the checkouts |
 | `src/treasury.ts` | its money: buys PLS and ETH for gas, keeps a small working balance, draws from the payments wallet's budget and returns any extra, never sending a bridge transfer twice |
 | `src/reveal.ts` | the sealed order details, their registrar commitment, and the bot's encryption key |

@@ -121,6 +121,8 @@ export async function runCopyFee(ctx: Context): Promise<void> {
       const tx = await send(ctx, "pls", { ...checkout, functionName: "setCopyFee", args: [fee] });
       ctx.log(`copy fee: ${feeText(fee, cap)} (a copy costs about ${usdc(cost)} USDC on Ethereum now) (${tx})`);
       current = fee;
+    } else {
+      note(ctx, state, now, `copy fee: on, at most ${usdc(cap)} USDC; now ${feeText(current, cap)}`);
     }
   } else {
     note(ctx, state, now, `copy fee: couldn't read ETH's price on Uniswap just now; it stays at ${usdc(current)} USDC`);
