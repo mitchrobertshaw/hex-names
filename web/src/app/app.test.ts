@@ -1,5 +1,16 @@
 import nacl from "tweetnacl";
-import { bytesToHex, decodeAbiParameters, hexToBytes, keccak256, toBytes, zeroAddress } from "viem";
+import {
+  bytesToHex,
+  ContractFunctionExecutionError,
+  ContractFunctionRevertedError,
+  decodeAbiParameters,
+  encodeErrorResult,
+  type Hex,
+  hexToBytes,
+  keccak256,
+  toBytes,
+  zeroAddress,
+} from "viem";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -13,7 +24,10 @@ import {
 } from "../lib/referral";
 import { commitmentOf, encodePurchase, labelId, NO_REFERRER, type Purchase, referralTag, sealFor } from "./order";
 import { usdcText } from "../lib/payouts";
+import { PAY_CHAINS, type PayToken } from "../lib/tokens";
+import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
+import { amountText, errorText, shortText, testnetFees } from "./flows";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
 import { chainName } from "./network";
@@ -179,6 +193,65 @@ describe("the wallet's network", () => {
     ).toBe(true);
     expect(isUnknownChain({ code: 4001, message: "User rejected the request." })).toBe(false);
     expect(isUnknownChain(new Error("network error"))).toBe(false);
+  });
+});
+
+describe("paying", () => {
+  const usdc = PAY_CHAINS.pulsechain.tokens.find((t) => !t.path) as PayToken;
+  const pls = PAY_CHAINS.pulsechain.tokens.find((t) => t.native) as PayToken;
+  const refused = (data: Hex) =>
+    new ContractFunctionExecutionError(
+      new ContractFunctionRevertedError({ abi: checkoutAbi, data, functionName: "registerWithToken" }),
+      { abi: checkoutAbi, functionName: "registerWithToken", args: [] },
+    );
+
+  it("shows USDC to the last unit, as prices are exact", () => {
+    expect(amountText(usdc, 10_000_000n)).toBe("10.00 USDC from Ethereum");
+    expect(amountText(usdc, 17_500_000n)).toBe("17.50 USDC from Ethereum");
+    expect(amountText(usdc, 10_000_003n)).toBe("10.000003 USDC from Ethereum");
+    expect(amountText(pls, 512_345_678n * 10n ** 15n)).toBe("512,300 PLS");
+  });
+
+  it("tells a wallet short of the price what it holds and what it costs, before anything is sent", () => {
+    expect(shortText(usdc, 10_000_000n, 10_000_003n)).toBe(
+      "This wallet holds 10.00 USDC from Ethereum, and this costs 10.000003 USDC from Ethereum. " +
+        "Add a little more, then try again. Nothing was paid.",
+    );
+    expect(shortText(pls, 1n, 2n)).toBe(
+      "This wallet doesn't hold enough PLS to pay. Add a little more, then try again. Nothing was paid.",
+    );
+  });
+
+  it("says plainly why a payment would fail, which isn't sent", () => {
+    const short = encodeErrorResult({
+      abi: checkoutAbi,
+      errorName: "InsufficientPayment",
+      args: [10_000_000n, 10_000_003n],
+    });
+    expect(errorText(refused(short))).toBe(
+      "It would fail, so it wasn't sent, and nothing was paid. The price changed while paying. Try again.",
+    );
+    const taken = encodeErrorResult({ abi: checkoutAbi, errorName: "NameNotAvailable", args: ["alice"] });
+    expect(errorText(refused(taken))).toBe(
+      "It would fail, so it wasn't sent, and nothing was paid. Someone else registered it first.",
+    );
+    const moved = encodeErrorResult({
+      abi: [{ type: "error", name: "Error", inputs: [{ type: "string", name: "message" }] }],
+      errorName: "Error",
+      args: ["PulseXRouter: INSUFFICIENT_OUTPUT_AMOUNT"],
+    });
+    expect(errorText(refused(moved))).toBe(
+      "It would fail, so it wasn't sent, and nothing was paid. The price moved while paying. Try again.",
+    );
+    expect(errorText(refused("0x12345678"))).toBe("It would fail, so it wasn't sent, and nothing was paid.");
+    expect(errorText({ code: 4001, message: "User rejected the request." })).toBe(
+      "You cancelled it in your wallet. Nothing was paid.",
+    );
+  });
+
+  it("offers PulseChain's testnet a 1 gwei tip, not the thousands of gwei it suggests", () => {
+    expect(testnetFees(7n)).toEqual({ maxPriorityFeePerGas: 1_000_000_000n, maxFeePerGas: 1_000_000_014n });
+    expect(testnetFees(undefined)).toEqual({ maxPriorityFeePerGas: 1_000_000_000n, maxFeePerGas: 1_000_000_000n });
   });
 });
 

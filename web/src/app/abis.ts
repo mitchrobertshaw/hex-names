@@ -112,6 +112,12 @@ export const checkoutAbi = [
   ...parseAbi([
     "function quoteRegister(string label, uint64 duration, address router, address[] path) view returns (uint256 price, uint256 amountIn)",
     "function quoteRenew(string label, uint64 duration, address router, address[] path) view returns (uint256 price, uint256 amountIn)",
+    // Why a payment would be refused, so the app can say it plainly (flows.ts errorText).
+    "error InsufficientPayment(uint256 received, uint256 needed)",
+    "error NameNotAvailable(string label)",
+    "error CommitmentTooNew(bytes32 commitment, uint64 validFrom, uint64 blockTimestamp)",
+    "error CommitmentTooOld(bytes32 commitment, uint64 validTo, uint64 blockTimestamp)",
+    "error TooFarAhead(string label, uint256 newExpiry, uint256 latest)",
   ]),
 ] as const;
 
