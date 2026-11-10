@@ -620,9 +620,10 @@ function CopyFeeCard() {
       </h2>
       <p className="payouts__how">
         The bot pays Ethereum&rsquo;s gas to copy each name there. The project covers up to $2 a copy. When Ethereum is
-        busy and a copy costs more, the bot sets a fee for the rest: buyers can pay it to copy their name at once,
-        however much it is, or wait for it to be copied free once fees fall. Sending a name through the app pays it
-        too. The fee goes to the bot, which keeps ETH on hand for copies paid for (COPY_NOW_ETH).
+        busy and a copy costs more, the bot sets a fee for the rest: buyers can pay it to copy their name at once, or
+        wait for it to be copied free once fees fall. Sending a name through the app pays it too. The fee goes to the
+        bot, which keeps a little ETH on hand for copies paid for (COPY_NOW_ETH). Busier than that covers, buyers can
+        copy their name themselves on Ethereum instead, paying its fee in ETH.
       </p>
       {settings === "failed" ? (
         <p>Couldn&rsquo;t read the checkout just now. Reload the page in a minute.</p>

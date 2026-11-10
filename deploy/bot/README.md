@@ -143,9 +143,9 @@ After steps 1 to 3 on mainnet:
    `web/src/deployment.ts` ([the website guide](../website/README.md)).
 4. **Give it a budget.** Once the website has the bot's wallet, open the app's payments page,
    `app.hexns.domains/referrals`, with your payments wallet (`0x1027…02C6`). Under **The bot**, set
-   a budget, say 300 USDC, and approve it in your wallet. That's what it may draw from your
-   payments wallet for its gas, and for the ETH it keeps for copies people pay for (about $105 to
-   $210, [money](#money)). Do the same on the testnet site in the rehearsal.
+   a budget, say 150 USDC, and approve it in your wallet. That's what it may draw from your
+   payments wallet for its gas, and for the ETH it keeps for copies people pay for (about $42 to
+   $84, [money](#money)). Do the same on the testnet site in the rehearsal.
 5. **Turn on the copy fee.** Open the app's admin page, `app.hexns.domains/admin`, with the admin
    wallet. Under **Ethereum copy fee**, check the bot's wallet is filled in (the first `0x…` in its
    log), and click **Choose it**. Within a minute the bot's log says "copy fee: on, at most 1000
@@ -193,14 +193,24 @@ wallet with everything else. With the fee switched off on the admin page, or bef
 bot, every copy is free, within the limits below. Each copy's real cost comes from the gas the bot's
 own copies used, so the fee follows Ethereum's upgrades by itself.
 
-**Copies people pay for go at once, however busy Ethereum is**, so while the fee is on the bot keeps
-ETH on hand for them: `COPY_NOW_ETH`, 0.05 ETH (about $105). It buys it only while copies are free,
-when Ethereum is cheap: once gas is high, bringing ETH over the bridge costs more than it's worth.
-That covers a paid copy at once up to about 80 gwei, or about 160 just after a top-up. When Ethereum
-is busier than its ETH covers, copying at once is paused, and the app says it isn't available at
-the moment. To cover more, raise it: 0.15 ETH (about $315) covers up to about 250 gwei. The most a
-copy can cost, on the admin page ($1,000 at deploy), is only a safety limit, in case the bot ever sets
-a wrong fee: Ethereum would reach it at about 1,500 gwei.
+**Copies people pay for go at once**, so while the fee is on the bot keeps a little ETH on hand for
+them: `COPY_NOW_ETH`, 0.02 ETH (about $42). It buys it only while copies are free, when Ethereum is
+cheap: once gas is high, bringing ETH over the bridge costs more than it's worth. Ethereum only
+takes a transaction from a wallet holding its whole gas limit at its highest fee, and a copy's
+claim asks for far more gas than it uses (the bridge sets aside the full million a copy may use),
+so the bot offers copying at once only while it holds that, for every paid copy still to go. 0.02
+ETH covers that up to about 7 to 10 gwei, and twice that just after a top-up. Busier than that,
+paying the bot is paused, and buyers choose between a free copy once fees fall and **copying it
+themselves**: after paying, their wallet delivers the copy on Ethereum, paying Ethereum's fee in ETH,
+however busy it is. To offer paying the bot at busier times, raise `COPY_NOW_ETH`: 0.1 ETH covers up
+to about 35 to 50 gwei. The most a copy can cost, on the admin page ($1,000 at deploy), is only a
+safety limit, in case the bot ever sets a wrong fee.
+
+**It never clogs on copies that wait.** Copies held back for Ethereum's fees stay queued in its
+records, and it looks at each again every five minutes rather than every few seconds, so a long busy
+spell costs it little. One its owner copied meanwhile is left alone ("was delivered on Ethereum by
+someone else" in its log); the rest go free once fees fall. Finished messages are forgotten after a
+week, so its records stay small.
 
 **It never sends money twice.** It notes each transfer over the bridge before waiting for it, and
 knows its own transfers when it sees them on the bridge, so a failed wait or a restart never sends

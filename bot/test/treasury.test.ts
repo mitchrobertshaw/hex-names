@@ -186,15 +186,15 @@ test("the most it buys at once can be changed, and the testnets have their own",
 });
 
 test("while the copy fee is on, it keeps ETH for paid copies, bought only while copies are free", () => {
-  const relay = { relay: true, spent: 0n, dailyEth: parseEther("0.02"), copyNowEth: parseEther("0.05") };
-  assert.equal(defaults.treasury.copyNowEth, parseEther("0.05"), "about $105 on mainnet");
+  const relay = { relay: true, spent: 0n, dailyEth: parseEther("0.02"), copyNowEth: parseEther("0.02") };
+  assert.equal(defaults.treasury.copyNowEth, parseEther("0.02"), "about $42 on mainnet");
   assert.equal(loadConfig({ ...DEPLOYED, COPY_NOW_ETH: "0.15" }).treasury.copyNowEth, parseEther("0.15"));
-  assert.equal(loadConfig({ ...DEPLOYED, NETWORK: "testnet", PULSECHAIN_USDC: ADDRESS }).treasury.copyNowEth, parseEther("0.005"));
-  // Gas is cheap and the fee is on: it holds the 0.05 ETH, and buys towards twice that.
+  assert.equal(loadConfig({ ...DEPLOYED, NETWORK: "testnet", PULSECHAIN_USDC: ADDRESS }).treasury.copyNowEth, parseEther("0.002"));
+  // Gas is cheap and the fee is on: it holds the 0.02 ETH, and buys towards twice that.
   const cheap = ethToHold({ ...relay, gasPrice: parseGwei("0.06"), copyNow: true });
-  assert.equal(cheap, parseEther("0.05"));
-  assert.equal(ethLine({ ethNeed: cheap }, t), parseEther("0.05"));
-  assert.equal(ethPurchase({ eth: parseEther("0.01"), ethNeed: cheap, weiPerUsdc: 475_000_000_000_000n }, t), usdc(100), "a top-up, up to $100 at a time");
+  assert.equal(cheap, parseEther("0.02"));
+  assert.equal(ethLine({ ethNeed: cheap }, t), parseEther("0.02"));
+  assert.equal(ethPurchase({ eth: parseEther("0.01"), ethNeed: cheap, weiPerUsdc: 475_000_000_000_000n }, t), 63_157_895n, "a top-up to 0.04 ETH: about $63");
   // The fee is off: just ETH_LOW, as before.
   assert.equal(ethToHold({ ...relay, gasPrice: parseGwei("0.06"), copyNow: false }), parseGwei("0.06") * 4_600_000n);
   // Ethereum is very busy (copies aren't free, so copyNow is false): it doesn't chase ETH it would

@@ -4,14 +4,18 @@ import { test } from "node:test";
 import { parseGwei } from "viem";
 
 import {
+  COPY_CLAIM_LIMIT,
   COPY_GAS,
   UNAVAILABLE,
+  claimLimit,
+  claimNeed,
   copyCost,
   copyGas,
   feeFor,
   feeText,
   feeToSet,
   paidCopyNeed,
+  recordClaimLimit,
   recordCopyGas,
   worthUpdating,
 } from "../src/copyfee.ts";
@@ -70,11 +74,37 @@ test("what it logs about the fee", () => {
   assert.match(feeText(120_000_000n, CAP), /over the 100 USDC cap: copying at once isn't offered/);
 });
 
+test("it learns the gas limit a copy's claim is sent with, which is what it needs on hand", () => {
+  assert.equal(claimLimit(undefined), COPY_CLAIM_LIMIT, "before any claim: about what Sepolia needed");
+  const relay: RelayState = { day: "2026-11-10", spent: "0", lastClaim: {}, noted: {} };
+  recordClaimLimit(relay, 1_300_000n);
+  recordClaimLimit(relay, 1_320_000n);
+  assert.equal(claimLimit(relay), 1_320_000n, "the most of the last few");
+  for (let i = 0; i < 10; i++) recordClaimLimit(relay, 1_310_000n);
+  assert.equal(relay.claimLimits!.length, 10, "only the last ten");
+  assert.equal(claimLimit(relay), 1_310_000n);
+});
+
+test("a claim needs its whole gas limit on hand, though it's charged only for the gas it uses", () => {
+  // At 200 gwei a copy using 300,000 gas costs 0.06 ETH, but its claim is sent with a limit of about
+  // 1.32 million gas (the bridge holds back the million a copy may use), and Ethereum takes it only
+  // from a wallet holding that limit at its highest fee, a fifth over the gas price: 0.3168 ETH.
+  const gasPrice = parseGwei("200");
+  assert.equal(claimNeed(gasPrice, 1_320_000n), 316_800_000_000_000_000n);
+  // To offer copying at once it wants half again the gas price, for it to rise before the copy goes.
+  assert.equal(paidCopyNeed(gasPrice, 1_320_000n, 300_000n, 0), 396_000_000_000_000_000n);
+  // Paid copies not yet claimed keep their share: each uses its gas, and the next needs the limit.
+  assert.equal(paidCopyNeed(gasPrice, 1_320_000n, 300_000n, 2), 576_000_000_000_000_000n, "(1.32M + 2 x 300k) gas");
+  // The old reckoning, twice the gas a copy uses (0.12 ETH), would have offered copies it couldn't send.
+  assert.ok(paidCopyNeed(gasPrice, 1_320_000n, 300_000n, 0) > claimNeed(gasPrice, 1_320_000n));
+  assert.ok(gasPrice * 300_000n * 2n < claimNeed(gasPrice, 1_320_000n));
+});
+
 test("copying at once is offered only while the bot holds the ETH to do it straight away", () => {
-  // At 200 gwei a copy of 300,000 gas costs about $126, and its claim needs 0.12 ETH on hand.
+  // At 200 gwei a copy of 300,000 gas costs about $126, and offering it needs 0.396 ETH on hand.
   const gas = 300_000n;
-  const need = paidCopyNeed(parseGwei("200"), gas);
-  assert.equal(need, 120_000_000_000_000_000n);
+  const need = paidCopyNeed(parseGwei("200"), 1_320_000n, gas, 0);
+  assert.equal(need, 396_000_000_000_000_000n);
   const fee = feeFor(copyCost(gas, parseGwei("200"), WEI_PER_USDC), FREE);
   assert.ok(fee > 150_000_000n && fee < 160_000_000n, "about $155: more than $100, and still offered");
   assert.equal(feeToSet(fee, need, need), fee, "it holds enough: offered");

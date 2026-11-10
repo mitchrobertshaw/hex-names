@@ -134,7 +134,8 @@ that the page is private. Each change is a transaction from the admin wallet.
   until its hold would have ended; a second transaction sends its copy to Ethereum, and the bot
   copies it at once. **Add time** holds a name longer, or gives an owned name free time.
 - **Ethereum copy fee:** what it is now, and who sets it. While Ethereum is busy and a copy costs
-  over $2, buyers can pay the rest to copy their name at once, or wait for a free copy
+  over $2, buyers can pay the rest to copy their name at once, wait for a free copy, or, busier
+  than the bot's ETH covers, copy it themselves on Ethereum in ETH
   ([how it works](../bot/README.md#money)). **Choose it** makes the bot the copy bot, which turns
   the fee on: the bot's wallet is filled in from `bot.address`. **The most a copy can cost** is a
   safety limit ($1,000 at deploy), in case the bot ever sets a wrong fee; below it, buyers can pay

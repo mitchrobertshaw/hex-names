@@ -78,7 +78,8 @@ export type Treasury = {
   ethBuyMaxUsdc: bigint; // ETH_BUY_MAX_USDC: the most one ETH purchase spends, when gas is high
   /**
    * COPY_NOW_ETH: while the copy fee is on, the ETH it keeps for paid copies, bought while Ethereum
-   * is cheap, so someone paying to copy a name at once can, however busy Ethereum gets.
+   * is cheap, so someone can pay to copy a name at once while Ethereum is busy. Busier than that
+   * covers, owners copy theirs themselves on Ethereum (paying its fee in ETH) or wait for it free.
    */
   copyNowEth: bigint;
   ethereumUsdc: Address; // USDC on Ethereum (or Sepolia): what orders are paid in
@@ -135,7 +136,7 @@ export const NETWORK_DEFAULTS: Record<
     ethLow: "0.003", // about 80 copies of names at 10 November 2026's gas prices
     ethBuyUsdc: "15",
     ethBuyMaxUsdc: "100", // when gas is high, it buys what the next copies need, up to this at a time
-    copyNowEth: "0.05", // about $105: a paid copy at once up to about 80 gwei, and 160 just after a top-up
+    copyNowEth: "0.02", // about $42: copying at once offered up to about 7 to 10 gwei, twice that just after a top-up
   },
   testnet: {
     pulsechainRpcUrl: "https://rpc.v4.testnet.pulsechain.com",
@@ -156,7 +157,7 @@ export const NETWORK_DEFAULTS: Record<
     ethLow: "0.002",
     ethBuyUsdc: "2",
     ethBuyMaxUsdc: "10",
-    copyNowEth: "0.005",
+    copyNowEth: "0.002",
   },
 };
 

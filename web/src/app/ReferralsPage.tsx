@@ -491,7 +491,7 @@ function BotCard() {
   const bot = d.bot.address;
   const owner = useWallet().connected?.account;
   const [balances, setBalances] = useState<BotBalances | "failed" | null>(null);
-  const [amount, setAmount] = useState("300");
+  const [amount, setAmount] = useState("150");
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(0);
@@ -538,7 +538,7 @@ function BotCard() {
       </h2>
       <p className="payouts__how">
         It copies every name to Ethereum and pays its own gas, buying PLS and ETH with a small working balance of
-        USDC. While the copy fee is on, it also keeps some ETH for copies people pay for (about $105 to $210). When
+        USDC. While the copy fee is on, it also keeps a little ETH for copies people pay for (about $42 to $84). When
         that runs low, it draws what it needs from this wallet, up to the budget you set here; anything extra comes
         back. Only this wallet can change the budget.
       </p>

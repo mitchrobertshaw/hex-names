@@ -317,7 +317,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Is there ever a fee to copy my name to Ethereum?",
-    a: "Rarely, and only if you choose to pay it. Each copy costs Ethereum's network fee, and HexNS pays up to $2 of it, which covers it at Ethereum's usual prices. When Ethereum is unusually busy and a copy costs more, you choose when you buy or renew: let it copy free once Ethereum's fees fall (usually within hours), or pay the difference to copy it at once, shown as its own line before you pay. That's your choice however busy Ethereum gets, even when the fee runs to hundreds of dollars. Sending a name to another wallet in the app pays it too, so the new owner shows on Ethereum at once. If copying at once isn't available at that moment, the app says so, and it's copied free once fees fall. Your name works on PulseChain straight away either way.",
+    a: "Rarely, and only if you choose to pay it. Each copy costs Ethereum's network fee, and HexNS pays up to $2 of it, which covers it at Ethereum's usual prices. When Ethereum is unusually busy and a copy costs more, you choose when you buy or renew: let it copy free once Ethereum's fees fall (usually within hours), or pay the difference to copy it at once, shown as its own line before you pay. Sending a name to another wallet in the app pays it too, so the new owner shows on Ethereum at once. When Ethereum is extremely busy, you can copy it yourself instead, paying Ethereum's fee in ETH from your own wallet: choose it when you buy or renew, or do it from your name's page about 15 minutes after a change. That works however busy Ethereum gets. Your name works on PulseChain straight away either way.",
   },
   {
     q: `Why ${PRICE} a year?`,

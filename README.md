@@ -39,7 +39,8 @@ pays along whichever needs less: in November 2026, $640 of PLS cost 6.6% more on
 2. **Wait** one minute.
 3. **Register** through `AnyTokenCheckout` with any token or PLS. It swaps to USDC on PulseX, pays the
    registrar exactly the price, returns the change, and sends the name to Ethereum. While Ethereum
-   is busy, the buyer can also pay the copy fee, to have it copied there at once (below).
+   is busy, the buyer can also pay the copy fee, to have it copied there at once, or copy it there
+   themselves in ETH (below).
 
 ### Coming from Ethereum or another chain
 
@@ -91,11 +92,21 @@ copies at November 2026's gas prices. The rest wait until the next day (UTC).
   between their copy going free once Ethereum's fees fall, or at once for the fee, in the same
   payment and in the same token. Sending a name through the app pays it too, so the new owner shows
   on Ethereum at once. Changes of owner made elsewhere, and names the admin hands out, are copied at
-  once at the project's cost. The fee goes to the bot, which buys its ETH with it. Buyers can pay to
-  copy at once however busy Ethereum is, as long as the bot holds the ETH to do it straight away: it
-  keeps some for that while the fee is on (`COPY_NOW_ETH`, bought while Ethereum is cheap), and the
-  app says when copying at once isn't available. The admin chooses the bot, and caps the fee as a
-  safety limit ($1,000 at deploy, which Ethereum would reach at about 1,500 gwei).
+  once at the project's cost. The fee goes to the bot, which buys its ETH with it. Paying the bot to
+  copy at once is offered while it holds the ETH to do it straight away: it keeps a little for that
+  (`COPY_NOW_ETH`, 0.02 ETH, bought while Ethereum is cheap), enough up to about 7 to 10 gwei. The
+  admin chooses the bot, and caps the fee as a safety limit ($1,000 at deploy).
+- **Copying it yourself.** Busier than that, buyers and renewers choose between **Later, free** and
+  **Myself, in ETH**: after paying, the bridge signs the copy (usually 10 to 15 minutes), and their
+  wallet delivers it on Ethereum, paying Ethereum's fee in ETH, however busy Ethereum is. A name's
+  page offers the same to anyone, for any copy that's waiting. Anyone may deliver a signed message:
+  the bridge checks the validators' signatures, so it can only write what PulseChain says. The app
+  shows Ethereum's fee first, and stops before the wallet is asked if it doesn't hold the ETH a
+  copy needs on hand (Ethereum sets aside the whole million gas a copy may use, and gives back
+  what it didn't). The bot keeps every copy it's holding back queued, looks at each again every
+  five minutes, leaves any delivered meanwhile, and copies the rest free once fees fall. If two
+  people copy a name in the same block, one copies it, and the other stops without copying; the app
+  says so, rather than fail.
 - **Addresses.** By default a name resolves to its owner's address, for Ethereum (coin type 60),
   PulseChain (ENSIP-11 coin type `0x80000171`) and any EVM chain's default (ENSIP-19). This is the
   `OwnerResolver` set on `.hex` itself.

@@ -9,6 +9,11 @@
 // When Ethereum is busy and the copy fee is on (copyfee.ts), copies of new names and renewals wait
 // for its fees to fall, unless someone paid the copy fee for them. Paid copies, the admin's, and
 // changes of owner go at once: a name's old owner would otherwise still get what's sent to it there.
+//
+// While a copy waits, its owner may deliver it themselves on Ethereum, paying the fee in ETH (the
+// app's "Copy it myself"). The bot then finds it delivered and leaves it. Copies held back are looked
+// at again every few minutes rather than on every pass, so a long wait doesn't swamp the bot or its
+// RPCs, and finished messages are forgotten after a week.
 
 import {
   type Address,
@@ -37,7 +42,7 @@ import {
 import { type AmbMessage, isFullySigned, packSignatures, parseAmbMessage } from "./amb.ts";
 import type { RelayLimits } from "./config.ts";
 import type { Context } from "./context.ts";
-import { copyCost, copyGas, paidCopyNeed, recordCopyGas, weiPerUsdc } from "./copyfee.ts";
+import { claimLimit, claimNeed, copyCost, copyGas, recordClaimLimit, recordCopyGas, weiPerUsdc } from "./copyfee.ts";
 import { short, submit, usdc } from "./orders.ts";
 import type { MessageRecord, RelayState } from "./state.ts";
 
@@ -63,6 +68,10 @@ export function claimGas(estimate: bigint): bigint {
 /** A claim not seen mined after this long is taken as dropped, and sent again. */
 const CLAIM_TIMEOUT = 15n * 60n;
 const HOUR = 3600n;
+/** How often a message held back is looked at again. Paid copies and the admin's: every pass. */
+export const RECHECK = 5n * 60n;
+/** Finished messages are forgotten this long after, so the bot's records stay small. */
+const FORGET_AFTER = 7n * 24n * HOUR;
 const userRequestForSignature = getAbiItem({ abi: homeAmbAbi, name: "UserRequestForSignature" });
 const copyPaid = getAbiItem({ abi: checkoutAbi, name: "CopyPaid" });
 
@@ -137,7 +146,7 @@ export type Hold = {
   limits: RelayLimits;
   relay: RelayState;
   priority?: "paid" | "admin"; // someone paid the copy fee for it, or the admin sent it
-  paidNeed?: bigint; // the ETH a paid copy's claim needs on hand (paidCopyNeed in copyfee.ts)
+  paidNeed?: bigint; // the ETH a paid copy's claim needs on hand (claimNeed in copyfee.ts)
   ownerChange?: boolean; // it gives the name a new owner on Ethereum
   copyUsdc?: bigint; // about what a copy costs now, in USDC units, if known
   feeOn?: boolean; // the copy fee is on, so anyone could have paid for this copy to go at once
@@ -209,12 +218,27 @@ function labelOf(message: MessageRecord): string | undefined {
   }
 }
 
+/** Forgets messages finished more than FORGET_AFTER ago; notes when the others finished. */
+export function forgetFinished(messages: Record<string, MessageRecord>, now: bigint): void {
+  for (const [id, m] of Object.entries(messages)) {
+    if (m.status === "waiting") continue;
+    if (!m.doneAt) m.doneAt = now.toString(); // finished before the bot noted when
+    else if (now - BigInt(m.doneAt) >= FORGET_AFTER) delete messages[id];
+  }
+}
+
+/** Whether a message held back is due to be looked at again (paid copies and the admin's always are). */
+export function due(message: MessageRecord, now: bigint): boolean {
+  return message.paid !== undefined || message.admin === true || !message.recheckAt || now >= BigInt(message.recheckAt);
+}
+
 /** Claims every waiting message that validators have finished signing, the bot's own first. */
 export async function claimMessages(ctx: Context): Promise<void> {
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  forgetFinished(ctx.state.messages, now);
   const waiting = Object.values(ctx.state.messages).filter((m) => m.status === "waiting");
   if (waiting.length === 0) return;
   waiting.sort((a, b) => Number(Boolean(b.own)) - Number(Boolean(a.own)));
-  const now = BigInt(Math.floor(Date.now() / 1000));
   const relay = relayState(ctx, now);
   let funds: { gasPrice: bigint; eth: bigint; weiPerUsdc: bigint | undefined } | null = null;
   const required = await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "requiredSignatures" });
@@ -223,9 +247,15 @@ export async function claimMessages(ctx: Context): Promise<void> {
       // A claim already sent: wait for it, rather than send another that would only revert.
       if (message.claimTx && !(await claimSettled(ctx, message, relay, now))) continue;
       if (message.status !== "waiting") continue;
+      if (!message.claimTx && !due(message, now)) continue;
       const relayed = await ctx.eth.readContract({ address: ctx.config.foreignAmb, abi: foreignAmbAbi, functionName: "relayedMessages", args: [message.messageId] });
       if (relayed) {
+        // Its owner copied it themselves (or anyone else did): nothing left to do.
         message.status = "claimed-by-someone-else";
+        message.doneAt = now.toString();
+        delete message.recheckAt;
+        const label = message.own ? undefined : labelOf(message);
+        ctx.log(`bridge message ${message.messageId}${label === undefined ? "" : ` (${label}.hex)`} was delivered on Ethereum by someone else, so the bot leaves it`);
         continue;
       }
       const signed = await ctx.pls.readContract({ address: ctx.config.homeAmb, abi: homeAmbAbi, functionName: "numMessagesSigned", args: [message.hash] });
@@ -234,6 +264,8 @@ export async function claimMessages(ctx: Context): Promise<void> {
       if (assessed.skip) {
         message.status = "skipped";
         message.note = assessed.skip;
+        message.doneAt = now.toString();
+        delete message.recheckAt;
         ctx.log(`bridge message ${message.messageId}: not claiming it, ${assessed.skip}`);
         continue;
       }
@@ -251,7 +283,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
           now,
           cost: funds.gasPrice * CLAIM_GAS,
           copyCost: funds.gasPrice * copyGas(relay),
-          paidNeed: paidCopyNeed(funds.gasPrice, copyGas(relay)),
+          paidNeed: claimNeed(funds.gasPrice, claimLimit(relay)),
           ethBalance: funds.eth,
           reserve: funds.gasPrice * REFILL_GAS,
           limits: ctx.config.relayLimits,
@@ -263,8 +295,10 @@ export async function claimMessages(ctx: Context): Promise<void> {
         });
         if (hold) {
           noteOnce(ctx, relay, now, `bridge: holding back a claim, ${hold}`);
+          message.recheckAt = (now + RECHECK).toString();
           continue;
         }
+        delete message.recheckAt;
       }
       const signatures: Hex[] = [];
       for (let i = 0n; i < required; i++) {
@@ -278,6 +312,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
       } as const;
       // Asked of Ethereum each time, since what a claim needs changes with Ethereum's upgrades.
       const gas = claimGas(await ctx.eth.estimateContractGas({ ...claim, account: ctx.account }));
+      if (kind === "mirror") recordClaimLimit(relay, gas);
       const hash = await submit(ctx, "eth", { ...claim, gas });
       message.claimTx = hash;
       message.claimSentAt = now.toString();
@@ -302,6 +337,7 @@ function finishClaim(ctx: Context, message: MessageRecord, receipt: TransactionR
   }
   message.status = "claimed";
   message.tx = receipt.transactionHash;
+  message.doneAt = now.toString();
   const label = message.own ? undefined : labelOf(message);
   if (label !== undefined) {
     if (!message.paid) relay.spent = (BigInt(relay.spent) + cost).toString(); // paid copies don't use up the day's allowance
