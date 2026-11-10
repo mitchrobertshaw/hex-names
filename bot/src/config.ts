@@ -245,8 +245,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     relay: flag("RELAY"),
     sync: flag("SYNC"),
     relayLimits: {
-      // About 550 copies a day at 10 November 2026's gas prices, and still a few at times of very
-      // high gas; beyond it, copies wait for the next day.
+      // About 1,100 copies a day at 10 November 2026's gas prices (a copy used about 300,000 gas),
+      // and still a few at times of very high gas; beyond it, copies wait for the next day.
       dailyEth: coins(optional("RELAY_DAILY_ETH") ?? "0.02"),
       nameCooldown: BigInt(Number(optional("RELAY_NAME_COOLDOWN_MINUTES") ?? "60") * 60),
       freeCopyUsdc: usdc(optional("COPY_FREE_USDC") ?? "2"),

@@ -130,7 +130,8 @@ export type Hold = {
   kind: "own" | "mirror" | "settle";
   label?: string; // the name a mirror message copies
   now: bigint;
-  cost: bigint; // about what claiming it costs, in wei
+  cost: bigint; // the most claiming it may cost, in wei: what's kept on hand for it
+  copyCost?: bigint; // about what a copy of a name really costs, in wei, from the gas copies use
   ethBalance: bigint;
   reserve: bigint; // wei kept back for claiming the bot's own refill
   limits: RelayLimits;
@@ -161,7 +162,8 @@ export function holdReason(h: Hold): string | null {
       "the project pays (COPY_FREE_USDC), and nobody paid its copy fee"
     );
   }
-  if (BigInt(h.relay.spent) + h.cost > h.limits.dailyEth) {
+  // The day's allowance counts what copies really cost (claims are charged for the gas they use).
+  if (BigInt(h.relay.spent) + (h.copyCost ?? h.cost) > h.limits.dailyEth) {
     return "at today's limit of ETH for copying names (RELAY_DAILY_ETH): the rest wait until tomorrow (UTC)";
   }
   const last = h.label === undefined ? undefined : h.relay.lastClaim[h.label];
@@ -242,6 +244,7 @@ export async function claimMessages(ctx: Context): Promise<void> {
           label: kind === "mirror" ? labelOf(message) : undefined,
           now,
           cost: funds.gasPrice * CLAIM_GAS,
+          copyCost: funds.gasPrice * copyGas(relay),
           ethBalance: funds.eth,
           reserve: funds.gasPrice * REFILL_GAS,
           limits: ctx.config.relayLimits,

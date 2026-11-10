@@ -211,10 +211,11 @@ which already runs Ethereum's next upgrade, so copies may cost three times as mu
 
 **Limits on copying names.** So that nobody can run up its Ethereum gas by changing a name over and
 over, it copies each name at most once an hour (the newest change wins), and spends at most 0.02 ETH
-a day copying names, about 550 copies at November 2026's gas prices. The rest wait until the next
+a day copying names, about 1,100 copies at November 2026's gas prices. The rest wait until the next
 day (UTC): nothing is lost, as a name works on PulseChain all along and its copy only lags. The
-limit is in ETH, so fewer copies fit when gas is high: about 20 a day at 1 gwei. If gas stays high,
-raise it. Copies paid for, and those the admin sends, go regardless. The settings
+limit is in ETH, so fewer copies fit when gas is high: about 65 a day at 1 gwei, 6 at 10 gwei, and
+none above about 65 gwei (a third as many after Ethereum's next upgrade, if copies then cost what
+they do on Sepolia). If gas stays high, raise it. Copies paid for, and those the admin sends, go regardless. The settings
 `RELAY_NAME_COOLDOWN_MINUTES` (60), `RELAY_DAILY_ETH` (0.02) and `COPY_FREE_USDC` (2) change these.
 
 ## Keeping it safe

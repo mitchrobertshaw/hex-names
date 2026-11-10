@@ -24,7 +24,7 @@ import { ORDER_STATUS, erc20Abi, foreignAmbAbi, homeAmbAbi, orderBookAbi, regist
 import { parseAmbMessage } from "./amb.ts";
 import type { Treasury } from "./config.ts";
 import type { Context } from "./context.ts";
-import { weiPerUsdc as readWeiPerUsdc } from "./copyfee.ts";
+import { copyGas, weiPerUsdc as readWeiPerUsdc } from "./copyfee.ts";
 import { receiptOf, send, short, submit } from "./orders.ts";
 import { CLAIM_GAS, REFILL_GAS, ownTransfer, spentToday } from "./relay.ts";
 import type { Submitted, TreasuryState } from "./state.ts";
@@ -252,10 +252,11 @@ async function readBalances(ctx: Context, payments: Address, now: bigint): Promi
     // What the next copy needs, if one can go today: the relay holds copies back otherwise. A copy
     // someone pays the copy fee for goes whatever today's limit, so while the fee can be paid, the
     // bot is ready for one.
-    const cost = gasPrice * CLAIM_GAS;
-    const canCopy =
-      config.relay && (spentToday(ctx.state.relay, now) + cost <= config.relayLimits.dailyEth || ctx.state.copyFee?.offered === true);
-    const ethNeed = canCopy ? cost + gasPrice * REFILL_GAS : 0n;
+    // Whether one fits today's allowance is counted as the relay counts it, at what copies really
+    // use; what's kept on hand for it is the most a claim may take.
+    const fits = spentToday(ctx.state.relay, now) + gasPrice * copyGas(ctx.state.relay) <= config.relayLimits.dailyEth;
+    const canCopy = config.relay && (fits || ctx.state.copyFee?.offered === true);
+    const ethNeed = canCopy ? gasPrice * (CLAIM_GAS + REFILL_GAS) : 0n;
     return { pls, float, eth, ethUsdc, budget, ethNeed, weiPerUsdc };
   } catch (error) {
     ctx.log(`balance: couldn't read Ethereum just now (${short(error)}); looking after PulseChain only this time`);

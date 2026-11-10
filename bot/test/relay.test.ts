@@ -106,3 +106,13 @@ test("while the copy fee is on and a copy costs over $2, new names and renewals 
   // Orders' refunds and payments aren't copies of names.
   assert.equal(holdReason({ ...dear, kind: "settle" }), null);
 });
+
+test("today's allowance counts what copies really cost, so a change of owner still goes when gas is high", () => {
+  // At 30 gwei a claim may take 1.6 million gas (0.048 ETH), more than the whole day's 0.02 ETH;
+  // a copy really uses about 300,000 (0.009 ETH), which fits.
+  const gas = parseGwei("30");
+  const high = { ...base, cost: gas * CLAIM_GAS, reserve: gas * REFILL_GAS, ethBalance: 10n ** 18n, kind: "mirror" as const, label: "alice", ownerChange: true };
+  assert.equal(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay() }), null);
+  assert.match(holdReason({ ...high, copyCost: gas * 300_000n, relay: relay(config.relayLimits.dailyEth - gas * 300_000n + 1n) })!, /today's limit/);
+  assert.match(holdReason({ ...high, relay: relay() })!, /today's limit/, "without what copies use, it plans for the most");
+});
