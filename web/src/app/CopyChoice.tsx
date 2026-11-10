@@ -5,7 +5,7 @@ import { useState } from "react";
 import type { Address } from "viem";
 
 import type { PayToken } from "../lib/tokens";
-import { type CopyFee, feeText, useCopyFee, useEthereumCopy } from "./copy";
+import { capText, type CopyFee, FREE_COPY, feeText, useCopyFee, useEthereumCopy } from "./copy";
 import { copyNow, type Step } from "./flows";
 import { PAY } from "./network";
 import { Steps } from "./Steps";
@@ -32,8 +32,9 @@ export function CopyChoice({
   if (copy?.kind === "busy") {
     return (
       <p className="checkout__hint copy-choice__busy" role="status">
-        Ethereum is very busy right now, so {what} is copied there once its fees fall. It works on PulseChain straight
-        away.
+        Ethereum is very busy right now: copying to it at once would cost more than {capText(copy.cap)}, the most a copy
+        can cost, so it isn&rsquo;t offered. {what[0].toUpperCase() + what.slice(1)} is copied there free once
+        Ethereum&rsquo;s fees fall, and works on PulseChain straight away.
       </p>
     );
   }
@@ -54,7 +55,8 @@ export function CopyChoice({
         </button>
       </div>
       <p className="checkout__hint">
-        Ethereum is busy, so copying there costs more than usual. It works on PulseChain straight away either way.
+        Ethereum is busy, so copying there costs more than usual. HexNS pays the first {FREE_COPY} of each copy, and the
+        fee is the rest. It works on PulseChain straight away either way.
       </p>
     </div>
   );

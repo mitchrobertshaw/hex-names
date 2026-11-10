@@ -313,7 +313,11 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Which chains does it work on?",
-    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. When Ethereum is unusually busy, a new name's or renewal's copy waits for its fees to fall, unless you add a small fee to copy it at once. If you use both chains, or might one day, you're covered either way.",
+    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. When Ethereum is unusually busy, a new name's or renewal's copy can wait for its fees to fall (see the next question). If you use both chains, or might one day, you're covered either way.",
+  },
+  {
+    q: "Is there ever a fee to copy my name to Ethereum?",
+    a: "Rarely, and only if you choose to pay it. Each copy costs Ethereum's network fee, and HexNS pays up to $2 of it, which covers it at Ethereum's usual prices. When Ethereum is unusually busy and a copy costs more, you choose when you buy or renew: let it copy free once Ethereum's fees fall (usually within hours), or pay the difference to copy it at once, shown as its own line before you pay. Sending a name to another wallet in the app pays it too, so the new owner shows on Ethereum at once. The fee is never more than $100: when a copy would cost more, copying at once isn't offered, and it's copied free once fees fall. Your name works on PulseChain straight away either way.",
   },
   {
     q: `Why ${PRICE} a year?`,

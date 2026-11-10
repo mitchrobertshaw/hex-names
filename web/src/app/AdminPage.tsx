@@ -702,7 +702,8 @@ function CopyFeeCard() {
           </form>
           <p className="payouts__how">
             If a copy would cost more than this, copying at once isn&rsquo;t offered, and copies wait for Ethereum&rsquo;s
-            fees to fall. Switched off, every copy is free.
+            fees to fall. Switched off, every copy is free. The app shows the new amount at once; the homepage&rsquo;s
+            FAQ says $100 as text, so ask for it to be updated after a change.
           </p>
           {capSteps ? <Steps steps={capSteps} /> : null}
         </>

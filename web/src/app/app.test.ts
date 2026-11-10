@@ -29,7 +29,7 @@ import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
 import { amountText, errorText, shortText, testnetFees } from "./flows";
 import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
-import { copyFeeOf, feeText } from "./copy";
+import { capText, copyFeeOf, feeText } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
@@ -382,14 +382,17 @@ describe("the Ethereum copy fee", () => {
     expect(copyFeeOf(0n, cap)).toEqual({ kind: "free" });
     expect(copyFeeOf(1_250_000n, cap)).toEqual({ kind: "offered", fee: 1_250_000n });
     expect(copyFeeOf(cap, cap)).toEqual({ kind: "offered", fee: cap });
-    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy" });
+    expect(copyFeeOf(cap + 1n, cap)).toEqual({ kind: "busy", cap });
     expect(copyFeeOf(1_250_000n, 0n)).toEqual({ kind: "free" }); // switched off by the admin
   });
 
-  it("shows fees in dollars and cents", () => {
+  it("shows fees in dollars and cents, and the cap in whole dollars when it is", () => {
     expect(feeText(1_250_000n)).toBe("$1.25");
     expect(feeText(270_000n)).toBe("$0.27");
     expect(feeText(80_400_000n)).toBe("$80.40");
+    expect(capText(100_000_000n)).toBe("$100");
+    expect(capText(1_000_000_000n)).toBe("$1,000");
+    expect(capText(12_500_000n)).toBe("$12.50");
   });
 
   it("takes the most a copy can cost as dollars, up to $10,000", () => {

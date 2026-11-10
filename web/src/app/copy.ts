@@ -17,13 +17,13 @@ export type CopyFee =
   | { kind: "free" }
   /** `fee` (USDC units) copies a name at once; without it, it's copied free once Ethereum's fees fall. */
   | { kind: "offered"; fee: bigint }
-  /** Ethereum is so busy a copy would cost more than the admin's cap: copies wait for its fees to fall. */
-  | { kind: "busy" };
+  /** Ethereum is so busy a copy would cost more than the admin's cap (USDC units): copies wait for its fees to fall. */
+  | { kind: "busy"; cap: bigint };
 
 /** The copy fee, from the checkout's fee and the admin's cap. */
 export function copyFeeOf(fee: bigint, cap: bigint): CopyFee {
   if (fee === 0n || cap === 0n) return { kind: "free" };
-  return fee > cap ? { kind: "busy" } : { kind: "offered", fee };
+  return fee > cap ? { kind: "busy", cap } : { kind: "offered", fee };
 }
 
 /** The copy fee now. Free if the checkout can't say: one deployed before the copy fee has none. */
@@ -71,6 +71,14 @@ export function copyFeePaid(receipt: Pick<TransactionReceipt, "logs">): bigint {
 export function feeText(fee: bigint): string {
   return `$${(Number(fee) / 1e6).toFixed(2)}`;
 }
+
+/** Dollars, without cents when there are none: "$100", "$12.50". */
+export function capText(cap: bigint): string {
+  return cap % 1_000_000n === 0n ? `$${(cap / 1_000_000n).toLocaleString("en-US")}` : feeText(cap);
+}
+
+/** What the project pays of each copy, above which there's a fee (the bot's COPY_FREE_USDC). */
+export const FREE_COPY = "$2";
 
 let ethereumRegistry: Promise<Address> | null = null;
 
