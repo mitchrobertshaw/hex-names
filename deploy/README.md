@@ -74,7 +74,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | | Testnets | Mainnet |
 |---|---|---|
 | Deployer, on PulseChain (steps 1 and 3) | 10 tPLS, free from the [faucet](https://faucet.v4.testnet.pulsechain.com) (a site that gives out test coins) | 200,000 PLS (about $1). Step 1 would have cost about 22,000 at 11 November 2026's gas prices; the rest is plenty in case gas rises several times over that day |
-| Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.05 ETH (about $100). Step 2 would have cost about 0.002 ETH at 11 November 2026's gas prices; the rest covers a busy day, or [Ethereum's next upgrade](ethereum/README.md#ethereums-next-upgrade) |
+| Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.05 ETH (about $100). Step 2 would have cost about 0.002 ETH at 11 November 2026's gas prices; the rest covers a busy day. If Ethereum has had its [next upgrade](ethereum/README.md#ethereums-next-upgrade) by launch day, 0.1 ETH |
 | Bot, on PulseChain | 10 tPLS for gas | 500,000 PLS for gas (about $2.50) |
 | Bot, on Ethereum | 0.01 Sepolia ETH | 0.01 ETH |
 
