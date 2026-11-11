@@ -45,6 +45,8 @@ const PULSECHAIN = {
   PLSX: "0x95B303987A60C71504D99Aa1b13B4DA07b0790ab",
   // Bridged from Ethereum by the official bridge (its bridgedTokenAddress), not the copies made at
   // PulseChain's fork.
+  USDT: "0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f",
+  DAI: "0xefD766cCb38EaF1dfd701853BFCe31359239F305",
   WETH_FROM_ETHEREUM: "0x02DcdD04e3F455D838cd1249292C58f3B79e3C3C",
   HEX_FROM_ETHEREUM: "0x57fde0a71132198BBeC939B98976993d8D89D225",
   PULSEX_V1: "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02",
@@ -88,6 +90,26 @@ export const PAY_CHAINS: Record<ChainKey, PayChain> = {
         note: "USDC bridged from Ethereum, which your wallet calls \u201cUSD Coin from Ethereum\u201d. There\u2019s no native USDC on PulseChain yet, and the USDC copied when PulseChain launched is a different token.",
         decimals: 6,
         path: null,
+      },
+      // Through WPLS: PulseX's USDT/USDC pools held under $35 a side on 11 November 2026, and its
+      // USDT/WPLS pool on V1 about $225k. Paying cost about 0.6% more than the price on $10 and 1.1%
+      // on $640, nearly all of it PulseX's fee of 0.29% a swap.
+      {
+        symbol: "USDT",
+        label: "USDT from Ethereum",
+        note: "Tether bridged from Ethereum, which your wallet calls “Tether USD from Ethereum”. The USDT copied when PulseChain launched is a different token.",
+        decimals: 6,
+        path: [PULSECHAIN.USDT, PULSECHAIN.WPLS, PULSECHAIN.USDC],
+      },
+      // Straight into USDC: PulseX's DAI/USDC pools held about $100k a side on V1 and $87k on V2 on
+      // 11 November 2026. Paying cost about 0.5% more than the price on $10 and 1.1% on $640: the
+      // swap fee, and DAI trading a fraction of a cent under USDC there.
+      {
+        symbol: "DAI",
+        label: "DAI from Ethereum",
+        note: "Dai bridged from Ethereum, which your wallet calls “Dai Stablecoin from Ethereum”. The DAI copied when PulseChain launched (pDAI) is a different token.",
+        decimals: 18,
+        path: [PULSECHAIN.DAI, PULSECHAIN.USDC],
       },
       // Through WPLS. On 8 November 2026 the swap lost WETH about 0.2% on $100; eHEX's pools are
       // smaller, so it lost about 1% on $100 and 7% on $640.

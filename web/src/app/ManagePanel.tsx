@@ -6,7 +6,7 @@ import { captureReferral, launchOffer, referralLink, referralOfferText } from ".
 import { MAX_YEARS, priceFor } from "../lib/names";
 import { feeText, useCopyFee } from "./copy";
 import { CopyChoice, type CopyWhen, FEE_TOKENS, FeeTokens } from "./CopyChoice";
-import { renew, send, type Step } from "./flows";
+import { changeText, renew, send, type Step } from "./flows";
 import { usePriceLevel } from "./live";
 import { addressUrl, deployment, PAY } from "./network";
 import { referralTag } from "./order";
@@ -118,6 +118,7 @@ export function RenewPanel({
           ))}
         </div>
       </div>
+      {changeText(token) ? <p className="manage__note manage__change">{changeText(token)}</p> : null}
       <div className="manage__fee">
         <CopyChoice copy={copy} choice={copyWhen} onChange={setCopyWhen} disabled={busy} what="the new date" />
       </div>
@@ -217,6 +218,7 @@ export function OwnerPanel({
               shows on Ethereum in about 15 minutes. Pay it with:
             </p>
             <FeeTokens token={feeToken} onChange={setFeeToken} disabled={busy} />
+            {changeText(feeToken) ? <p className="manage__note">{changeText(feeToken)}</p> : null}
           </div>
         ) : null}
         {canSend ? (

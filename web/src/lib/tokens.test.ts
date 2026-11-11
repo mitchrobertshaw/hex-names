@@ -39,10 +39,29 @@ describe("the checkout's tokens match the deployment", () => {
     expect(new Set(PAY_CHAINS.pulsechain.tokens.map((token) => token.symbol)).size).toBe(PAY_CHAINS.pulsechain.tokens.length);
   });
 
-  it("never touches the copy of USDC made at PulseChain's fork", () => {
-    const copy = ethereum.USDC; // the fork copied Ethereum's USDC contract to the same address
+  it("pays with USDT and DAI bridged from Ethereum, as the bridge made them", () => {
+    const usdt = PAY_CHAINS.pulsechain.tokens.find((token) => token.symbol === "USDT");
+    const dai = PAY_CHAINS.pulsechain.tokens.find((token) => token.symbol === "DAI");
+    // The official bridge's bridgedTokenAddress for Ethereum's USDT and DAI ("Tether USD from
+    // Ethereum", "Dai Stablecoin from Ethereum").
+    expect(pulsechain.USDT).toBe("0x0cb6f5a34ad42ec934882a05265a7d5f59b51a2f");
+    expect(pulsechain.DAI).toBe("0xefd766ccb38eaf1dfd701853bfce31359239f305");
+    // USDT goes through WPLS, as PulseX has no USDT/USDC pool worth the name; DAI straight to USDC.
+    expect(usdt!.path!.map(lower)).toEqual([pulsechain.USDT, pulsechain.WPLS, pulsechain.USDC]);
+    expect(dai!.path!.map(lower)).toEqual([pulsechain.DAI, pulsechain.USDC]);
+    expect([usdt!.decimals, dai!.decimals]).toEqual([6, 18]);
+    expect(usdt!.label).toBe("USDT from Ethereum");
+    expect(dai!.label).toBe("DAI from Ethereum");
+    expect(usdt!.note).toMatch(/bridged from Ethereum.*different token/);
+    expect(dai!.note).toMatch(/bridged from Ethereum.*different token/);
+  });
+
+  it("never touches the copies of USDC, USDT or DAI made at PulseChain's fork", () => {
+    // The fork copied Ethereum's contracts to the same addresses, and wallets call the copies by the
+    // same names: USDC, USDT (0xdAC1…1ec7) and DAI (0x6B17…1d0F, known as pDAI).
+    const copies = [ethereum.USDC, "0xdac17f958d2ee523a2206206994597c13d831ec7", "0x6b175474e89094c44da98b954eedeac495271d0f"];
     for (const token of PAY_CHAINS.pulsechain.tokens) {
-      for (const hop of token.path ?? []) expect(lower(hop)).not.toBe(copy);
+      for (const hop of token.path ?? []) expect(copies).not.toContain(lower(hop));
     }
   });
 

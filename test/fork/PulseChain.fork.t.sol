@@ -116,13 +116,40 @@ contract PulseChainForkTest is Test, HexDeployer {
         _buyWithBridgedToken("hexnamesehex", P.HEX_FROM_ETHEREUM, P.PULSEX_V2_ROUTER);
     }
 
+    /// @dev USDT and DAI bridged from Ethereum, along the routes the app quotes (checked on 11
+    ///      November 2026): USDT through WPLS, on V1, as PulseX has no USDT/USDC pool worth the
+    ///      name; DAI straight into USDC, here on V2 (both routers have deep DAI/USDC pools).
+    function test_fork_buyWithUSDTFromEthereum() public {
+        _buyWithBridgedToken("hexnamesusdt", P.USDT, P.PULSEX_V1_ROUTER);
+    }
+
+    function test_fork_buyWithDAIFromEthereum() public {
+        _buyWithBridgedToken("hexnamesdai", _two(P.DAI, P.USDC), P.PULSEX_V2_ROUTER);
+    }
+
+    /// @dev The app approves a little more than a payment needs, and approves again when what's
+    ///      left falls short. Ethereum's own USDT refuses to change an allowance straight to another
+    ///      one; the bridge's USDT on PulseChain is an ordinary token and must not.
+    function test_fork_USDTFromEthereum_changesAnAllowanceLikeAnyToken() public {
+        vm.startPrank(alice);
+        assertTrue(IERC20(P.USDT).approve(address(hub.checkout), 5e6));
+        assertTrue(IERC20(P.USDT).approve(address(hub.checkout), 7e6));
+        vm.stopPrank();
+        assertEq(IERC20(P.USDT).allowance(alice, address(hub.checkout)), 7e6);
+    }
+
     function _buyWithBridgedToken(string memory label, address token, address router) internal {
-        AnyTokenCheckout.Registration memory reg = _registration(label, alice);
-        _commit(reg);
         address[] memory path = new address[](3);
         path[0] = token;
         path[1] = P.WPLS;
         path[2] = P.USDC;
+        _buyWithBridgedToken(label, path, router);
+    }
+
+    function _buyWithBridgedToken(string memory label, address[] memory path, address router) internal {
+        address token = path[0];
+        AnyTokenCheckout.Registration memory reg = _registration(label, alice);
+        _commit(reg);
         (uint256 price, uint256 amountIn) = hub.checkout.quoteRegister(reg.label, reg.duration, router, path);
         amountIn = amountIn * 103 / 100;
         deal(token, alice, amountIn);

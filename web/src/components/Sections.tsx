@@ -91,7 +91,7 @@ export function BothChains() {
   );
 }
 
-const TOKENS = ["PLS", "HEX", "PLSX", "eHEX", "WETH", "USDC"];
+const TOKENS = ["PLS", "HEX", "PLSX", "eHEX", "WETH", "USDC", "USDT", "DAI"];
 
 export function Features() {
   return (
@@ -137,7 +137,10 @@ export function Features() {
             </div>
             <div className="bento__text">
               <h3>Pay with your bag</h3>
-              <p>PLS, HEX, eHEX, PLSX, WETH or USDC, on PulseChain. It&rsquo;s swapped at checkout, so prices stay in dollars.</p>
+              <p>
+                PLS, HEX, eHEX, PLSX, WETH, USDC, USDT or DAI, on PulseChain. It&rsquo;s swapped at checkout, so prices stay
+                in dollars.
+              </p>
             </div>
           </article>
 
@@ -200,7 +203,7 @@ const STEPS = [
   },
   {
     title: "Buy it on PulseChain",
-    text: "Pay with PLS, HEX, PLSX, eHEX, WETH or USDC. Money on another chain? LibertySwap brings it over in minutes.",
+    text: "Pay with PLS, HEX, PLSX, eHEX, WETH, USDC, USDT or DAI. Money on another chain? LibertySwap brings it over in minutes.",
   },
   {
     title: "Use it everywhere",
@@ -242,7 +245,7 @@ export function Pricing() {
               <CheckIcon size={18} /> No paying twice for two chains
             </li>
             <li>
-              <CheckIcon size={18} /> Pay in PLS, HEX, eHEX, PLSX, WETH or USDC
+              <CheckIcon size={18} /> Pay in PLS, HEX, eHEX, PLSX, WETH, USDC, USDT or DAI
             </li>
             <li>
               <CheckIcon size={18} /> 28 days&rsquo; grace to renew if you forget
@@ -329,7 +332,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "What can I pay with?",
-    a: "Names are bought on PulseChain, with PLS, HEX or PLSX, or with USDC, WETH or HEX (eHEX) bridged from Ethereum. It's swapped into USDC at checkout, so the price stays in dollars. Holding another token? Swap it for PLS on PulseX first. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee (send at least $10), and the PLS pays for your name and the network fee.",
+    a: "Names are bought on PulseChain, with PLS, HEX or PLSX, or with USDC, USDT, DAI, WETH or HEX (eHEX) bridged from Ethereum. It's swapped into USDC at checkout, so the price stays in dollars. Holding another token? Swap it for PLS on PulseX first. Money on Ethereum or another chain? Send USDC with LibertySwap (libertyswap.finance), choosing PLS on PulseChain to receive: it arrives in a few minutes, for a 0.3% fee (send at least $10), and the PLS pays for your name and the network fee.",
   },
   {
     q: "Can I sell my name?",

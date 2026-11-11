@@ -28,7 +28,7 @@ import { PAY_CHAINS, type PayToken } from "../lib/tokens";
 import { checkoutAbi } from "./abis";
 import { amountToSend } from "./BuyPanel";
 import { ethText } from "./copy";
-import { amountText, errorText, ethShortText, selfCopiedText, shortText, testnetFees } from "./flows";
+import { amountText, changeText, errorText, ethShortText, selfCopiedText, shortText, testnetFees } from "./flows";
 import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
 import { capText, copyFeeOf, feeText, UNAVAILABLE } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
@@ -224,6 +224,23 @@ describe("paying", () => {
     expect(shortText(pls, 1n, 2n)).toBe(
       "This wallet doesn't hold enough PLS to pay. Add a little more, then try again. Nothing was paid.",
     );
+  });
+
+  it("says a swap sends 2% extra and the change comes back in USDC, so the wallet's amount isn't a surprise", () => {
+    const usdt = PAY_CHAINS.pulsechain.tokens.find((t) => t.symbol === "USDT") as PayToken;
+    // The launch rehearsal: a $10 name quoted at 10.06 USDT, and the wallet sent 10.26.
+    expect(changeText(usdt, 10_058_700n)).toBe(
+      "Your wallet sends about 10.26 USDT: 2% extra in case the price moves. " +
+        "What isn’t needed comes straight back to you, in USDC.",
+    );
+    // Where there's no quote to hand (renewing, the copy fee).
+    expect(changeText(pls)).toBe(
+      "Your wallet sends 2% more PLS than this costs, in case the price moves. " +
+        "What isn’t needed comes straight back to you, in USDC.",
+    );
+    // USDC isn't swapped: exactly the price is sent, and nothing comes back.
+    expect(changeText(usdc, 10_000_000n)).toBeNull();
+    expect(changeText(usdc)).toBeNull();
   });
 
   it("says plainly why a payment would fail, which isn't sent", () => {

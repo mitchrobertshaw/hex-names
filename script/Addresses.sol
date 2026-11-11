@@ -7,8 +7,14 @@ library PulseChainAddresses {
     address internal constant AMB = 0x6ef79FD6f9f840264332884240539Ed7A2dA8b2b;
     /// @dev USDC bridged from Ethereum (6 decimals). The checkout's payment token.
     address internal constant USDC = 0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07;
-    /// @dev DAI bridged from Ethereum (18 decimals). Also accepted by the registrar.
+    /// @dev DAI bridged from Ethereum ("Dai Stablecoin from Ethereum", 18 decimals). Also accepted
+    ///      by the registrar. Not the copy of DAI made at the fork (pDAI). The app pays with it
+    ///      through the checkout, which swaps it into USDC.
     address internal constant DAI = 0xefD766cCb38EaF1dfd701853BFCe31359239F305;
+    /// @dev USDT bridged from Ethereum ("Tether USD from Ethereum", 6 decimals), as the official
+    ///      bridge's bridgedTokenAddress gives it (checked 2026-11-11). Not the copy of USDT made at
+    ///      the fork. Paid with through the checkout, which swaps it into USDC through WPLS.
+    address internal constant USDT = 0x0Cb6F5a34ad42ec934882A05265A7d5F59b51A2f;
     address internal constant WPLS = 0xA1077a294dDE1B09bB078844df40758a5D0f9a27;
     /// @dev HEX on PulseChain (8 decimals), the same address as on Ethereum.
     address internal constant HEX = 0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39;
