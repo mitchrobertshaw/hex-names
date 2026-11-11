@@ -349,7 +349,10 @@ export async function selfCopyCost(ready: Extract<SelfCopy, { kind: "ready" }>, 
   const base = block.baseFeePerGas ?? 0n;
   // Room for the base fee to rise by half before it's mined; it's charged only what it is then.
   const maxFeePerGas = (base * 3n) / 2n + tip;
-  return { cost: (used ?? estimate) * (base + tip), need: gas * maxFeePerGas, balance, gas, maxFeePerGas, maxPriorityFeePerGas: tip };
+  // With a twentieth more: Ethereum's reckoning runs a little under what the copy then uses (about
+  // 1% in the launch rehearsal), and a fee is better shown a little high than low.
+  const shown = ((used ?? estimate) * 21n) / 20n;
+  return { cost: shown * (base + tip), need: gas * maxFeePerGas, balance, gas, maxFeePerGas, maxPriorityFeePerGas: tip };
 }
 
 /** ETH for people: to 2 significant figures, rounded up, so a cost is never shown as less than it is. */

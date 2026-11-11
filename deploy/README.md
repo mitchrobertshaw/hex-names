@@ -75,7 +75,7 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 |---|---|---|
 | Deployer, on PulseChain (steps 1 and 3) | 10 tPLS, free from the [faucet](https://faucet.v4.testnet.pulsechain.com) (a site that gives out test coins) | 50,000 PLS. Step 1 would have cost about 15,000 at 7 November 2026's gas prices; the rest is in case gas rises |
 | Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.02 ETH |
-| Bot, on PulseChain | 10 tPLS for gas | 200,000 PLS for gas (about $1) |
+| Bot, on PulseChain | 10 tPLS for gas | 500,000 PLS for gas (about $2.50) |
 | Bot, on Ethereum | 0.01 Sepolia ETH | 0.01 ETH |
 
 You fund the bot once. After that it pays its own gas out of your sales, within a budget you set in

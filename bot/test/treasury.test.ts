@@ -74,6 +74,20 @@ test("low on ETH with no USDC on Ethereum, it sends some there first, once", () 
   assert.deepEqual(plan({ ...healthy, eth: parseEther("0.001") }, { ...nothing, out: usdc(16) }, t), []);
 });
 
+test("USDC sent to buy ETH arrives a little short (the bridge's fee, ETH spent or its price moving meanwhile): it buys with it, rather than send it home and more back out", () => {
+  const at = (gwei: number) => parseEther(String((4_600_000 * gwei) / 1e9));
+  const weiPerUsdc = parseEther("0.0003"); // ETH at about $3,333
+  const priced = { ...healthy, weiPerUsdc };
+  // At 3 gwei it wants $58.67 of ETH. $58 arrived: it buys with that, and sends nothing home or out.
+  assert.deepEqual(kinds(plan({ ...priced, ethUsdc: usdc(58), ethNeed: at(3) }, nothing, t)), ["buy-eth 58.00"]);
+  // The launch rehearsal's case: topping up the ETH kept for paid copies (0.02) from 0.0048, with
+  // $72.05 arrived of what it now wants. It used to send a little more out, and $57.05 home, each time.
+  const rehearsal = plan({ ...priced, eth: parseEther("0.0048"), ethUsdc: usdc(72.05), ethNeed: parseEther("0.02") }, nothing, t);
+  assert.deepEqual(kinds(rehearsal), ["buy-eth 72.05"]);
+  // Less than ETH_BUY_USDC there, with more on its way: it waits for that, and sends none home.
+  assert.deepEqual(plan({ ...priced, ethUsdc: usdc(14), ethNeed: at(3) }, { ...nothing, out: usdc(50) }, t), []);
+});
+
 test("buyers' payments on Ethereum go home, less enough for the next ETH", () => {
   assert.deepEqual(kinds(plan({ ...healthy, ethUsdc: usdc(30.25) }, nothing, t)), ["send-home 15.25"]);
   assert.deepEqual(plan({ ...healthy, ethUsdc: usdc(19.99) }, nothing, t), [], "under $5 over: it waits for more");

@@ -28,7 +28,7 @@ New to this? [Start here](../README.md).
 
   | | Testnet | Mainnet |
   |---|---|---|
-  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 200,000 PLS, about $1 |
+  | On PulseChain, for gas | 10 tPLS ([faucet](https://faucet.v4.testnet.pulsechain.com)) | 500,000 PLS, about $2.50 |
   | On Ethereum, for gas (claiming bridge messages) | 0.01 Sepolia ETH | 0.01 ETH, about $22 |
 
   That's the only time you fund it. After that it pays its own way ([money](#money)). It needs no
@@ -110,6 +110,9 @@ hex-names bot 0x… on the testnets (PulseChain Testnet v4 + Sepolia)
   ([the website guide](../website/README.md) says where). Buying from Ethereum is off, so nothing
   uses it now, but it's ready if that's ever switched on.
 - **"WARNING: no volume is attached"** means the volume is missing: see 2.3.
+- **"WARNING: the bot is short of its working balance … the payments wallet's budget for it has run
+  out"**, on its first run, is expected: it has no budget until you set one on the payments page
+  (Mainnet, step 4). Within five minutes of that it draws its working balance, and the warning stops.
 - **"… is not set"** means a setting is missing: check the Variables.
 - **Lines ending "(will retry)"** are passing hiccups, such as a slow RPC. It tries again by itself.
 - **"daily: working balance … PLS … ETH …"**, once a day: its balances, and its budget from your
