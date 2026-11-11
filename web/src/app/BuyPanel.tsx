@@ -9,7 +9,16 @@ import type { PayToken } from "../lib/tokens";
 import { erc20Abi } from "./abis";
 import { feeText, useCopyFee } from "./copy";
 import { CopyChoice, type CopyWhen } from "./CopyChoice";
-import { amountText, bestQuote, buyOnPulseChain, type SelfCopied, type Step, tokenAddress, withBuffer } from "./flows";
+import {
+  amountText,
+  bestQuote,
+  buyOnPulseChain,
+  changeText,
+  type SelfCopied,
+  type Step,
+  tokenAddress,
+  withBuffer,
+} from "./flows";
 import { usePriceLevel, useSalesOpen } from "./live";
 import type { NameInfo } from "./lookup";
 import { priceOf } from "./lookup";
@@ -20,7 +29,10 @@ import { Steps } from "./Steps";
 import { WalletChoices } from "./WalletButton";
 import { useWallet } from "./wallet";
 
-type Quote = { status: "loading" } | { status: "ok"; text: string; amount: bigint } | { status: "error" };
+type Quote =
+  | { status: "loading" }
+  | { status: "ok"; text: string; amount: bigint; token: PayToken }
+  | { status: "error" };
 const yearsText = (n: number) => `${n} ${n === 1 ? "year" : "years"}`;
 
 /**
@@ -41,6 +53,7 @@ function useQuote(token: PayToken, label: string, years: number, dollars: number
           ? `≈ ${formatToken(amount, token.decimals)} ${token.symbol} on ${chain.dex} right now`
           : `= ${amountText(token, amount)}`,
         amount,
+        token,
       });
     if (!deployment && !token.path) {
       show(usdc);
@@ -240,8 +253,13 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
   const copyMyself = copy?.kind === "busy" && copyWhen === "myself";
   const price = priceOf(info, years, level);
   const total = Math.round(price.total * 100) / 100;
-  const quote = useQuote(token, info.label, years, total, copyFee !== null);
+  const asked = useQuote(token, info.label, years, total, copyFee !== null);
+  // Just after another token is chosen, until its quote is asked for, the last token's quote is
+  // still held: in its own units (USDC has 6 decimals, PLS 18), so it's taken as still loading.
+  const quote: Quote = asked.status === "ok" && asked.token !== token ? { status: "loading" } : asked;
   const need = quote.status === "ok" ? (token.path ? withBuffer(quote.amount) : quote.amount) : null;
+  // A swap sends `need`, 2% over the quote, and the change comes back: said under the total.
+  const change = changeText(token, quote.status === "ok" ? quote.amount : undefined);
   const funds = useFunds(wallet.connected?.account, token, need);
   const [steps, setSteps] = useState<Step[] | null>(null);
   const [phase, setPhase] = useState<"choose" | "buying" | "done" | "failed">("choose");
@@ -381,6 +399,7 @@ export function BuyPanel({ info }: { info: Extract<NameInfo, { kind: "available"
           </dd>
         </div>
       </dl>
+      {change ? <p className="checkout__hint breakdown__change">{change}</p> : null}
 
       {steps ? <Steps steps={steps} /> : null}
 

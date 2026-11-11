@@ -257,6 +257,21 @@ export function shortText(token: PayToken, held: bigint, pay: bigint): string {
 }
 
 /**
+ * Said wherever a payment in `token` is chosen, so the amount the wallet asks to send isn't a
+ * surprise: a swap sends 2% more than the quote (`withBuffer`), in case the price moves before it
+ * lands, and the checkout returns what isn't needed, in USDC. With the live quote, `amountIn`, it
+ * says how much. Null for USDC, which isn't swapped: it's sent to the last unit.
+ */
+export function changeText(token: PayToken, amountIn?: bigint): string | null {
+  if (!token.path) return null;
+  const sends =
+    amountIn === undefined
+      ? `Your wallet sends 2% more ${token.symbol} than this costs, in case the price moves.`
+      : `Your wallet sends about ${formatToken(withBuffer(amountIn), token.decimals)} ${token.symbol}: 2% extra in case the price moves.`;
+  return `${sends} What isn’t needed comes straight back to you, in USDC.`;
+}
+
+/**
  * Stops a payment the wallet can't cover before the wallet is asked to send it: it would only
  * fail, and its fee would be spent all the same.
  */

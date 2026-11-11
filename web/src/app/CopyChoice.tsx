@@ -18,7 +18,7 @@ import {
   useEthereumCopy,
   useSelfCopy,
 } from "./copy";
-import { copyNow, copyOnEthereum, type Step } from "./flows";
+import { changeText, copyNow, copyOnEthereum, type Step } from "./flows";
 import { PAY } from "./network";
 import { Steps } from "./Steps";
 import { useWallet } from "./wallet";
@@ -231,6 +231,7 @@ export function EthereumCopyRow({
                 </button>
               </div>
             ) : null}
+            {offer !== null && changeText(token) ? <p className="copy-now__or">{changeText(token)}</p> : null}
             {yourself?.kind === "ready" ? (
               <>
                 <div className="copy-now__row">
