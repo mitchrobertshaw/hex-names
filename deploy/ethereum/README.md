@@ -63,7 +63,11 @@ Then do [step 3 on PulseChain](../pulsechain/README.md#step-3-link-pulsechain).
 
 ## Mainnet
 
-- **Have about 0.02 ETH.** Step 2 cost about 0.0023 ETH on 5 November 2026.
+- **Have about 0.05 ETH** (about $100). Step 2 uses about 31 million gas, which cost about
+  0.0023 ETH on 5 November 2026 and would have cost about 0.002 on 11 November, when Ethereum's fee
+  was well under a tenth of a gwei. On a busy day at 1 gwei it would cost about 0.03 ETH, and after
+  [Ethereum's next upgrade](#ethereums-next-upgrade) it uses about 146 million gas: 0.044 ETH at
+  0.3 gwei. Send what's left back to yourself afterwards.
 - **The admin can't be a "smart account".** Some wallets, MetaMask among them, offer to upgrade an
   account into one (an EIP-7702 delegation). Many of these can't hold the `hex` token, so steps 1
   and 2 refuse them. Use a plain wallet.
