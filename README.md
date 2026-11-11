@@ -350,7 +350,7 @@ short: three steps, run from the GitHub website (a phone works too), first on th
 
 Each runs from Actions > deploy > Run workflow, as a dry run first. A new wallet, just for
 deploying, pays for them: about 10 tPLS and 0.01 Sepolia ETH from faucets on the testnets, and about
-50,000 PLS and 0.02 ETH on mainnet. Its key goes in a GitHub repository secret, one per network
+200,000 PLS and 0.05 ETH on mainnet. Its key goes in a GitHub repository secret, one per network
 (`DEPLOYER_PRIVATE_KEY_TESTNET`, `DEPLOYER_PRIVATE_KEY_MAINNET`), and it has no powers left once the
 three steps are done. A real mainnet run also needs `mainnet` typed into the workflow's confirm box.
 The admin must be a plain wallet, never upgraded to a smart account, since it is given the (powerless)
