@@ -28,9 +28,11 @@ either.
 
 Names are bought on PulseChain: 2–3 clicks (approve if paying with a token, commit, register), and
 the name is yours in about 1–2 minutes, on Ethereum about 15 minutes later. The app takes PLS, HEX,
-eHEX (HEX bridged from Ethereum), PLSX, and USDC or WETH bridged from Ethereum. The checkout
-contract takes any token with a PulseX pool, but the app offers just these: holders of other tokens
-swap to PLS on PulseX first. Whatever the buyer pays with is swapped into USDC, so prices stay in
+eHEX (HEX bridged from Ethereum), PLSX, and USDC, USDT, DAI or WETH bridged from Ethereum (never the
+copies of USDC, USDT, DAI or WETH made when PulseChain forked from Ethereum). The checkout contract
+takes any token with a PulseX pool, but the app offers just these: holders of other tokens swap to
+PLS on PulseX first. Adding one to the app needs no new contracts: it's an entry in
+`web/src/lib/tokens.ts`, with the route PulseX swaps it along. Whatever the buyer pays with is swapped into USDC, so prices stay in
 dollars without a price oracle. The app quotes each payment on both PulseX routers (V1 and V2) and
 pays along whichever needs less: in November 2026, $640 of PLS cost 6.6% more on V2 than on V1.
 
