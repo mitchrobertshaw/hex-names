@@ -65,9 +65,12 @@ Then do [step 3 on PulseChain](../pulsechain/README.md#step-3-link-pulsechain).
 
 - **Have about 0.05 ETH** (about $100). Step 2 uses about 31 million gas, which cost about
   0.0023 ETH on 5 November 2026 and would have cost about 0.002 on 11 November, when Ethereum's fee
-  was well under a tenth of a gwei. On a busy day at 1 gwei it would cost about 0.03 ETH, and after
-  [Ethereum's next upgrade](#ethereums-next-upgrade) it uses about 146 million gas: 0.044 ETH at
-  0.3 gwei. Send what's left back to yourself afterwards.
+  was well under a tenth of a gwei. On a busy day at 1 gwei it would cost about 0.03 ETH. Send
+  what's left back to yourself afterwards.
+- **If Ethereum has had its [next upgrade](#ethereums-next-upgrade) by launch day, have 0.1 ETH**
+  (about $200) instead. Step 2 then uses about 166 million gas, and Foundry sets aside enough for
+  216 million before it starts, as the testnet run on Sepolia, which already has the upgrade,
+  showed on 11 November 2026: 0.05 ETH would run short once Ethereum's fee passed about 0.11 gwei.
 - **The admin can't be a "smart account".** Some wallets, MetaMask among them, offer to upgrade an
   account into one (an EIP-7702 delegation). Many of these can't hold the `hex` token, so steps 1
   and 2 refuse them. Use a plain wallet.
@@ -76,7 +79,8 @@ Then do [step 3 on PulseChain](../pulsechain/README.md#step-3-link-pulsechain).
 ## Ethereum's next upgrade
 
 Sepolia already has Ethereum's next upgrade, which makes creating contracts there cost about 7 times
-the gas: step 2 uses about 146 million gas on Sepolia. Gas on Sepolia is close to free, so that
+the gas: step 2 used about 166 million gas on Sepolia on 11 November 2026, against about 31 million
+on Ethereum today. Gas on Sepolia is close to free, so that
 doesn't matter for the rehearsal. The workflow uses Foundry 1.9.0 (the tool that runs the deploy),
 which knows about it.
 

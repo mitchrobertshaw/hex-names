@@ -52,18 +52,18 @@ export interface Deployment {
 export const DEPLOYMENTS: Record<Network, Deployment | null> = {
   mainnet: null,
     testnet: {
-    launchDate: "2026-11-10", // the day you deployed on the testnets: the referral offer counts from it
+    launchDate: "2026-11-11", // the day you deployed on the testnets: the referral offer counts from it
     pulsechain: {
       rpc: "https://rpc.v4.testnet.pulsechain.com",
-      registry: "0xe8E68B1B62363bD1fBb0327F8E6f9aA1Cf8Ed181", // PULSECHAIN_HEX_REGISTRY, from step 1
-      registrar: "0xF49f539c4Ed118E5C00e66f62b3776397c4f7Ae1", // PULSECHAIN_REGISTRAR, from step 1
-      checkout: "0xb67d2bAF8c467Cb88F1a82Fbf057F017aab92fA7", // AnyTokenCheckout, from step 1
+      registry: "0xac1bAac683b54219e3487BaEe083BCa9c33dA195", // PULSECHAIN_HEX_REGISTRY, from step 1
+      registrar: "0xBb852D3549545Ec9c23c467e82CD707534Ce4F84", // PULSECHAIN_REGISTRAR, from step 1
+      checkout: "0xb8a69Ac09cb7A022be1797aCc41A24ae96b0189c", // PULSECHAIN_CHECKOUT, from step 1
       usdc: "0x759CB81dEB2520f67F1074A4535e710aA9c3132B", // PULSECHAIN_USDC, from step 1
-      startBlock: 25863653, // START_BLOCK_PULSECHAIN, from step 1: a number, without quotes
+      startBlock: 25874420, // START_BLOCK_PULSECHAIN, from step 1: a number, without quotes
     },
     ethereum: {
       rpc: "https://ethereum-sepolia-rpc.publicnode.com",
-      orderBook: "0x98C52e936a0aFF545F6845D69D087840a21D03D3", // ETHEREUM_ORDER_BOOK, from step 2 (only for buying from Ethereum)
+      orderBook: "0x40a4B8Fb530e41F71aCd9e0e08a3F633a4Ac8C06", // ETHEREUM_ORDER_BOOK, from step 2 (only for buying from Ethereum)
       usdc: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", // Circle's test USDC on Sepolia
     },
     bot: {
