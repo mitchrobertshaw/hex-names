@@ -161,10 +161,20 @@ export function plan(
     if (ethUsdc >= buy) {
       actions.push({ kind: "buy-eth", usdc: buy });
       ethUsdc -= buy;
-    } else if (p.out === 0n) {
-      const usdc = buy - ethUsdc + OUT_EXTRA;
-      if (spend(usdc)) actions.push({ kind: "send-out", usdc });
-      else warnings.push({ kind: "warn", key: "eth", message: "low on ETH for gas, with no USDC or budget left to buy more" });
+    } else if (ethUsdc >= t.ethBuyUsdc) {
+      // Close to it: the bridge took its fee on the way, or the bot spent ETH or ETH's price moved
+      // while the USDC crossed. It buys with what's there; if that's not quite enough, it tops up
+      // next time. (Sending it home and more back out would go round for ever.)
+      actions.push({ kind: "buy-eth", usdc: ethUsdc });
+      ethUsdc = 0n;
+    } else {
+      if (p.out === 0n) {
+        const usdc = buy - ethUsdc + OUT_EXTRA;
+        if (spend(usdc)) actions.push({ kind: "send-out", usdc });
+        else warnings.push({ kind: "warn", key: "eth", message: "low on ETH for gas, with no USDC or budget left to buy more" });
+      }
+      // What's there waits for the rest, to buy ETH with it all: none of it goes home meanwhile.
+      ethUsdc = 0n;
     }
   }
 
