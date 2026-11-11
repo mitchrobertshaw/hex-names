@@ -17,10 +17,11 @@ connect your wallet, and add the network from there.
 
 ## The deployer's PLS
 
-- **Testnet:** 10 tPLS, one request at the faucet. Steps 1 and 3 cost about 0.03 tPLS.
-- **Mainnet:** have about 50,000 PLS. Step 1 uses about 30 million gas, which cost about 15,000 PLS
-  on 7 November 2026 and twice that two days earlier: the price of gas moves a lot. Step 3 costs
-  under 100 PLS.
+- **Testnet:** 10 tPLS, one request at the faucet. Steps 1 and 3 cost about 0.05 tPLS.
+- **Mainnet:** have about 100,000 PLS (about 50 cents). Step 1 uses about 46 million gas, which
+  would have cost about 22,000 PLS on 11 November 2026, and about 15,000 on 7 November: the price of
+  gas moves a lot, and can double on a busy day. Step 3 costs under 100 PLS. Send what's left back
+  to yourself afterwards.
 
 ## Testnets: USDC from Sepolia
 
