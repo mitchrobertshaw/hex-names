@@ -88,6 +88,13 @@ copies at November 2026's gas prices. The rest wait until the next day (UTC).
   minutes later, by bridge messages the bot claims on Ethereum. Copies on Ethereum can't be bought,
   renewed or transferred there; they follow PulseChain. A name renewed in its grace period is
   extended on Ethereum too, so its owner's Ethereum settings stay.
+- **When the bot is late.** Nothing depends on the bot: anyone can do its part from a name's page.
+  A copy counts as late when nothing has been sent over the bridge 15 minutes after a change, or
+  nothing delivered on Ethereum 90 minutes after it was sent (the bot copies the same name at most
+  once an hour). The page then offers "Copy it yourself": it sends the bridge message from
+  PulseChain if need be (`HexMirrorSync.sync`, open to anyone, which reports only what PulseChain
+  says), and once the validators have signed it, delivers it on Ethereum, paying Ethereum's fee in
+  ETH.
 - **When Ethereum is busy.** Each copy costs the bot Ethereum's gas: a few cents in November 2026.
   The project pays up to $2 a copy. When a copy costs more, the bot sets a copy fee on the checkout:
   the rest, and a quarter more for gas rising before the copy goes out. Buyers and renewers choose

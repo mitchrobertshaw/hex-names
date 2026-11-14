@@ -183,8 +183,9 @@ export async function readEthereumCopy(label: string, owner: Address, expiry: nu
  * Copying a name yourself. Each change to a name sends its owner and paid-until date over the
  * bridge; once the bridge's validators have signed that message (usually 10 to 15 minutes), anyone
  * may deliver it on Ethereum, paying Ethereum's fee in ETH. The bot does that for free copies; this
- * lets an owner do it at once, however busy Ethereum is. The bridge checks the signatures, so a
- * message can only ever say what PulseChain does.
+ * lets an owner do it at once, however busy Ethereum is, and lets anyone do the bot's part when it's
+ * running late (down, say): sending the message too, if it hasn't been. The bridge checks the
+ * signatures, so a message can only ever say what PulseChain does.
  */
 export interface CopyMessage {
   label: string;
@@ -193,10 +194,13 @@ export interface CopyMessage {
   nonce: bigint; // HexMirrorSync's count: Ethereum takes a message only if it's newer than its copy
   owner: Address; // what PulseChain said: the owner (zero once the name had expired)
   expiry: bigint; // ... and the date it's paid until
+  block: bigint; // the PulseChain block it was sent in
 }
 
 export type SelfCopy =
-  | { kind: "none" } // no message says what PulseChain does now: one goes within minutes of a change
+  // No message says what PulseChain does now: one goes within minutes of a change, `changed` (its
+  // PulseChain block, or null if it was before the blocks looked at).
+  | { kind: "none"; changed: bigint | null }
   | { kind: "signing"; found: CopyMessage } // the bridge is signing it: usually 10 to 15 minutes
   | { kind: "ready"; found: CopyMessage; foreignAmb: Address; signatures: Hex } // anyone can deliver it now
   | { kind: "done" }; // delivered, or a newer one was: Ethereum shows it, or will in a moment
@@ -205,7 +209,30 @@ export type SelfCopy =
 const SELF_COPY_BLOCKS = 300_000n;
 const RANGE = 50_000n;
 
-type SyncedLog = { args: { label?: string; owner?: Address; expiry?: bigint; nonce?: bigint; messageId?: Hex } };
+/** PulseChain makes a block every 10 seconds: 6 a minute. */
+const BLOCKS_PER_MINUTE = 6n;
+/**
+ * When a copy is running late, in PulseChain's blocks. The bot sends a name's copy over the bridge
+ * within a minute or two of a change (a purchase or renewal through the checkout sends it at once),
+ * and delivers it on Ethereum once the bridge has signed it, 10 to 15 minutes later, though it
+ * copies the same name at most once an hour. So no copy sent 15 minutes after a change, or none
+ * delivered 90 minutes after it was sent, means the bot isn't doing its part (it's down, say), and
+ * anyone may copy the name themselves, as if it weren't there.
+ */
+export const LATE_TO_SEND = 15n * BLOCKS_PER_MINUTE;
+export const LATE_TO_DELIVER = 90n * BLOCKS_PER_MINUTE;
+
+/** Whether `self` is running late, at PulseChain block `latest`. */
+export function copyLate(self: SelfCopy, latest: bigint): boolean {
+  if (self.kind === "none") return self.changed === null || latest - self.changed >= LATE_TO_SEND;
+  if (self.kind === "signing" || self.kind === "ready") return latest - self.found.block >= LATE_TO_DELIVER;
+  return false;
+}
+
+type SyncedLog = {
+  args: { label?: string; owner?: Address; expiry?: bigint; nonce?: bigint; messageId?: Hex };
+  blockNumber: bigint | null;
+};
 
 /** The copy message a `Synced` log announced, from the logs of the same transaction. */
 function messageOf(synced: SyncedLog, logs: Log[], b: Bridge): CopyMessage | null {
@@ -214,7 +241,9 @@ function messageOf(synced: SyncedLog, logs: Log[], b: Bridge): CopyMessage | nul
   const sent = parseEventLogs({ abi: homeAmbAbi, eventName: "UserRequestForSignature", logs }).find(
     (log) => isAddressEqual(log.address, b.homeAmb) && log.args.messageId === messageId,
   );
-  return sent ? { label, messageId, message: sent.args.encodedData, nonce, owner, expiry } : null;
+  return sent
+    ? { label, messageId, message: sent.args.encodedData, nonce, owner, expiry, block: synced.blockNumber ?? 0n }
+    : null;
 }
 
 /** The copy message a purchase, renewal or send made for `label`, from its receipt. */
@@ -293,10 +322,47 @@ export function selfCopyMessage(label: string, owner: Address, expiry: number): 
   return found;
 }
 
+const registeredEvent = getAbiItem({ abi: registryAbi, name: "LabelRegistered" });
+const renewedEvent = getAbiItem({ abi: registryAbi, name: "ExpiryUpdated" });
+const movedEvent = getAbiItem({ abi: registryAbi, name: "TransferSingle" });
+
+/**
+ * The PulseChain block of the change that gave `label` its owner and paid-until date now (`owner`,
+ * `expiry`): the newest registration, renewal to that date, or move to that owner. Null if it was
+ * before the blocks looked at (about 5 weeks).
+ */
+export async function lastChange(label: string, owner: Address, expiry: number): Promise<bigint | null> {
+  const registry = deployment?.pulsechain.registry;
+  if (!registry) return null;
+  const [state, latest] = await Promise.all([
+    clients.pulsechain.readContract({ address: registry, abi: registryAbi, functionName: "getState", args: [labelId(label)] }),
+    clients.pulsechain.getBlockNumber(),
+  ]);
+  const labelHash = keccak256(new TextEncoder().encode(label));
+  const first = latest > SELF_COPY_BLOCKS ? latest - SELF_COPY_BLOCKS : 0n;
+  for (let to = latest; to >= first; to -= RANGE) {
+    const from = to - RANGE + 1n > first ? to - RANGE + 1n : first;
+    const range = { address: registry, fromBlock: from, toBlock: to } as const;
+    const [registered, renewed, moved] = await Promise.all([
+      clients.pulsechain.getLogs({ ...range, event: registeredEvent, args: { labelHash } }),
+      clients.pulsechain.getLogs({ ...range, event: renewedEvent, args: { tokenId: state.tokenId, newExpiry: BigInt(expiry) } }),
+      clients.pulsechain.getLogs({ ...range, event: movedEvent, args: { to: owner } }),
+    ]);
+    const blocks = [...registered, ...renewed, ...moved.filter((log) => log.args.id === state.tokenId)].map(
+      (log) => log.blockNumber ?? 0n,
+    );
+    if (blocks.length > 0) return blocks.reduce((a, b) => (b > a ? b : a));
+    if (from === first) break;
+  }
+  return null;
+}
+
 /** Whether `label`'s copy can be delivered yourself now, and what with. */
 export async function readSelfCopy(label: string, owner: Address, expiry: number, was?: SelfCopy | null): Promise<SelfCopy> {
   const found = await selfCopyMessage(label, owner, expiry);
-  return found ? copyStatus(found, was) : { kind: "none" };
+  if (found) return copyStatus(found, was);
+  // Nothing sent yet for what PulseChain says now: when it changed says whether the bot is late.
+  return { kind: "none", changed: was?.kind === "none" ? was.changed : await lastChange(label, owner, expiry) };
 }
 
 /** What delivering a copy yourself takes on Ethereum now. */
@@ -365,24 +431,38 @@ export function ethText(wei: bigint): string {
   return `${Number((Math.ceil(eth * factor - 1e-9) / factor).toFixed(digits))} ETH`;
 }
 
+/** Where copying a name yourself stands, and whether its copy is running late (`copyLate`). */
+export interface SelfCopyState {
+  self: SelfCopy;
+  late: boolean;
+}
+
 /**
  * Whether `label`'s copy can be delivered yourself: read every 20 seconds while it's behind (once a
  * minute while there's nothing to deliver yet), until it's delivered.
  */
-export function useSelfCopy(label: string, owner: Address | null, expiry: number, behind: boolean, version: number): SelfCopy | null {
-  const [self, setSelf] = useState<SelfCopy | null>(null);
+export function useSelfCopy(
+  label: string,
+  owner: Address | null,
+  expiry: number,
+  behind: boolean,
+  version: number,
+): SelfCopyState | null {
+  const [self, setSelf] = useState<SelfCopyState | null>(null);
   useEffect(() => {
     setSelf(null);
     if (!deployment || !behind || !owner) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let was: SelfCopy | null = null;
+    let was: SelfCopyState | null = null;
     const read = async () => {
-      const result = await readSelfCopy(label, owner, expiry, was).catch(() => was);
+      const result = await Promise.all([readSelfCopy(label, owner, expiry, was?.self), clients.pulsechain.getBlockNumber()])
+        .then(([s, latest]) => ({ self: s, late: copyLate(s, latest) }))
+        .catch(() => was);
       if (!alive) return;
       was = result;
       setSelf(result);
-      if (result?.kind !== "done") timer = setTimeout(read, result?.kind === "none" ? 60_000 : 20_000);
+      if (result?.self.kind !== "done") timer = setTimeout(read, result?.self.kind === "none" ? 60_000 : 20_000);
     };
     void read();
     return () => {

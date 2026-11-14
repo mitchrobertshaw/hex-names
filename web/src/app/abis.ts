@@ -51,6 +51,10 @@ export const registryAbi = parseAbi([
   "function register(string label, address owner, address registry, address resolver, uint256 roleBitmap, uint64 expiry) returns (uint256)",
   "function renew(uint256 anyId, uint64 newExpiry)",
   "event LabelReserved(uint256 indexed tokenId, bytes32 indexed labelHash, string label, uint64 expiry, address indexed sender)",
+  // What changes a name's owner or paid-until date: when its copy for Ethereum is running late (copy.ts).
+  "event LabelRegistered(uint256 indexed tokenId, bytes32 indexed labelHash, string label, address owner, uint64 expiry, address indexed sender)",
+  "event ExpiryUpdated(uint256 indexed tokenId, uint64 indexed newExpiry, address indexed sender)",
+  "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)",
   "error LabelAlreadyRegistered(string label)",
   "error LabelAlreadyReserved(string label)",
   "error CannotSetPastExpiry(uint64 expiry)",

@@ -316,7 +316,7 @@ const FAQS: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Which chains does it work on?",
-    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. When Ethereum is unusually busy, a new name's or renewal's copy can wait for its fees to fall (see the next question). If you use both chains, or might one day, you're covered either way.",
+    a: "PulseChain and Ethereum, for one price. Your name lives on PulseChain, where it's bought and managed, and is copied to Ethereum automatically, about 15 minutes after any change: a purchase, a renewal or a transfer. If a copy is ever running late, anyone can copy it themselves from the name's page, paying Ethereum's fee in ETH. When Ethereum is unusually busy, a new name's or renewal's copy can wait for its fees to fall (see the next question). If you use both chains, or might one day, you're covered either way.",
   },
   {
     q: "Is there ever a fee to copy my name to Ethereum?",

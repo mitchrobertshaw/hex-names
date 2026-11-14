@@ -162,7 +162,11 @@ export function EthereumCopyRow({
   const [paid, setPaid] = useState(false);
   const [copied, setCopied] = useState(false);
   const ethereumBusy = fee?.kind === "offered" || fee?.kind === "busy";
-  const self = useSelfCopy(label, owner, expiry, copy === "behind" && ethereumBusy && !copied, version);
+  // Read while it's behind: copying it yourself is offered while Ethereum is busy, and whenever the
+  // copy is running late (the bot not doing its part: down, say).
+  const selfState = useSelfCopy(label, owner, expiry, copy === "behind" && !copied, version);
+  const self = selfState?.self ?? null;
+  const late = Boolean(selfState?.late) && copy === "behind";
   const account = wallet.connected?.account;
   const [cost, setCost] = useState<SelfCopyCost | null>(null);
   useEffect(() => {
@@ -191,10 +195,14 @@ export function EthereumCopyRow({
             ? "Not yet: Ethereum is busy, so it's copied once its fees fall"
             : fee?.kind === "busy"
               ? "Not yet: Ethereum is very busy, so it's copied once its fees fall"
-              : "On its way: usually within half an hour";
+              : late
+                ? "Running late: copies usually arrive within half an hour"
+                : "On its way: usually within half an hour";
   const behind = copy === "behind" && !paid && !copied && Boolean(wallet.connected);
   const offer = behind && fee?.kind === "offered" ? fee.fee : null;
-  const yourself = behind && ethereumBusy && (self?.kind === "ready" || self?.kind === "signing") ? self : null;
+  // Copying it yourself: while Ethereum is busy, once its copy is on its way over the bridge; and
+  // whenever it's running late, from whatever step it's at, sending the copy too if need be.
+  const yourself = behind && self && self.kind !== "done" && (late || (ethereumBusy && self.kind !== "none")) ? self : null;
   const wide = offer !== null || yourself !== null || steps !== null;
   const run = async (go: () => Promise<boolean>) => {
     setBusy(true);
@@ -266,6 +274,31 @@ export function EthereumCopyRow({
                 You can also copy it yourself on Ethereum, paying its fee in ETH, once the bridge has signed it: usually
                 10 to 15 minutes after the change.
               </p>
+            ) : yourself?.kind === "none" ? (
+              <>
+                <div className="copy-now__row">
+                  <span className="copy-now__or">Its copy hasn&rsquo;t been sent yet. Send it yourself:</span>
+                  <button
+                    type="button"
+                    className="button button--small button--primary"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await copyOnEthereum({ label, owner, expiry, report: setSteps });
+                        setCopied(true);
+                        return true;
+                      })
+                    }
+                  >
+                    Copy it yourself
+                  </button>
+                </div>
+                <p className="copy-now__or">
+                  It sends the copy over the bridge from {PAY.pulsechain.name}, for a fraction of a cent in PLS. Once the
+                  bridge has signed it, usually 10 to 15 minutes later, it delivers it on {PAY.ethereum.name}, paying
+                  Ethereum&rsquo;s fee in ETH.
+                </p>
+              </>
             ) : null}
             {steps ? <Steps steps={steps} /> : null}
           </div>

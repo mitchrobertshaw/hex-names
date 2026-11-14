@@ -7,7 +7,10 @@ The bot is a small program that keeps the Ethereum side of .hex running:
 
 Names are bought on PulseChain, so the bot never handles a sale. If it stops, PulseChain carries on
 as normal and Ethereum's copy falls behind until it's back. A restart is harmless: it picks up where
-it left off.
+it left off. Meanwhile, anyone can copy a name themselves from its page once its copy is running
+late (nothing sent 15 minutes after a change, or nothing delivered 90 minutes after it was sent):
+the app sends the copy from PulseChain if need be, then delivers it on Ethereum, paying Ethereum's
+fee in ETH.
 
 [Railway](https://railway.com) runs it for you. It builds the bot from the `bot/` folder of `main`,
 starts it again if it ever stops, and updates it when `bot/` changes. Railway calls each separate
