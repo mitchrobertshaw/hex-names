@@ -17,8 +17,9 @@ import {
 import { usdcText } from "../lib/payouts";
 import { formatToken } from "../lib/quotes";
 import type { ChainKey, PayToken } from "../lib/tokens";
-import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, foreignAmbAbi, registrarAbi, registryAbi } from "./abis";
+import { checkoutAbi, DISPERSE, disperseAbi, erc20Abi, foreignAmbAbi, mirrorSyncAbi, registrarAbi, registryAbi } from "./abis";
 import {
+  bridgeAddresses,
   type CopyMessage,
   copyFeePaid,
   copyMessageIn,
@@ -694,7 +695,7 @@ async function deliveredSoon(found: CopyMessage): Promise<boolean> {
 async function deliverCopy(progress: Progress, found: CopyMessage): Promise<SelfCopied> {
   let status = await copyStatus(found);
   if (status.kind === "signing") {
-    progress.start("sign", { detail: "Usually 10 to 15 minutes after paying. You can leave: copy it later from the name's page." });
+    progress.start("sign", { detail: "Usually 10 to 15 minutes after it's sent. You can leave: copy it later from the name's page." });
     while (status.kind === "signing") {
       await sleep(15_000);
       // A failed look (the RPC busy, say) just waits for the next one.
@@ -766,15 +767,46 @@ async function copyAfterPaying(progress: Progress, receipt: TransactionReceipt, 
 }
 
 /**
+ * Sends `label`'s copy over the bridge from PulseChain, as the bot does after a change, for when it
+ * hasn't (it's down, say): a fraction of a cent, in PLS. Anyone may: the copy says only what
+ * PulseChain does.
+ */
+async function sendCopy(progress: Progress, label: string): Promise<CopyMessage> {
+  progress.start("pls");
+  await switchTo("pulsechain");
+  progress.done("pls");
+  progress.start("send");
+  const wallet = walletClient("pulsechain");
+  const { mirrorSync } = await bridgeAddresses();
+  const hash = await wallet.writeContract({
+    address: mirrorSync,
+    abi: mirrorSyncAbi,
+    functionName: "sync",
+    args: [label],
+    ...(await fees()),
+  });
+  progress.set("send", { tx: { chain: "pulsechain", hash } });
+  const found = await copyMessageIn(await confirm("pulsechain", hash), label);
+  if (!found) throw new Error("Its copy wasn't found in the transaction.");
+  progress.done("send");
+  return found;
+}
+
+/**
  * Copies `label` to Ethereum yourself, from its page: delivers its newest copy message, which says
- * what PulseChain does now (`owner`, `expiry`), paying Ethereum's fee in ETH. Anyone may; the bridge
- * checks the validators' signatures, so it can only ever write what PulseChain says.
+ * what PulseChain does now (`owner`, `expiry`), paying Ethereum's fee in ETH, and sends that message
+ * first if it hasn't been (when the bot is running late). Anyone may; the bridge checks the
+ * validators' signatures, so it can only ever write what PulseChain says.
  */
 export async function copyOnEthereum(o: { label: string; owner: Address; expiry: number; report: Report }): Promise<SelfCopied> {
-  const progress = new Progress(SELF_COPY_STEPS, o.report);
+  const progress = new Progress(
+    [["pls", `Switch to ${PAY.pulsechain.name}`], ["send", "Send its copy over the bridge"], ...SELF_COPY_STEPS],
+    o.report,
+  );
   try {
-    const found = await selfCopyMessage(o.label, o.owner, o.expiry);
-    if (!found) throw new Error("Its latest change hasn't gone over the bridge yet: that happens within minutes of a change. Try again shortly.");
+    let found = await selfCopyMessage(o.label, o.owner, o.expiry);
+    if (found) progress.drop("pls", "send");
+    else found = await sendCopy(progress, o.label);
     return await deliverCopy(progress, found);
   } catch (error) {
     progress.fail(errorText(error));

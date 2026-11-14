@@ -30,7 +30,7 @@ import { amountToSend } from "./BuyPanel";
 import { ethText } from "./copy";
 import { amountText, changeText, errorText, ethShortText, selfCopiedText, shortText, testnetFees } from "./flows";
 import { anyPower, capFrom, OWNER_ROLES, parseNames, powersOf } from "./admin";
-import { capText, copyFeeOf, feeText, UNAVAILABLE } from "./copy";
+import { capText, copyFeeOf, copyLate, type CopyMessage, feeText, LATE_TO_DELIVER, LATE_TO_SEND, UNAVAILABLE } from "./copy";
 import { baseRatio, LIST_LEVEL, levelOf, priceDecimalsFrom, ratioFor } from "./live";
 import { localInfo } from "./lookup";
 import { renewableYears } from "./ManagePanel";
@@ -449,5 +449,29 @@ describe("copying a name yourself", () => {
     expect(selfCopiedText("copied")).toMatch(/^Copied/);
     expect(selfCopiedText("already")).toMatch(/already been copied, so there was nothing to pay/);
     expect(selfCopiedText("someone-else")).toMatch(/Someone else copied it a moment before you, so it's copied/);
+  });
+});
+
+describe("a copy running late", () => {
+  const found: CopyMessage = { label: "late", messageId: "0x01", message: "0x02", nonce: 1n, owner: zeroAddress, expiry: 1n, block: 1000n };
+
+  it("counts in PulseChain's blocks, one every 10 seconds: 15 minutes to send, 90 to deliver", () => {
+    expect(LATE_TO_SEND).toBe(15n * 6n);
+    expect(LATE_TO_DELIVER).toBe(90n * 6n);
+  });
+
+  it("is late once nothing has been sent 15 minutes after a change", () => {
+    expect(copyLate({ kind: "none", changed: 1000n }, 1000n + LATE_TO_SEND - 1n)).toBe(false);
+    expect(copyLate({ kind: "none", changed: 1000n }, 1000n + LATE_TO_SEND)).toBe(true);
+    // A change from before the blocks looked at (about 5 weeks) is long past.
+    expect(copyLate({ kind: "none", changed: null }, 1000n)).toBe(true);
+  });
+
+  it("is late once a copy sent 90 minutes ago hasn't been delivered, signed or not", () => {
+    // Allows for the bot copying the same name at most once an hour.
+    expect(copyLate({ kind: "signing", found }, 1000n + LATE_TO_DELIVER - 1n)).toBe(false);
+    expect(copyLate({ kind: "signing", found }, 1000n + LATE_TO_DELIVER)).toBe(true);
+    expect(copyLate({ kind: "ready", found, foreignAmb: zeroAddress, signatures: "0x" }, 1000n + LATE_TO_DELIVER)).toBe(true);
+    expect(copyLate({ kind: "done" }, 10_000_000n)).toBe(false);
   });
 });
