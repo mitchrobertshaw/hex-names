@@ -149,9 +149,13 @@ After steps 1 to 3 on mainnet:
    `web/src/deployment.ts` ([the website guide](../website/README.md)).
 4. **Give it a budget.** Once the website has the bot's wallet, open the app's payments page,
    `app.hexns.domains/referrals`, with your payments wallet (`0x1027…02C6`). Under **The bot**, set
-   a budget, say 150 USDC, and approve it in your wallet. That's what it may draw from your
+   a budget, say 150 USDC, and approve it in your wallet (it needs a little PLS for that: see
+   [what you'll need](../README.md#what-youll-need)). That's what it may draw from your
    payments wallet for its gas, and for the ETH it keeps for copies people pay for (about $42 to
-   $84, [money](#money)). Do the same on the testnet site in the rehearsal.
+   $84, [money](#money)). It can only draw USDC the payments wallet holds: before the first sales
+   come in, it runs on the gas you funded it with and keeps saying it's short, which is fine. To
+   have copying at once on offer from the start, put about $100 of USDC from Ethereum in the
+   payments wallet first. Do the same on the testnet site in the rehearsal.
 5. **Turn on the copy fee.** Open the app's admin page, `app.hexns.domains/admin`, with the admin
    wallet. Under **Ethereum copy fee**, check the bot's wallet is filled in (the first `0x…` in its
    log), and click **Choose it**. Within a minute the bot's log says "copy fee: on, at most 1000

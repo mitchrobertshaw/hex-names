@@ -675,11 +675,12 @@ function cancelled(error: unknown): boolean {
 }
 
 /**
- * Whether `found` is delivered within about half a minute: when sending it would fail, someone
- * else's copy may be on its way (the bot's, say, as Ethereum's fees fell), waiting for a block.
+ * Whether `found` is delivered within about a minute: when sending it would fail, someone else's
+ * copy may be on its way (the bot's, say, as Ethereum's fees fell), waiting for a block. A minute
+ * is about five of Ethereum's blocks: a copy sent as fees move can miss a block or two.
  */
 async function deliveredSoon(found: CopyMessage): Promise<boolean> {
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 20; i++) {
     if ((await copyStatus(found).catch(() => null))?.kind === "done") return true;
     await sleep(3000);
   }
