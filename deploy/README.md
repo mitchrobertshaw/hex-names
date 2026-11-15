@@ -77,6 +77,8 @@ this guide says. Never paste a seed phrase (the 12 or 24 backup words) anywhere.
 | Deployer, on Ethereum (step 2) | 0.01 Sepolia ETH, free ([faucets](ethereum/README.md#sepolia-eth)) | 0.05 ETH (about $100). Step 2 would have cost about 0.002 ETH at 11 November 2026's gas prices; the rest covers a busy day. If Ethereum has had its [next upgrade](ethereum/README.md#ethereums-next-upgrade) by launch day, 0.1 ETH |
 | Bot, on PulseChain | 10 tPLS for gas | 500,000 PLS for gas (about $2.50) |
 | Bot, on Ethereum | 0.01 Sepolia ETH | 0.01 ETH |
+| Admin, on PulseChain | 1 tPLS from the faucet | 20,000 PLS (about 10 cents), for its transactions on the admin page: choosing the copy bot, and pausing sales if you ever need to. Each costs about 25 to 100 PLS |
+| Payments, on PulseChain | 1 tPLS from the faucet | 20,000 PLS (about 10 cents), for its transactions on the payments page: setting the bot's budget, and paying referrers |
 
 You fund the bot once. After that it pays its own gas out of your sales, within a budget you set in
 the app ([how](bot/README.md#money)). Send what's left in the deployer wallet back to yourself
@@ -150,7 +152,8 @@ afterwards.
 
 When everything above has worked, and someone other than the author has reviewed the contracts:
 
-1. **New wallets**: a new deployer and a new bot, funded with real coins as above. The admin is a
+1. **New wallets**: a new deployer and a new bot, funded with real coins as above, and a little
+   PLS for the admin and payments wallets, for their own transactions in the app. The admin is a
    wallet made just for it: in MetaMask, add a new wallet with its own recovery phrase (not another
    account under your everyday one), write the phrase on paper and keep it offline, and use the
    wallet for nothing else. Not the payments wallet, which connects to plenty of sites. If MetaMask
