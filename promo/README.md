@@ -13,8 +13,8 @@ A 30-second square video for X, drawn in code and timed to its voiceover.
   new recording, update `SAID`, `LINES_SAID` and `VOICE` from its word timings.
 - [`voiceover.mp3`](voiceover.mp3) is the recording, made with ElevenLabs.
 - [`music.mp3`](music.mp3) is the music: Deep Documentary by aktasok (Pixabay track 150366, going by
-  its file name). `render.cjs` edits it to fit (`MUSIC`): its first hit opens the video, and its
-  ending is placed so the last hit lands as the logo draws. It's in this private repository for
+  its file name). `render.cjs` plays one continuous stretch of it (`MUSIC`), with no edits: its
+  first hit opens the video, and it fades out under the end card. It's in this private repository for
   rendering; check its licence before the repository is ever made public.
 - `node promo/render.cjs` renders the 1080 × 1080, 60 fps MP4 with its soundtrack into `promo/out/`
   (about 13 minutes). `node promo/render.cjs --soundtrack` rebuilds only the soundtrack (the voice

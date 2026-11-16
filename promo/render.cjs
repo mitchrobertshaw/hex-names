@@ -6,7 +6,7 @@
 //                                            so its player plays exactly what the video will
 //
 // The soundtrack is built first: the voice cut and placed as the page says (HexPromo.voice), the
-// music edit below under it, dipping while the voice speaks, and the mix brought to -14 LUFS with a
+// music below under it, dipping while the voice speaks, and the mix brought to -14 LUFS with a
 // single gain change. Frames then go straight into ffmpeg; nothing else is written to disk.
 const { chromium } = require("playwright");
 const { spawn, spawnSync } = require("child_process");
@@ -22,17 +22,28 @@ const VOICE = path.join(__dirname, "voiceover.mp3");
 const MUSIC_FILE = path.join(__dirname, "music.mp3");
 const SOUNDTRACK = path.join(__dirname, "out", "soundtrack.wav");
 
-// The music: "Deep Documentary" by aktasok (music.mp3), edited to fit. It hits on every bar, every
-// 3.116 s. The first piece is placed so its first hit lands at 0.82 s, and the edit jumps, on a bar
-// line (22.63 s), to the track's own ending, so its last hit lands as the logo draws (25.75 s) and it
-// decays to silence as the video ends. Retime these if the voice moves the logo.
+// The music: "Deep Documentary" by aktasok (music.mp3), one continuous stretch of it, uncut. It
+// starts just before its first hit (0.82 s into the video), builds under the middle, reaches its
+// full section around the price, and fades out under the end card once the voice has finished.
 const MUSIC = {
   gain: -20, // dB: about 15 dB under the voice, and 5 dB more while it speaks
   parts: [ // from, to (seconds in music.mp3), where it starts in the video, fade in, fade out, extra dB
-    [11.8, 34.7, 0.0, 0.4, 0.3, 0],
-    [118.4, 126.6, 22.47, 0.12, 0, 5], // the track's ending is quieter than its build: lift it so the last hit lands
+    [11.8, 41.8, 0.0, 0.4, 2.6, 0],
   ],
+  // A slow fader ride (video seconds, dB): the full section is denser, so ease it down as it arrives
+  // and the music sits as far under the voice as the build did.
+  ride: [[16, 0], [19, -4.5]],
 };
+
+// The ride as an ffmpeg volume expression: piecewise-linear dB over time, as a linear gain.
+function rideExpr(points) {
+  let e = String(points[points.length - 1][1]);
+  for (let k = points.length - 1; k > 0; k--) {
+    const [t0, d0] = points[k - 1], [t1, d1] = points[k];
+    e = `if(lt(t,${t1}),${d0}+(t-${t0})*${((d1 - d0) / (t1 - t0)).toFixed(4)},${e})`;
+  }
+  return `pow(10,if(lt(t,${points[0][0]}),${points[0][1]},${e})/20)`;
+}
 
 const ms = (s) => Math.round(s * 1000);
 function ffmpeg(argv) {
@@ -60,7 +71,8 @@ function buildSoundtrack(duration, pieces) {
       `[0:a]atrim=start=${a}:end=${b},asetpts=PTS-STARTPTS` + (fin ? `,afade=t=in:d=${fin}` : "") +
       (fout ? `,afade=t=out:st=${(b - a - fout).toFixed(3)}:d=${fout}` : "") +
       `,volume=${MUSIC.gain + extra}dB,adelay=${ms(at)}:all=1[m${i}]`).join(";") +
-    `;${MUSIC.parts.map((_, i) => `[m${i}]`).join("")}amix=inputs=${MUSIC.parts.length}:normalize=0,${fmt},apad[o]`,
+    `;${MUSIC.parts.map((_, i) => `[m${i}]`).join("")}amix=inputs=${MUSIC.parts.length}:normalize=0,${fmt},` +
+    `volume='${rideExpr(MUSIC.ride)}':eval=frame,apad[o]`,
     "-map", "[o]", ...len, tmp("music")]);
   // 3. The music dips while the voice speaks, and the two are mixed, with a short fade at the very end.
   ffmpeg(["-y", "-i", tmp("music"), "-i", tmp("voice"), "-filter_complex",
