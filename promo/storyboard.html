@@ -479,8 +479,8 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
 }
 .stage .pchip .lg { width: 44px; height: 44px; }
 .stage .pplus { font: 500 38px/1 var(--font-body); color: #b9abc3; opacity: 0; }
-/* 8: a search bar grows into a name card the shape of a credit card (85.60 × 53.98 mm, 3.18 mm
-   corners), then the gradient button and the logo */
+/* 8: a search bar grows into the name's NFT, a square card laid out like the on-chain one
+   (src/common/HexNameCard.sol): the mark top-left, a tag top-right, the name along the bottom */
 .stage .glow8 { width: 1300px; height: 820px; border-radius: 50%; background: radial-gradient(closest-side, rgb(229 0 122 / 34%), rgb(255 106 31 / 16%) 55%, rgb(255 106 31 / 0%)); }
 .stage .card8 > i, .stage .card8-face { position: absolute; inset: 0; border-radius: inherit; }
 .stage .card8-bg {
@@ -498,14 +498,12 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
   position: absolute; top: -20%; bottom: -20%; left: 0; width: 100%;
   background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 10%) 44%, rgb(255 190 140 / 18%) 50%, rgb(255 255 255 / 6%) 56%, transparent 70%);
 }
-.stage .card8-chains { position: absolute; left: 44px; top: 38px; display: flex; gap: 12px; }
-.stage .card8-chains .lg { width: 44px; height: 44px; }
-.stage .card8-name { position: absolute; left: 44px; top: 150px; font: 700 72px/1 var(--font-display); letter-spacing: -0.035em; white-space: nowrap; }
-.stage .card8-avail {
-  position: absolute; left: 44px; bottom: 40px; display: inline-flex; align-items: center; gap: 10px; height: 54px; padding: 0 24px 0 18px;
-  border-radius: 999px; background: rgb(79 214 160 / 15%); color: #4fd6a0; font: 600 26px/1 var(--font-body);
-}
-.stage .card8-avail svg { width: 24px; height: 24px; }
+.stage .card8-glow { position: absolute; inset: 0; background: radial-gradient(70% 80% at 104% 88%, rgb(229 0 122 / 34%), rgb(229 0 122 / 10%) 45%, transparent 72%), radial-gradient(60% 50% at 0% 0%, rgb(255 255 255 / 5%), transparent 70%); }
+.stage .card8-mark { position: absolute; left: 36px; top: 34px; }
+.stage .card8-tag { position: absolute; right: 38px; top: 55px; font: 700 22px/1 var(--font-display); letter-spacing: 0.01em; color: rgb(251 245 255 / 88%); }
+.stage .card8-chains { position: absolute; left: 36px; bottom: 126px; display: flex; gap: 10px; }
+.stage .card8-chains .lg { width: 36px; height: 36px; }
+.stage .card8-name { position: absolute; left: 36px; bottom: 40px; font: 700 58px/1 var(--font-display); letter-spacing: -0.035em; white-space: nowrap; }
 .stage .sr-a { position: absolute; inset: 0; display: flex; align-items: center; border-radius: inherit; }
 /* The Available chip sits 26px in from the top, bottom and right, nesting in the bar's rounded end. */
 .stage .sr-a { padding: 0 26px 0 42px; gap: 20px; opacity: 0; }
@@ -523,9 +521,6 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
   background: linear-gradient(100deg, #ffc23d, #ff6a4d 50%, #ff4fa0); box-shadow: 0 24px 70px rgb(255 80 90 / 38%), inset 0 1px 0 rgb(255 255 255 / 45%);
 }
 .stage .btn8 svg { width: 52px; height: 52px; }
-.stage .lockup { display: flex; align-items: center; gap: 18px; }
-.stage .lockup .mark { width: 67px; height: 76px; }
-.stage .wmark { font: 700 50px/1 var(--font-display); letter-spacing: -0.03em; }
 </style>
 
 <div class="wrap">
@@ -671,8 +666,8 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
           <div class="board__head"><span class="board__n">7</span><h3>Call to action</h3><span class="tc" data-tc="6"></span></div>
           <dl>
             <dt>Voice</dt><dd class="vo">“Get yours now, before anyone else does. hexns.domains.”</dd>
-            <dt>On screen</dt><dd>“Get yours now, before anyone else does.” Above it, a search bar types yourname.hex: Available. The bar grows into a name card the shape of a credit card: the PulseChain and Ethereum logos, yourname.hex and Available, all on one left edge. The gradient hexns.domains button rises below, and the HexNS logo draws in at the top as the voice says the address.</dd>
-            <dt>Motion</dt><dd>The bar stretches into the card's exact proportions, its gradient edge lights up, and it tilts back as a light sweeps across it. The mark draws again, a little faster, and the end card holds for two seconds.</dd>
+            <dt>On screen</dt><dd>“Get yours now, before anyone else does.” Above it, a search bar types yourname.hex: Available. The bar grows into the name's NFT, a square card laid out like the real one: the HexNS mark top-left, “HEX Name Service” top-right, then the PulseChain and Ethereum logos and yourname.hex along the bottom. The gradient hexns.domains button rises below, and the mark on the card draws itself as the voice says the address.</dd>
+            <dt>Motion</dt><dd>The bar folds into the square card, its gradient edge lights up, and it tilts back as a light sweeps across it. The mark on the card draws its route and lands with a ping, and the end card holds.</dd>
             <dt>Sound</dt><dd>A riser into a soft, warm hit on the logo, and the music resolves.</dd>
           </dl>
         </div>
@@ -743,7 +738,7 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
     <p class="intro">Three curves do all the work. Each dot below moves on the curve it's named after; the After Effects note gives the same feel with Easy Ease.</p>
     <div class="eases" id="eases"></div>
     <ul class="rules">
-      <li><b>No hard cuts.</b> Something from every shot carries into the next: cards become logos, the name pill drops into the send screen, becomes a name card, then the checkout. At the end, the search bar becomes the button.</li>
+      <li><b>No hard cuts.</b> Something from every shot carries into the next: cards become logos, the name pill drops into the send screen, becomes a name card, then the checkout. At the end, the search bar becomes the name's NFT.</li>
       <li><b>Blur is depth.</b> Things arrive out of a 12–18 px blur and leave into one, which hides the start of every move.</li>
       <li><b>One move at a time.</b> While one thing moves, everything else only floats.</li>
       <li><b>Light from below.</b> A slow amber-to-magenta glow drifts along the bottom of the frame for the whole video, brightening at the logo moments.</li>
@@ -1113,7 +1108,6 @@ Get yours now, before anyone else does: hexns.domains</p>
 </div>
 <div class="L" data-l="s8">
   <i class="a glow8" data-k="glow8"></i>
-  <div class="a lockup" data-k="lock">${MARK("mark8", u + "m8", 67, 76).replace('class="a mark"', 'class="mark"')}<span class="wmark" data-k="wordmark">HexNS</span></div>
   ${HL("h8", "cta")}
   <div class="a card8" data-k="card8">
     <i class="card8-edge" data-k="card8Edge"></i>
@@ -1121,10 +1115,12 @@ Get yours now, before anyone else does: hexns.domains</p>
     <i class="card8-facebg" data-k="card8FaceBg"></i>
     <div class="sr-a" data-k="srA"><svg class="sr-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg><span class="sr-q"><span data-k="srTyped"></span><i class="caret" data-k="caret"></i><span class="g">.hex</span></span><span class="avail" data-k="avail">${TICK} Available</span></div>
     <div class="card8-face" data-k="card8Face">
+      <i class="card8-glow"></i>
       <i class="card8-sheen" data-k="card8Sheen"></i>
+      <div class="card8-mark">${MARK("mark8", u + "m8", 56, 64).replace('class="a mark"', 'class="mark"')}</div>
+      <span class="card8-tag">HEX Name Service</span>
       <div class="card8-chains"><i class="lg pls"></i><i class="lg eth"></i></div>
       <div class="card8-name">yourname<span class="g">.hex</span></div>
-      <span class="card8-avail">${TICK} Available</span>
     </div>
   </div>
   <div class="a btn8" data-k="btn8">hexns.domains<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
@@ -1433,9 +1429,9 @@ Get yours now, before anyone else does: hexns.domains</p>
   }
 
   // The end card: a search bar grows where the card will be and finds the name while the line lands
-  // with the voice. The bar grows into a name card the shape of a credit card, which tilts back as a
-  // light sweeps it; the gradient button rises and the logo signs off as the address is said.
-  const CARD = { w: 600, h: 600 * 53.98 / 85.6, r: 600 * 3.18 / 85.6, y: 395 };
+  // with the voice. The bar grows into the name's NFT, which tilts back as a light sweeps it; the
+  // gradient button rises, and the mark on the card draws itself as the address is said.
+  const CARD = { w: 480, h: 480, r: 36, y: 350 };
   function scene8(S, t) {
     const K = S.K;
     const g = P(t, 18.3, 0.65, EASE.move);
@@ -1446,7 +1442,7 @@ Get yours now, before anyone else does: hexns.domains</p>
     K.card8.style.borderRadius = `${r.toFixed(1)}px`;
     K.card8Edge.style.borderRadius = `${(r + 3).toFixed(1)}px`;
     const tilt = P(t, 21.0, 0.9, EASE.move);
-    put(K.card8, 540, CARD.y, { o: P(t, 18.25, 0.3), b: 12 * (1 - g), rx: 9 * tilt, ry: -11 * tilt });
+    put(K.card8, 540, CARD.y, { o: P(t, 18.25, 0.3), b: 12 * (1 - g), rx: 7 * tilt, ry: -9 * tilt });
     K.card8Edge.style.opacity = P(t, 20.75, 0.5).toFixed(3);
     K.card8FaceBg.style.opacity = P(t, 20.6, 0.5).toFixed(3);
     K.srA.style.opacity = (P(t, 18.75, 0.2) * (1 - P(t, 20.5, 0.22, EASE.exit))).toFixed(3);
@@ -1460,16 +1456,10 @@ Get yours now, before anyone else does: hexns.domains</p>
     K.card8Sheen.style.transform = `translateX(${(-130 + 260 * P(t, 21.4, 1.1, EASE.move)).toFixed(1)}%)`;
     put(K.glow8, 540, CARD.y + 40, { o: 0.9 * P(t, 20.6, 1.0) });
     words(S.H.h8, t, WT.h8);
-    put(K.h8, 540, 700, { o: t >= WT.h8[0] - 0.05 ? 1 : 0 });
+    put(K.h8, 540, 713, { o: t >= WT.h8[0] - 0.05 ? 1 : 0 });
     const bt = P(t, 20.85, 0.6);
     put(K.btn8, 540, 880 + 30 * (1 - bt), { o: bt, s: 0.9 + 0.1 * bt, b: 10 * (1 - bt) });
-    drawMark(S, "mark8", t, 20.95, 0.7, 21.5);
-    const wm = P(t, 21.35, 0.65);
-    K.wordmark.style.clipPath = `inset(-10% ${(100 - 100 * wm).toFixed(2)}% -10% 0)`;
-    const shift = (((S.wmW || 150) + 18) / 2) * (1 - wm);
-    K.mark8.style.transform = `translateX(${shift.toFixed(1)}px)`;
-    K.wordmark.style.transform = `translateX(${(shift - 16 * (1 - wm)).toFixed(1)}px)`;
-    put(K.lock, 540, 130, { o: t >= 20.95 ? 1 : 0 });
+    drawMark(S, "mark8", t, 20.95, 0.7, 21.5); // the mark on the card draws itself as the address is said
   }
 
   function render(S, T) {
@@ -1496,7 +1486,6 @@ Get yours now, before anyone else does: hexns.domains</p>
     const was = layers.map((l) => l.style.display);
     layers.forEach((l) => (l.style.display = ""));
     fitGradients(S);
-    S.wmW = S.K.wordmark.offsetWidth;
     layers.forEach((l, i) => (l.style.display = was[i]));
   }
 

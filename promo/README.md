@@ -21,8 +21,10 @@ A 30-second square video for X, drawn in code and timed to its voiceover.
   over the music, which dips while the voice speaks, at -14 LUFS) and writes it into
   `storyboard.html`, so its player sounds exactly like the video. It needs Playwright's Chromium and ffmpeg. `storyboard.html?stage` shows
   only the frame and exposes `window.HexPromo` (`ready`, `render(t)`, `duration` and `voice`).
-- [`endcards.html`](endcards.html) holds the five end cards that were considered; the video uses C,
-  the name card.
+- [`endcards.html`](endcards.html) holds the five end cards that were considered. The video's grew
+  out of C into the name's NFT: a square card laid out like the real one
+  ([`HexNameCard.sol`](../src/common/HexNameCard.sol)), with the mark top-left, "HEX Name Service"
+  top-right and the name along the bottom.
 
 The HEX logo it shows, and where it came from, are in [`assets/`](assets/README.md). The X
 profile picture, header and bio are in [`brand/x/`](../brand/x/README.md).
