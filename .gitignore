@@ -19,3 +19,6 @@ bot/state.json.tmp
 web/node_modules/
 web/dist/
 web/dist-single/
+
+# Rendered promo videos (promo/render.cjs makes them again)
+promo/out/
