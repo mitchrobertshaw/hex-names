@@ -1,0 +1,95 @@
+# PulseChain Names, a MetaMask snap
+
+Type a name instead of a `0x…` address in MetaMask's send screen:
+
+| Ending | Name service | On PulseChain | On Ethereum |
+|---|---|---|---|
+| `.hex` | [HexNS](https://hexns.domains) | yes | yes, through its copy on Ethereum |
+| `.pdai` | [pDAI Name Service](https://pdai.domains) | yes | no: `.pdai` lives on PulseChain only |
+| `.pls` | [Pulse Domains](https://app.pulse.domains) | yes | no: `.pls` lives on PulseChain only |
+
+It also works the other way: where MetaMask shows an address, it can show the name the address has
+chosen as its own (a primary name), if that name points back to the same address. `.pls` names
+have primary names today. `.hex` and `.pdai` don't yet; the snap already asks for them, so they'll
+show as soon as those services add them.
+
+## How it looks names up
+
+Only public records, read from the chains. The snap never signs or sends anything, and never sees
+a key.
+
+- **`.hex` and `.pdai`** are [ENSv2](https://github.com/ensdomains/contracts-v2) registries. Each has
+  a `UniversalResolverV2`, which the snap asks for `addr(node, coinType)`: on PulseChain the
+  PulseChain address first (ENSIP-11 coin type `0x80000171`), then the address for any EVM chain
+  (ENSIP-19, `0x80000000`), then the Ethereum address (coin type 60). On Ethereum, only the
+  Ethereum address.
+- **`.pls`** is an ENS-style registry (as ENS was before ENSv2): the registry gives a name's
+  resolver, and the resolver its `addr(node)`. Primary names come from the reverse records under
+  `addr.reverse`, and are checked forward before they're shown.
+
+| | Chain | Address |
+|---|---|---|
+| `.hex` UniversalResolverV2 | PulseChain | `0x774822450c94A9fdD82febb3aF528C8e6e192bae` |
+| `.hex` UniversalResolverV2 | Ethereum | `0xccDB62C6133E761B4B6ffE597205e377aF612BDF` |
+| `.pdai` UniversalResolverV2 | PulseChain | `0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A` |
+| Pulse Domains registry (`.pls`) | PulseChain | `0xbd5133993FCDED5945c5539D9f032261F0d13170` |
+
+Names are normalized as ENS does (ENSIP-15), so `MICK.hex` finds `mick.hex`.
+
+**Privacy.** The snap asks public RPC servers (PulseChain's and publicnode.com first, see
+`src/rpc.ts`), trying the next if one is down or slow. Like any lookup, the server you ask sees the
+name or address you looked up.
+
+**Permissions.** `endowment:name-lookup`, for chains `eip155:369` (PulseChain) and `eip155:1`
+(Ethereum) and the endings `hex`, `pdai` and `pls`; and `endowment:network-access`, to read the
+chains.
+
+## Try it
+
+It runs in [MetaMask Flask](https://metamask.io/flask/), MetaMask's edition for developers, until
+MetaMask approves it for everyone (below).
+
+```bash
+npm ci
+npm run build
+npm run serve
+```
+
+Then install `local:http://localhost:8080` from a page that calls `wallet_requestSnaps`, switch
+MetaMask Flask to PulseChain, and type `mick.hex` as the recipient of a send.
+
+## Tests
+
+```bash
+npm run typecheck
+npm run build
+npm test
+npm run test:live
+```
+
+`npm test` checks the lookup logic against pretend contracts, and installs the built snap in
+MetaMask's snap simulator. `npm run test:live` also looks up real names on PulseChain and Ethereum
+(`mick.hex`, `testname.pdai`, `pdai.pls`, and `pdai.pls`'s address). CI runs both.
+
+## Getting it into MetaMask
+
+A snap that looks names up needs MetaMask's approval before regular MetaMask can install it. It
+doesn't need an audit: that's only for snaps that handle keys.
+
+1. **Public source code.** MetaMask asks that anyone can read the snap's source. This repository
+   is private, so the snap needs a public home: a public repository with the `snap/` folder's
+   contents. Then point `repository` in `package.json` and `snap.manifest.json` at it.
+2. **Publish it to npm.** Make an [npm](https://www.npmjs.com) account, then from this folder:
+   `npm run build` and `npm publish`. The package name `pulsechain-names-snap` was free on
+   16 November 2026. The published package includes the source (`src/`) as well as the bundle.
+3. **Scan it** with [Snapper](https://github.com/sayfer-io/Snapper), which MetaMask asks for, and fix
+   anything it reports.
+4. **Ask for approval** with the
+   [Snaps Directory Information form](https://go.metamask.io/snaps-directory-request): the name
+   (`PulseChain Names`, which must match `proposedName` in the manifest, and can't contain
+   "MetaMask", "Snap", "Meta" or "Mask"), the builder and website (hexns.domains), short and long
+   descriptions, the version (`0.1.0`), a support contact, screenshots, and ideally a short demo
+   video.
+5. **Review.** MetaMask's Snaps team reviews it (two approvals). Once allowlisted, it appears in the
+   [Snaps Directory](https://snaps.metamask.io), and the websites can offer an install button.
+6. **Updates.** Each new version is published to npm and approved again, with the update form.

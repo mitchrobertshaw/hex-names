@@ -96,3 +96,26 @@ jobs:
 
       - name: Type check, tests and build
         run: npm run typecheck && npm test && npm run build
+
+  snap:
+    name: MetaMask snap
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: snap
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: snap/package-lock.json
+
+      - run: npm ci
+
+      - name: Type check and build (the build fails if snap.manifest.json is out of date)
+        run: npm run typecheck && npm run build
+
+      - name: Tests, including lookups of real names on PulseChain and Ethereum
+        run: npm run test:live
