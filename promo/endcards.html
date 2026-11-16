@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- Five options for the video's end card, each 1080 × 1080. Render a frame by its id (#A–#E). -->
+<meta charset="utf-8">
+<title>HexNS end card options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  body { margin: 0; background: #000; }
+  .frame {
+    position: relative; width: 1080px; height: 1080px; overflow: hidden;
+    background: #130b18; color: #fbf5ff; font-family: Inter, system-ui, sans-serif;
+  }
+  .frame * { box-sizing: border-box; }
+  .grain {
+    position: absolute; inset: 0; opacity: 0.07; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .grad-text {
+    background: linear-gradient(100deg, #ffc23d 0%, #ff6a4d 48%, #ff4fa0 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+    padding-bottom: 0.08em; margin-bottom: -0.08em;
+  }
+  .line {
+    position: absolute; left: 0; right: 0; margin: 0; text-align: center;
+    font: 700 66px/1.1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.03em;
+  }
+  .cta { position: absolute; left: 0; right: 0; display: flex; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 18px; height: 120px; padding: 0 40px 0 56px; border-radius: 999px;
+    font: 700 50px/1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.01em; white-space: nowrap;
+  }
+  .btn svg { width: 62px; height: 62px; flex: none; }
+  .lockup { display: flex; align-items: center; gap: 30px; }
+  .wm { font: 700 84px/1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.03em; }
+
+  /* A: the mark as a glowing coin, ringed by orbits */
+  .fa .aura {
+    position: absolute; left: 540px; top: 330px; width: 1060px; height: 1060px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(255 160 60 / 62%) 20%, rgb(255 96 60 / 42%) 35%, rgb(229 0 122 / 28%) 54%, rgb(229 0 122 / 0%) 78%);
+  }
+  .fa .ring { position: absolute; left: 540px; top: 330px; width: var(--d); height: var(--d); transform: translate(-50%, -50%); border-radius: 50%; border: 1.5px solid rgb(255 255 255 / var(--o)); }
+  .fa .ring i { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px 4px rgb(255 200 140 / 80%); }
+  .fa .coin {
+    position: absolute; left: 540px; top: 330px; width: 330px; height: 330px; transform: translate(-50%, -50%); border-radius: 50%;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 28%, #33233f, #170e1e 68%);
+    box-shadow: 0 40px 90px rgb(0 0 0 / 55%), inset 0 2px 0 rgb(255 255 255 / 14%);
+  }
+  .fa .coin::before {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%; padding: 4px;
+    background: conic-gradient(from 210deg, #ffc400, #ff6a1f, #e5007a, #ff6a1f, #ffc400);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .fa .btn {
+    color: #1d1424; background: linear-gradient(100deg, #ffc23d, #ff6a4d 50%, #ff4fa0);
+    box-shadow: 0 24px 70px rgb(255 80 90 / 38%), inset 0 1px 0 rgb(255 255 255 / 45%);
+  }
+
+  /* B: a poster on the full brand gradient */
+  .fb { background: linear-gradient(135deg, #ffc400 0%, #ff8a12 28%, #ff6a1f 48%, #f43568 74%, #e5007a 100%); color: #1d1424; }
+  .fb .big { position: absolute; left: 470px; top: 330px; opacity: 0.17; }
+  .fb .lockup { position: absolute; left: 96px; top: 92px; gap: 20px; }
+  .fb .lockup .wm { font-size: 54px; }
+  .fb .head { position: absolute; left: 90px; top: 250px; margin: 0; font: 700 172px/0.88 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.055em; }
+  .fb .head span { color: #fff; }
+  .fb .sub { position: absolute; left: 96px; top: 600px; margin: 0; font: 600 60px/1.08 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.025em; }
+  .fb .btn { position: absolute; left: 96px; top: 800px; background: #1d1424; color: #fff; box-shadow: 0 24px 60px rgb(90 0 50 / 35%); }
+
+  /* C: the name itself, on a tilted card with a gradient edge */
+  .fc .glow {
+    position: absolute; left: 540px; top: 470px; width: 1300px; height: 820px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(229 0 122 / 34%), rgb(255 106 31 / 16%) 55%, rgb(255 106 31 / 0%));
+  }
+  .fc .lockup { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); gap: 18px; }
+  .fc .lockup .wm { font-size: 50px; }
+  .fc .card {
+    position: absolute; left: 540px; top: 410px; width: 800px; height: 400px; border-radius: 46px; padding: 3px;
+    transform: translate(-50%, -50%) perspective(1800px) rotateX(9deg) rotateY(-11deg);
+    background: conic-gradient(from 200deg at 50% 50%, #ffc400, #ff6a1f, #e5007a, #ff6a1f, #ffc400);
+    box-shadow: 0 70px 120px rgb(0 0 0 / 55%), 0 0 90px rgb(255 80 90 / 22%);
+  }
+  .fc .card-in { position: relative; width: 100%; height: 100%; border-radius: 43px; overflow: hidden; background: linear-gradient(155deg, #2c1d38 0%, #170e1e 70%); }
+  .fc .sheen { position: absolute; inset: -30%; background: linear-gradient(115deg, transparent 38%, rgb(255 255 255 / 9%) 46%, rgb(255 190 140 / 16%) 50%, rgb(255 255 255 / 5%) 55%, transparent 63%); }
+  .fc .top { position: absolute; left: 46px; right: 46px; top: 40px; display: flex; justify-content: space-between; align-items: center; }
+  .fc .chains { display: flex; gap: 10px; }
+  .fc .chains img { width: 46px; height: 46px; display: block; }
+  .fc .name { position: absolute; left: 46px; top: 150px; font: 700 100px/1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.035em; white-space: nowrap; }
+  .fc .bottom { position: absolute; left: 46px; right: 46px; bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+  .fc .avail { display: inline-flex; align-items: center; gap: 10px; height: 60px; padding: 0 26px 0 20px; border-radius: 999px; background: rgb(79 214 160 / 15%); color: #4fd6a0; font: 600 28px/1 Inter, sans-serif; }
+  .fc .price { font: 600 30px/1 Inter, sans-serif; color: #b9abc3; }
+  .fc .price b { color: #fbf5ff; font-family: "Space Grotesk", Inter, sans-serif; font-size: 40px; }
+  .fc .btn {
+    color: #fbf5ff; border: 3px solid transparent;
+    background: linear-gradient(#24182d, #24182d) padding-box, linear-gradient(100deg, #ffc23d, #ff6a4d 50%, #ff4fa0) border-box;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 45%), 0 0 50px rgb(255 90 90 / 20%);
+  }
+  .fc .btn svg { color: #ff7a59; }
+
+  /* D: the HexNS route as a giant gradient hexagon around everything */
+  .fd .glow {
+    position: absolute; left: 540px; top: 540px; width: 1000px; height: 1000px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(229 0 122 / 20%), rgb(229 0 122 / 0%));
+  }
+  .fd .hexframe { position: absolute; inset: 0; filter: drop-shadow(0 0 18px rgb(255 100 80 / 55%)); }
+  .fd .lockup { position: absolute; left: 50%; top: 360px; transform: translate(-50%, -50%); }
+  .fd .btn { background: #ff5ca8; color: #1d1424; box-shadow: 0 24px 60px rgb(255 60 140 / 30%); }
+
+  /* E: a sunrise over a planet's edge, the button rising with it */
+  .fe { background: radial-gradient(1200px 700px at 50% 0%, #1d1226, #0c0710 70%); }
+  .fe .planet {
+    position: absolute; left: 540px; top: 2160px; width: 2700px; height: 2700px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(circle at 50% 0%, #1c1024 0%, #0a0510 22%);
+    box-shadow: 0 -2px 0 0 rgb(255 214 150 / 95%), 0 -10px 30px rgb(255 160 60 / 70%), 0 -34px 100px rgb(255 96 40 / 50%), 0 -90px 240px rgb(229 0 122 / 50%);
+  }
+  .fe .sun {
+    position: absolute; left: 540px; top: 812px; width: 1500px; height: 520px; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(255 226 160 / 80%), rgb(255 140 50 / 55%) 26%, rgb(229 0 122 / 30%) 56%, rgb(229 0 122 / 0%) 100%);
+    mix-blend-mode: screen;
+  }
+  .fe .lockup { position: absolute; left: 50%; top: 250px; transform: translate(-50%, -50%); }
+  .fe .btn { background: #fff8ef; color: #1d1424; box-shadow: 0 0 0 10px rgb(255 214 150 / 18%), 0 0 80px rgb(255 170 80 / 70%), 0 20px 50px rgb(0 0 0 / 40%); }
+</style>
+
+<section class="frame fa" id="A">
+  <i class="aura"></i>
+  <i class="ring" style="--d:440px; --o:.14"><i style="left:12%; top:18%"></i></i>
+  <i class="ring" style="--d:620px; --o:.09"><i style="left:94%; top:30%"></i></i>
+  <i class="ring" style="--d:820px; --o:.05"></i>
+  <div class="coin"><i class="mk" data-v="grad" data-h="200"></i></div>
+  <p class="line" style="top:590px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
+  <div class="cta" style="top:800px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
+  <i class="grain"></i>
+</section>
+
+<section class="frame fb" id="B">
+  <i class="mk big" data-v="white" data-h="1060"></i>
+  <div class="lockup"><i class="mk" data-v="plum" data-h="80"></i><span class="wm">HexNS</span></div>
+  <p class="head">Get yours<br><span>now.</span></p>
+  <p class="sub">before anyone<br>else does.</p>
+  <span class="btn">hexns.domains<i class="arrow"></i></span>
+  <i class="grain"></i>
+</section>
+
+<section class="frame fc" id="C">
+  <i class="glow"></i>
+  <div class="lockup"><i class="mk" data-v="grad" data-h="76"></i><span class="wm">HexNS</span></div>
+  <div class="card"><div class="card-in">
+    <i class="sheen"></i>
+    <div class="top"><i class="mk" data-v="grad" data-h="56"></i><span class="chains"><img src="../web/src/assets/chains/pulsechain.png" alt=""><img src="../web/src/assets/chains/ethereum.svg" alt=""></span></div>
+    <div class="name">yourname<span class="grad-text">.hex</span></div>
+    <div class="bottom"><span class="avail"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Available</span><span class="price">from <b>$10</b> a year</span></div>
+  </div></div>
+  <p class="line" style="top:690px; font-size:60px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
+  <div class="cta" style="top:850px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
+  <i class="grain"></i>
+</section>
+
+<section class="frame fd" id="D">
+  <i class="glow"></i>
+  <svg class="hexframe" width="1080" height="1080" viewBox="0 0 1080 1080">
+    <defs><linearGradient id="hexg" gradientUnits="userSpaceOnUse" x1="146" y1="85" x2="934" y2="995"><stop offset="0" stop-color="#FFC400"/><stop offset=".5" stop-color="#FF6A1F"/><stop offset="1" stop-color="#E5007A"/></linearGradient></defs>
+    <path d="M540 85L934 312.5V767.5L540 995L146 767.5V312.5" fill="none" stroke="url(#hexg)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="lockup"><i class="mk" data-v="grad" data-h="140"></i><span class="wm">HexNS</span></div>
+  <p class="line" style="top:500px; font-size:62px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
+  <div class="cta" style="top:690px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
+  <i class="grain"></i>
+</section>
+
+<section class="frame fe" id="E">
+  <i class="sun"></i>
+  <i class="planet"></i>
+  <div class="lockup"><i class="mk" data-v="grad" data-h="130"></i><span class="wm">HexNS</span></div>
+  <p class="line" style="top:430px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
+  <div class="cta" style="top:690px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
+  <i class="grain"></i>
+</section>
+
+<script>
+  // The HexNS mark (brand/hexns-mark.svg) in its gradient, white, or the dark plum of the black version.
+  const ROUTE = "M33.45 5.989L53.802 17.739A2.9 2.9 0 0 1 50.902 22.761L30.55 11.011A2.9 2.9 0 0 1 33.45 5.989ZM55.252 20.25L55.252 43.75A2.9 2.9 0 0 1 49.452 43.75L49.452 20.25A2.9 2.9 0 0 1 55.252 20.25ZM53.802 46.261L33.45 58.011A2.9 2.9 0 0 1 30.55 52.989L50.902 41.239A2.9 2.9 0 0 1 53.802 46.261ZM30.55 58.011L10.198 46.261A2.9 2.9 0 0 1 13.098 41.239L33.45 52.989A2.9 2.9 0 0 1 30.55 58.011ZM8.748 43.75L8.748 20.25A2.9 2.9 0 0 1 14.548 20.25L14.548 43.75A2.9 2.9 0 0 1 8.748 43.75ZM13.098 17.739L33.45 29.489A2.9 2.9 0 0 1 30.55 34.511L10.198 22.761A2.9 2.9 0 0 1 13.098 17.739ZM24.6 32A7.4 7.4 0 1 1 39.4 32A7.4 7.4 0 1 1 24.6 32Z";
+  let n = 0;
+  document.querySelectorAll("i.mk").forEach((el) => {
+    const h = +el.dataset.h, w = Math.round(h * 0.8807 * 10) / 10, id = `mg${n++}`;
+    const fill = { grad: `url(#${id})`, white: "#fff", plum: "#1d1424" }[el.dataset.v];
+    el.outerHTML = `<svg class="${el.className}" width="${w}" height="${h}" viewBox="8.748 5.6 46.503 52.8" style="display:block"><defs><linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58"><stop offset="0" stop-color="#FFC400"/><stop offset=".5" stop-color="#FF6A1F"/><stop offset="1" stop-color="#E5007A"/></linearGradient></defs><path fill="${fill}" d="${ROUTE}"/></svg>`;
+  });
+  document.querySelectorAll("i.arrow").forEach((el) => {
+    el.outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  });
+</script>
