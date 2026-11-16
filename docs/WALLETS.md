@@ -19,10 +19,29 @@ once.
 
 | What | Chain | Address |
 |---|---|---|
-| `.hex` UniversalResolverV2 | PulseChain | `0x774822450c94A9fdD82febb3aF528C8e6e192bae` |
-| `.hex` UniversalResolverV2 | Ethereum | `0xccDB62C6133E761B4B6ffE597205e377aF612BDF` |
-| `.pdai` UniversalResolverV2 | PulseChain | `0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A` |
-| Pulse Domains registry (`.pls`) | PulseChain | `0xbd5133993FCDED5945c5539D9f032261F0d13170` |
+| `.hex` UniversalResolverV2 | PulseChain | [`0x774822450c94A9fdD82febb3aF528C8e6e192bae`](https://scan.pulsechain.com/address/0x774822450c94A9fdD82febb3aF528C8e6e192bae) |
+| `.hex` UniversalResolverV2 | Ethereum | [`0xccDB62C6133E761B4B6ffE597205e377aF612BDF`](https://etherscan.io/address/0xccDB62C6133E761B4B6ffE597205e377aF612BDF#code) |
+| `.pdai` UniversalResolverV2 | PulseChain | [`0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A`](https://scan.pulsechain.com/address/0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A) |
+| Pulse Domains registry (`.pls`) | PulseChain | [`0xbd5133993FCDED5945c5539D9f032261F0d13170`](https://scan.pulsechain.com/address/0xbd5133993FCDED5945c5539D9f032261F0d13170) |
+
+Every HexNS and pDAI Name Service contract is verified: its source code is published on its
+chain's explorer (PulseChain's, or Etherscan for Ethereum), which checked that the code compiles to
+exactly what's on the chain. Pulse Domains' contracts are verified too.
+
+A wallet only needs the Pulse Domains registry; it leads to everything else. Its other contracts,
+from Pulse Domains' app, for reference:
+
+| Pulse Domains contract | Address |
+|---|---|
+| Public Resolver (the resolver its app gives names) | `0x2FDBb906b4FE68e31D928C1ED0b6a3bD1f204374` |
+| Reverse Registrar (sets primary names) | `0x9E0406b8a7831B6056A52938B103e48D7E5A9F69` |
+| Base Registrar (`.pls` names as NFTs) | `0x65Cf7f7aa5A4a2c20120B445cA4F05F63E2628C4` |
+| Registrar Controller (registers and renews names) | `0xEDE92828a143cFC966a47d60604825655f7c79e8` |
+| Name Wrapper | `0x4feFb26934705C1661aC04aF8303548b850d562F` |
+| Universal Resolver | `0x6644e794F5aFfb8abcfea0e71d5624D013BA2dBA` |
+
+viem's `getEnsAddress` reverts when pointed at that universal resolver, so look `.pls` names up
+through the registry, as below.
 
 ## Name to address
 

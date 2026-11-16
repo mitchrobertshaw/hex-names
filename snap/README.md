@@ -29,10 +29,12 @@ a key.
 
 | | Chain | Address |
 |---|---|---|
-| `.hex` UniversalResolverV2 | PulseChain | `0x774822450c94A9fdD82febb3aF528C8e6e192bae` |
-| `.hex` UniversalResolverV2 | Ethereum | `0xccDB62C6133E761B4B6ffE597205e377aF612BDF` |
-| `.pdai` UniversalResolverV2 | PulseChain | `0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A` |
-| Pulse Domains registry (`.pls`) | PulseChain | `0xbd5133993FCDED5945c5539D9f032261F0d13170` |
+| `.hex` UniversalResolverV2 | PulseChain | [`0x774822450c94A9fdD82febb3aF528C8e6e192bae`](https://scan.pulsechain.com/address/0x774822450c94A9fdD82febb3aF528C8e6e192bae) |
+| `.hex` UniversalResolverV2 | Ethereum | [`0xccDB62C6133E761B4B6ffE597205e377aF612BDF`](https://etherscan.io/address/0xccDB62C6133E761B4B6ffE597205e377aF612BDF#code) |
+| `.pdai` UniversalResolverV2 | PulseChain | [`0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A`](https://scan.pulsechain.com/address/0x394363Dfbb7A2FFE2C8b0B70DB53157653E0be8A) |
+| Pulse Domains registry (`.pls`) | PulseChain | [`0xbd5133993FCDED5945c5539D9f032261F0d13170`](https://scan.pulsechain.com/address/0xbd5133993FCDED5945c5539D9f032261F0d13170) |
+
+All four are verified: their source code is published on PulseChain's explorer and Etherscan.
 
 Names are normalized as ENS does (ENSIP-15), so `MICK.hex` finds `mick.hex`.
 
