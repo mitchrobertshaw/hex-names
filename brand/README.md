@@ -19,7 +19,8 @@ billboard, in a browser or in any design tool.
 | `hexns-mark-1024.png` | The mark in colour as a picture, transparent background. |
 
 The website's own icons (favicon, phone home-screen icons) are in `web/public`, and the mark itself
-is in `web/src/components/Logo.tsx`.
+is in `web/src/components/Logo.tsx`. The profile picture, header and bio for X are in
+[`x/`](x/README.md).
 
 ## Colours
 
