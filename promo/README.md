@@ -10,6 +10,5 @@ A 28-second square video for X, drawn in code so its timing can follow the voice
 - `storyboard.html?stage` shows only the 1080 × 1080 frame and exposes `window.HexPromo`
   (`ready`, `render(t)` and `duration`), for rendering the video one frame at a time.
 
-The HEX, MetaMask and ZKX Wallet logos it shows, and where each came from, are in
-[`assets/`](assets/README.md). The X profile picture, header and bio are in
-[`brand/x/`](../brand/x/README.md).
+The HEX logo it shows, and where it came from, are in [`assets/`](assets/README.md). The X
+profile picture, header and bio are in [`brand/x/`](../brand/x/README.md).
