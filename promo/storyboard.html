@@ -612,7 +612,7 @@ td.when { font: 500 13px/1.6 var(--font-mono); white-space: nowrap; color: var(-
           <dl>
             <dt>Voice</dt><dd class="vo">“Your name should too.”</dd>
             <dt>On screen</dt><dd>The cards shrink to circles: each HEX logo steps back as its chain's badge grows into the chain's logo. Between them the HexNS mark draws itself: the line runs round the hexagon and turns in to the centre, where the node lands. Lines reach out to both chains, and “you.hex” rises underneath.</dd>
-            <dt>Motion</dt><dd>Cards become the chains in one move, with no cut. The line draws on an ease-in-out, the node pops with a small overshoot, and a warm glow and a faint honeycomb bloom behind it.</dd>
+            <dt>Motion</dt><dd>Cards become the chains in one move, with no cut. A faint hexagon appears first: the route traces it with a light riding its tip, then breaks off and turns in to the centre, and the node lands with a soft ping. From then on, now and then a signal runs the route home to the node, and sparks flow in from both chains.</dd>
             <dt>Sound</dt><dd>A rising shimmer that lands on a soft, glassy pop.</dd>
           </dl>
         </div>
@@ -1022,7 +1022,16 @@ Get yours now, before anyone else does: hexns.domains</p>
   const ROUTE_FILLED = "M33.45 5.989L53.802 17.739A2.9 2.9 0 0 1 50.902 22.761L30.55 11.011A2.9 2.9 0 0 1 33.45 5.989ZM55.252 20.25L55.252 43.75A2.9 2.9 0 0 1 49.452 43.75L49.452 20.25A2.9 2.9 0 0 1 55.252 20.25ZM53.802 46.261L33.45 58.011A2.9 2.9 0 0 1 30.55 52.989L50.902 41.239A2.9 2.9 0 0 1 53.802 46.261ZM30.55 58.011L10.198 46.261A2.9 2.9 0 0 1 13.098 41.239L33.45 52.989A2.9 2.9 0 0 1 30.55 58.011ZM8.748 43.75L8.748 20.25A2.9 2.9 0 0 1 14.548 20.25L14.548 43.75A2.9 2.9 0 0 1 8.748 43.75ZM13.098 17.739L33.45 29.489A2.9 2.9 0 0 1 30.55 34.511L10.198 22.761A2.9 2.9 0 0 1 13.098 17.739ZM24.6 32A7.4 7.4 0 1 1 39.4 32A7.4 7.4 0 1 1 24.6 32Z";
   const grad = (id) => `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58"><stop offset="0" stop-color="#FFC400"/><stop offset=".5" stop-color="#FF6A1F"/><stop offset="1" stop-color="#E5007A"/></linearGradient>`;
   // The mark as a stroke that can draw itself: the same geometry as brand/hexns-mark.svg.
-  const MARK = (k, id, w, h) => `<svg class="a mark" data-k="${k}" viewBox="8.748 5.6 46.503 52.8" width="${w}" height="${h}"><defs>${grad(id)}</defs><path data-k="${k}R" d="${ROUTE}" fill="none" stroke="url(#${id})" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0"/><circle data-k="${k}N" cx="32" cy="32" r="7.4" fill="url(#${id})" opacity="0"/></svg>`;
+  // The whole hexagon the route follows: shown faintly while the line draws, so the mark reads as
+  // a route that takes the HEX hexagon's path, then breaks off and turns in to the centre.
+  const HEXAGON = "M32 8.5L52.351 20.25V43.75L32 55.5L11.649 43.75V20.25Z";
+  const MARK = (k, id, w, h) => `<svg class="a mark" data-k="${k}" viewBox="8.748 5.6 46.503 52.8" width="${w}" height="${h}"><defs>${grad(id)}</defs>` +
+    `<path data-k="${k}G" d="${HEXAGON}" fill="none" stroke="#fff" stroke-width="0.9" stroke-linejoin="round" opacity="0"/>` +
+    `<path data-k="${k}R" d="${ROUTE}" fill="none" stroke="url(#${id})" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1 1" stroke-dashoffset="1" opacity="0"/>` +
+    `<path data-k="${k}P" d="${ROUTE}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="0.1 1.2" stroke-dashoffset="0.1" opacity="0"/>` +
+    `<circle data-k="${k}Ring" cx="32" cy="32" r="7.4" fill="none" stroke="url(#${id})" stroke-width="1.3" opacity="0"/>` +
+    `<circle data-k="${k}N" cx="32" cy="32" r="7.4" fill="url(#${id})" opacity="0"/>` +
+    `<g data-k="${k}H" opacity="0"><circle r="5.5" fill="#fff" opacity="0.22"/><circle r="2.3" fill="#fff"/></g></svg>`;
   function wordsHTML(src) {
     const out = [];
     // [words] take the gradient; a | breaks the line there.
@@ -1202,13 +1211,34 @@ Get yours now, before anyone else does: hexns.domains</p>
     el.style.opacity = t >= at ? "1" : "0";
     el.style.transform = `${base} scale(${Math.max(0, s).toFixed(4)})`;
   }
-  function drawMark(K, k, t, a, d, nodeAt) {
+  // The route's corners: round the hexagon from the top, then in to the centre (six equal legs).
+  const ROUTE_PTS = [[32, 8.5], [52.351, 20.25], [52.351, 43.75], [32, 55.5], [11.649, 43.75], [11.649, 20.25], [32, 32]];
+  function routeAt(p) {
+    const n = ROUTE_PTS.length - 1, x = clamp(p) * n, i = Math.min(n - 1, Math.floor(x)), f = x - i;
+    return [lerp(ROUTE_PTS[i][0], ROUTE_PTS[i + 1][0], f), lerp(ROUTE_PTS[i][1], ROUTE_PTS[i + 1][1], f)];
+  }
+  // The mark draws itself: a faint hexagon first, then the route takes its path with a light at its
+  // head, breaks off and turns in to the centre, where the node lands with a soft ping. After that, now
+  // and then a signal runs the route home to the node (on the video's clock, so holds don't slow it).
+  function drawMark(S, k, t, a, d, nodeAt) {
+    const K = S.K;
     const p = P(t, a, d, EASE.move);
+    const ghost = Math.min(P(t, a - 0.3, 0.35), 1 - P(t, nodeAt + 0.35, 0.5, EASE.exit));
+    K[k + "G"].style.opacity = (0.3 * ghost).toFixed(3);
     K[k + "R"].style.strokeDashoffset = (1 - p).toFixed(4);
     K[k + "R"].style.opacity = p > 0.001 ? "1" : "0";
+    const [hx, hy] = routeAt(p);
+    K[k + "H"].setAttribute("transform", `translate(${hx.toFixed(3)} ${hy.toFixed(3)})`);
+    K[k + "H"].style.opacity = (p > 0.001 ? 0.9 * (1 - P(t, nodeAt, 0.15, EASE.exit)) : 0).toFixed(3);
     const n = Math.max(0, EASE.back(clamp((t - nodeAt) / 0.45)));
     K[k + "N"].style.transform = `scale(${n.toFixed(4)})`;
     K[k + "N"].style.opacity = t >= nodeAt ? "1" : "0";
+    const ping = P(t, nodeAt + 0.05, 0.9);
+    K[k + "Ring"].setAttribute("r", (7.4 + 9 * ping).toFixed(3));
+    K[k + "Ring"].style.opacity = (ping > 0 && ping < 1 ? 0.5 * (1 - ping) : 0).toFixed(3);
+    const since = S.T - toVideo(nodeAt + 0.6), u = since > 0 ? (since % 2.4) / 1.3 : 2;
+    K[k + "P"].style.strokeDashoffset = (0.1 - 1.1 * EASE.move(clamp(u))).toFixed(4);
+    K[k + "P"].style.opacity = (u < 1 ? 0.45 * Math.sin(Math.PI * u) : 0).toFixed(3);
   }
   const BASE_SHADOW = "inset 0 1px 0 rgb(255 255 255 / 14%), 0 40px 90px rgb(0 0 0 / 50%)";
 
@@ -1262,14 +1292,14 @@ Get yours now, before anyone else does: hexns.domains</p>
     });
   }
 
-  function wire(el, spark, x, p, gone, t, dir) {
+  function wire(el, spark, x, p, gone, T, dir) {
     if (p <= 0 || gone >= 1) { el.style.visibility = "hidden"; return; }
     el.style.visibility = "";
     el.style.transform = `translate(${x}px,640px) translate(-50%,-50%) scaleX(${p.toFixed(4)})`;
     el.style.opacity = (1 - gone).toFixed(3);
-    const c = (((t - 4.6) / 1.15) % 1 + 1) % 1;
-    spark.style.left = `${((dir > 0 ? c : 1 - c) * 100).toFixed(2)}%`;
-    spark.style.opacity = (t > 4.6 ? Math.sin(Math.PI * c) : 0).toFixed(3);
+    const since = T - toVideo(4.6), c = ((since / 1.15) % 1 + 1) % 1; // sparks run in from each chain to the mark
+    spark.style.left = `${((dir > 0 ? 1 - c : c) * 100).toFixed(2)}%`;
+    spark.style.opacity = (since > 0 ? Math.sin(Math.PI * c) : 0).toFixed(3);
   }
   function scene2(S, t) {
     const K = S.K;
@@ -1277,11 +1307,11 @@ Get yours now, before anyone else does: hexns.domains</p>
     const gone = P(t, 5.0, 0.45, EASE.exit);
     const po = P(t, 3.05, 1.2);
     put(K.orb2, 540, 640, { o: 0.9 * po * (1 - gone), s: (0.45 + 0.55 * po) * (1 + 0.025 * Math.sin(t * 2.4)) });
-    drawMark(K, "mark2", t, 3.2, 0.85, 3.98);
+    drawMark(S, "mark2", t, 3.2, 0.85, 3.98);
     put(K.mark2, 540, 640, { o: (t >= 3.2 ? 1 : 0) * (1 - gone), s: (0.92 + 0.08 * P(t, 3.2, 1.3)) * (1 - 0.15 * gone), b: 10 * gone });
     const wp = P(t, 4.12, 0.5, EASE.move);
-    wire(K.w2l, K.w2lS, 346, wp, gone, t, -1);
-    wire(K.w2r, K.w2rS, 734, wp, gone, t, 1);
+    wire(K.w2l, K.w2lS, 346, wp, gone, S.T, -1);
+    wire(K.w2r, K.w2rS, 734, wp, gone, S.T, 1);
   }
 
   function scene3(S, t) {
@@ -1433,7 +1463,7 @@ Get yours now, before anyone else does: hexns.domains</p>
     put(K.h8, 540, 700, { o: t >= WT.h8[0] - 0.05 ? 1 : 0 });
     const bt = P(t, 20.85, 0.6);
     put(K.btn8, 540, 880 + 30 * (1 - bt), { o: bt, s: 0.9 + 0.1 * bt, b: 10 * (1 - bt) });
-    drawMark(K, "mark8", t, 20.95, 0.7, 21.5);
+    drawMark(S, "mark8", t, 20.95, 0.7, 21.5);
     const wm = P(t, 21.35, 0.65);
     K.wordmark.style.clipPath = `inset(-10% ${(100 - 100 * wm).toFixed(2)}% -10% 0)`;
     const shift = (((S.wmW || 150) + 18) / 2) * (1 - wm);
@@ -1445,6 +1475,7 @@ Get yours now, before anyone else does: hexns.domains</p>
   function render(S, T) {
     const t = toDesign(T);
     S.t = t;
+    S.T = T; // the video's clock, for loops that shouldn't slow in a hold
     for (const [k, [a, b]] of Object.entries(WIN)) S.L[k].style.display = t >= a && t <= b ? "" : "none";
     background(S, t);
     const on = (k) => t >= WIN[k][0] && t <= WIN[k][1];
