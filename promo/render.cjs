@@ -3,9 +3,9 @@
 //
 //   node promo/render.cjs [out.mp4] [fps]
 //
-// Frames go straight into ffmpeg, nothing is written to disk. The voice is placed where the page
-// says (HexPromo.audioAt) and brought to -14 LUFS with a single gain change, so the narrator's
-// dynamics stay as recorded.
+// Frames go straight into ffmpeg, nothing is written to disk. The voice is cut and placed as the
+// page says (HexPromo.voice: from, to, where it starts) and brought to -14 LUFS with a single gain
+// change, so the narrator's dynamics stay as recorded.
 const { chromium } = require("playwright");
 const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
@@ -25,13 +25,17 @@ const voice = path.join(__dirname, "voiceover.mp3");
   const page = await browser.newPage({ viewport: { width: 1080, height: 1080 }, deviceScaleFactor: 1 });
   page.on("pageerror", (e) => console.error("page error:", e.message));
   await page.goto("file://" + path.join(__dirname, "storyboard.html") + "?stage", { waitUntil: "networkidle" });
-  const { duration, audioAt } = await page.evaluate(async () => {
+  const { duration, voice: pieces } = await page.evaluate(async () => {
     await window.HexPromo.ready;
-    return { duration: window.HexPromo.duration, audioAt: window.HexPromo.audioAt };
+    return { duration: window.HexPromo.duration, voice: window.HexPromo.voice };
   });
 
   const m = measured;
-  const audio = `[1:a]adelay=${Math.round(audioAt * 1000)}:all=1,` +
+  // Each piece of the recording, with 8 ms fades at its cuts, moved to where it starts in the video.
+  const cut = pieces.map(([a, b, at], i) =>
+    `[1:a]atrim=start=${a}:end=${b},asetpts=PTS-STARTPTS,afade=t=in:d=0.008,afade=t=out:st=${(b - a - 0.008).toFixed(3)}:d=0.008,adelay=${Math.round(at * 1000)}:all=1[v${i}]`);
+  const audio = cut.join(";") + ";" + pieces.map((_, i) => `[v${i}]`).join("") +
+    `amix=inputs=${pieces.length}:normalize=0,` +
     `loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset},` +
     `aresample=48000,apad[a]`;
   const ff = spawn("ffmpeg", [
