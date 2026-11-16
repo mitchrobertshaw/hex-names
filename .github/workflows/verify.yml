@@ -4,8 +4,10 @@ name: verify on Etherscan
 # they do. Runs when the verify-contracts branch is pushed. Needs the ETHERSCAN_API_KEY repository
 # secret (a free key from etherscan.io). The contracts, with their constructor arguments, are listed
 # in deploy/verify/ethereum-mainnet.txt, made from the mainnet deploy's step 2 record. It builds them
-# exactly as the deploy did (same Foundry, compiler and libraries), which the explorer checks against
-# the code on the chain. Contracts already verified are skipped, so it's safe to run again.
+# exactly as the deploy did (same Foundry, compiler and libraries), then deploy/verify/etherscan.py
+# sends Etherscan each contract's source files, as the compiler's own record lists them; Etherscan
+# publishes the code only if it compiles to what's on the chain. Contracts already verified are
+# skipped, so it's safe to run again.
 
 on:
   push:
@@ -56,23 +58,12 @@ jobs:
             echo "::error::The ETHERSCAN_API_KEY repository secret is missing."
             exit 1
           fi
-          done=0
           failed=0
           while read -r address contract args; do
             case "$address" in '' | '#'*) continue ;; esac
-            name="${contract##*:}"
-            options=(--chain 1 --etherscan-api-key "$ETHERSCAN_API_KEY" --watch --retries 15 --delay 10)
-            if [ "$args" != "-" ]; then options+=(--constructor-args "$args"); fi
-            echo "::group::$name $address"
-            if forge verify-contract "${options[@]}" "$address" "$contract" < /dev/null; then
-              echo "::endgroup::"
-              echo "Verified: $name https://etherscan.io/address/$address#code"
-              done=$((done + 1))
-            else
-              echo "::endgroup::"
-              echo "::error::Not verified: $name $address"
+            if ! python3 deploy/verify/etherscan.py "$address" "$contract" "$args" < /dev/null; then
               failed=$((failed + 1))
             fi
           done < deploy/verify/ethereum-mainnet.txt
-          echo "$done verified, $failed not verified"
+          echo "$failed not verified"
           [ "$failed" -eq 0 ]
