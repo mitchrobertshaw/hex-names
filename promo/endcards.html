@@ -73,21 +73,16 @@
   .fc .lockup { position: absolute; left: 50%; top: 92px; transform: translateX(-50%); gap: 18px; }
   .fc .lockup .wm { font-size: 50px; }
   .fc .card {
-    position: absolute; left: 540px; top: 410px; width: 800px; height: 400px; border-radius: 46px; padding: 3px;
+    position: absolute; left: 540px; top: 430px; width: 800px; height: 330px; border-radius: 46px; padding: 3px;
     transform: translate(-50%, -50%) perspective(1800px) rotateX(9deg) rotateY(-11deg);
     background: conic-gradient(from 200deg at 50% 50%, #ffc400, #ff6a1f, #e5007a, #ff6a1f, #ffc400);
     box-shadow: 0 70px 120px rgb(0 0 0 / 55%), 0 0 90px rgb(255 80 90 / 22%);
   }
   .fc .card-in { position: relative; width: 100%; height: 100%; border-radius: 43px; overflow: hidden; background: linear-gradient(155deg, #2c1d38 0%, #170e1e 70%); }
   .fc .sheen { position: absolute; inset: -30%; background: linear-gradient(115deg, transparent 38%, rgb(255 255 255 / 9%) 46%, rgb(255 190 140 / 16%) 50%, rgb(255 255 255 / 5%) 55%, transparent 63%); }
-  .fc .top { position: absolute; left: 46px; right: 46px; top: 40px; display: flex; justify-content: space-between; align-items: center; }
-  .fc .chains { display: flex; gap: 10px; }
-  .fc .chains img { width: 46px; height: 46px; display: block; }
-  .fc .name { position: absolute; left: 46px; top: 150px; font: 700 100px/1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.035em; white-space: nowrap; }
-  .fc .bottom { position: absolute; left: 46px; right: 46px; bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+  .fc .name { position: absolute; left: 60px; top: 74px; font: 700 102px/1 "Space Grotesk", Inter, sans-serif; letter-spacing: -0.035em; white-space: nowrap; }
+  .fc .bottom { position: absolute; left: 60px; bottom: 58px; }
   .fc .avail { display: inline-flex; align-items: center; gap: 10px; height: 60px; padding: 0 26px 0 20px; border-radius: 999px; background: rgb(79 214 160 / 15%); color: #4fd6a0; font: 600 28px/1 Inter, sans-serif; }
-  .fc .price { font: 600 30px/1 Inter, sans-serif; color: #b9abc3; }
-  .fc .price b { color: #fbf5ff; font-family: "Space Grotesk", Inter, sans-serif; font-size: 40px; }
   .fc .btn {
     color: #fbf5ff; border: 3px solid transparent;
     background: linear-gradient(#24182d, #24182d) padding-box, linear-gradient(100deg, #ffc23d, #ff6a4d 50%, #ff4fa0) border-box;
@@ -145,12 +140,11 @@
   <div class="lockup"><i class="mk" data-v="grad" data-h="76"></i><span class="wm">HexNS</span></div>
   <div class="card"><div class="card-in">
     <i class="sheen"></i>
-    <div class="top"><i class="mk" data-v="grad" data-h="56"></i><span class="chains"><img src="../web/src/assets/chains/pulsechain.png" alt=""><img src="../web/src/assets/chains/ethereum.svg" alt=""></span></div>
     <div class="name">yourname<span class="grad-text">.hex</span></div>
-    <div class="bottom"><span class="avail"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Available</span><span class="price">from <b>$10</b> a year</span></div>
+    <div class="bottom"><span class="avail"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4.2L19 7"/></svg>Available</span></div>
   </div></div>
-  <p class="line" style="top:690px; font-size:60px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
-  <div class="cta" style="top:850px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
+  <p class="line" style="top:662px; font-size:60px">Get yours <span class="grad-text">now</span>,<br>before anyone else does.</p>
+  <div class="cta" style="top:836px"><span class="btn">hexns.domains<i class="arrow"></i></span></div>
   <i class="grain"></i>
 </section>
 
