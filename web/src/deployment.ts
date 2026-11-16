@@ -50,8 +50,28 @@ export interface Deployment {
 }
 
 export const DEPLOYMENTS: Record<Network, Deployment | null> = {
-  mainnet: null,
-    testnet: {
+  mainnet: {
+    launchDate: "2026-11-16", // launch day: referrers earn 10% for the 58 days from it
+    pulsechain: {
+      rpc: "https://rpc.pulsechain.com",
+      registry: "0xcD8cec12dab8D5770C5f2b0eE89899E70B6EB726", // PULSECHAIN_HEX_REGISTRY, from step 1
+      registrar: "0x8ac071647e2DDd1B14a944D2bA38E3c8Cc268AA2", // PULSECHAIN_REGISTRAR, from step 1
+      checkout: "0x69B739295463690fBf5aa038df1806bC11A34ff8", // PULSECHAIN_CHECKOUT, from step 1
+      usdc: "0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07", // USDC bridged from Ethereum (PULSECHAIN_USDC)
+      startBlock: 28069588, // START_BLOCK_PULSECHAIN, from step 1
+    },
+    ethereum: {
+      rpc: "https://ethereum-rpc.publicnode.com",
+      orderBook: "0x6d7BA6aD41D0f1FC413AFaB88F09fF4920715dc9", // ETHEREUM_ORDER_BOOK, from step 2 (only for buying from Ethereum)
+      usdc: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
+    },
+    bot: {
+      publicKey: "0xd5970cf368e5d9c33a8af02d0300ac7d4ed6254e35ba01587b9a9ac816504303", // from the production bot's log (only for buying from Ethereum)
+      minFee: 0.25, // only for buying from Ethereum
+      address: "0x30E9Ee0Fc693D41E9fE112c71fb85898CA95B555", // the production bot's wallet
+    },
+  },
+  testnet: {
     launchDate: "2026-11-11", // the day you deployed on the testnets: the referral offer counts from it
     pulsechain: {
       rpc: "https://rpc.v4.testnet.pulsechain.com",
