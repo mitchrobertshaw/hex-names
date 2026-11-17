@@ -391,12 +391,14 @@ that has been signed but not yet claimed, and simulates claiming it. Nothing is 
 
 ## For wallets
 
-- **MetaMask:** the [`snap/`](snap/README.md) folder is a MetaMask snap, "PulseChain Names", that
-  lets people send to `.hex`, `.pdai` and `.pls` names on PulseChain, and `.hex` names on Ethereum.
-  It needs MetaMask's approval before regular MetaMask can install it; the snap's README has the
-  steps.
-- **Other wallets:** [docs/WALLETS.md](docs/WALLETS.md) has everything a wallet needs to look up
-  `.hex`, `.pdai` and `.pls` names itself.
+- **MetaMask:** [PulseChain Names](https://github.com/mitchrobertshaw/pulsechain-names-snap), a
+  MetaMask snap that lets people send to `.hex`, `.pdai` and `.pls` names on PulseChain, and `.hex`
+  names on Ethereum. It lives in its own public repository, as MetaMask asks of a snap's source; its
+  README has the steps to publish it and get it approved.
+- **Other wallets:** the snap's repository also has
+  [WALLETS.md](https://github.com/mitchrobertshaw/pulsechain-names-snap/blob/main/WALLETS.md),
+  everything a wallet needs to look up `.hex`, `.pdai` and `.pls` names itself. It's public, so it
+  can be shared with wallet teams.
 
 ## For websites
 
