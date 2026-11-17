@@ -16,3 +16,15 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# /metamask is unlisted: nothing links to it, and search engines are asked to leave it out (its
+# page says so too).
+[[headers]]
+  for = "/metamask"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/metamask/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"

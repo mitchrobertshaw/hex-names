@@ -123,6 +123,19 @@ and the bot: buying on PulseChain with USDC, renewing, sending, My names, and a 
 on-chain. Ordering from Sepolia with ETH (filled by the bot) was tested too, before buying from
 Ethereum was switched off.
 
+## The MetaMask page
+
+[`metamask/index.html`](metamask/index.html) and [`src/MetaMaskPage.tsx`](src/MetaMaskPage.tsx):
+hexns.domains/metamask, an unlisted page for PulseChain Names, HexNS's MetaMask snap. It describes
+the snap on the left and shows its demo video on the right, stacked on phones. Nothing on the site
+links to it, and search engines are asked to leave it out: the page has `noindex`, and
+`netlify.toml` sends the same as a header.
+
+The video is on YouTube (`SNAP_VIDEO_ID` in [`src/site.ts`](src/site.ts)). Until the visitor
+presses play, the page shows `public/metamask-video.png` and loads nothing from YouTube; then the
+player comes from youtube-nocookie.com. To show a new video, upload it to YouTube and change
+`SNAP_VIDEO_ID` (and the picture, if it changes).
+
 ## Putting it on Netlify
 
 Nothing needs installing: Netlify builds the site from GitHub. Step by step, with the testnet copy

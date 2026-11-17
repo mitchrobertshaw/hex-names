@@ -3,16 +3,20 @@ import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
 import { XLink } from "./XLink";
 
-export function Nav() {
+/** The top bar. On a page other than the homepage, `home` ("/") points its links at the homepage. */
+export function Nav({ home = "" }: { home?: string }) {
   return (
     <header className="nav">
       <div className="container nav__inner">
-        <Brand href="#top" label="HexNS, HEX Name Service: back to the top" />
+        <Brand
+          href={home || "#top"}
+          label={home ? "HexNS, HEX Name Service: the homepage" : "HexNS, HEX Name Service: back to the top"}
+        />
         <nav className="nav__links" aria-label="Sections">
-          <a href="#chains">Both chains</a>
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#faq">FAQ</a>
+          <a href={`${home}#chains`}>Both chains</a>
+          <a href={`${home}#how`}>How it works</a>
+          <a href={`${home}#pricing`}>Pricing</a>
+          <a href={`${home}#faq`}>FAQ</a>
         </nav>
         <div className="nav__actions">
           <XLink />

@@ -1,17 +1,18 @@
 import { Brand } from "./Brand";
 
-export function Footer() {
+/** The footer. On a page other than the homepage, `home` ("/") points its links at the homepage. */
+export function Footer({ home = "" }: { home?: string }) {
   return (
     <footer className="footer">
       <div className="container footer__inner">
         <div className="footer__brand">
-          <Brand href="#top" label="HexNS: back to the top" tagline={false} />
+          <Brand href={home || "#top"} label={home ? "HexNS: the homepage" : "HexNS: back to the top"} tagline={false} />
           <p>HEX Name Service: names for Hexicans, on PulseChain and Ethereum.</p>
         </div>
         <nav className="footer__links" aria-label="Footer">
-          <a href="#how">How it works</a>
-          <a href="#pricing">Pricing</a>
-          <a href="#faq">FAQ</a>
+          <a href={`${home}#how`}>How it works</a>
+          <a href={`${home}#pricing`}>Pricing</a>
+          <a href={`${home}#faq`}>FAQ</a>
         </nav>
       </div>
       <div className="container footer__small">
