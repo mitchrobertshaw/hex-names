@@ -24,7 +24,7 @@ const outputs = [
     }, theme);
     await tab.evaluate(() => document.fonts.ready);
     const fonts = await tab.evaluate(() => [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family));
-    for (const family of ["Space Grotesk", "Inter"]) {
+    for (const family of ["Space Grotesk"]) {
       if (!fonts.includes(family)) throw new Error(`${family} didn't load: run npm ci in web/ first`);
     }
     const outside = await tab.evaluate(() =>

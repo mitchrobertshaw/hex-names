@@ -4,17 +4,12 @@
 <meta charset="utf-8">
 <title>HexNS share image</title>
 <!-- The picture shown when someone shares hexns.domains (1200 x 630). render.cjs makes the PNGs
-     from this page; the fonts come from web/node_modules, so run npm ci in web/ first. -->
+     from this page; the font comes from web/node_modules, so run npm ci in web/ first. -->
 <style>
   @font-face {
     font-family: "Space Grotesk";
     src: url("../../web/node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2") format("woff2-variations");
     font-weight: 300 700;
-  }
-  @font-face {
-    font-family: "Inter";
-    src: url("../../web/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2") format("woff2-variations");
-    font-weight: 100 900;
   }
 
   /* The site's own colours (web/src/styles.css). */
@@ -47,7 +42,7 @@
   body {
     overflow: hidden;
     color: var(--text);
-    font-family: "Inter", sans-serif;
+    font-family: "Space Grotesk", sans-serif;
     -webkit-font-smoothing: antialiased;
     /* The homepage's wash of HEX colours: yellow top left, pink top right, orange below. */
     background:
@@ -60,33 +55,33 @@
   .frame {
     box-sizing: border-box;
     height: 100%;
+    padding: 0 88px;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    text-align: center;
   }
 
   /* The lockup: the mark 1.5 times the wordmark's size, 0.35 of it apart (brand/README.md). */
   .brand {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 17px;
   }
   .brand span {
     font-family: "Space Grotesk", sans-serif;
-    font-size: 44px;
+    font-size: 48px;
     font-weight: 700;
     letter-spacing: -0.01em;
   }
 
   h1 {
-    margin: 46px 0 0;
+    margin: 52px 0 0;
     font-family: "Space Grotesk", sans-serif;
-    font-size: 80px;
+    font-size: 116px;
     font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1.04;
+    letter-spacing: -0.035em;
+    line-height: 1;
   }
   .grad {
     background: var(--grad-text);
@@ -94,19 +89,12 @@
     background-clip: text;
     color: transparent;
   }
-
-  .url {
-    margin-top: 40px;
-    color: var(--muted);
-    font-size: 28px;
-    font-weight: 600;
-  }
 </style>
 </head>
 <body>
   <div class="frame">
     <div class="brand">
-      <svg width="58" height="66" viewBox="8.748 5.6 46.503 52.8" aria-hidden="true">
+      <svg width="63" height="72" viewBox="8.748 5.6 46.503 52.8" aria-hidden="true">
         <defs>
           <linearGradient id="route" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58">
             <stop offset="0" stop-color="#FFC400" />
@@ -118,8 +106,7 @@
       </svg>
       <span>HexNS</span>
     </div>
-    <h1>Your <span class="grad">.hex</span> name on<br>PulseChain and Ethereum</h1>
-    <div class="url">hexns.domains</div>
+    <h1>Your <span class="grad">.hex</span> name<br>on PulseChain<br>and Ethereum</h1>
   </div>
 </body>
 </html>

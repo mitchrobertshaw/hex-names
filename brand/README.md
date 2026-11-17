@@ -25,9 +25,9 @@ is in `web/src/components/Logo.tsx`.
 
 ## Share picture
 
-`share-image/share-image.html` is the design of the share picture: the logo, the website's
-headline and its address, in the website's colours and fonts. If the headline changes, change that
-page and make the pictures again with `share-image/render.cjs` (how, at its top): it writes
+`share-image/share-image.html` is the design of the share picture: the logo and the website's
+headline, in the website's colours and font. If the headline changes, change that page and make the
+pictures again with `share-image/render.cjs` (how, at its top): it writes
 `web/public/og-image.png` and both pictures here. Sites that show link previews keep the old
 picture for a while; X and Facebook each have a page to make them fetch it again.
 
