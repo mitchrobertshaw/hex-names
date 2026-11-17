@@ -17,42 +17,26 @@
     font-weight: 100 900;
   }
 
-  /* The site's own tokens (web/src/styles.css). */
+  /* The site's own colours (web/src/styles.css). */
   .light {
     --bg: #fff9f4;
     --hero-base: #ffefe3;
-    --surface: #ffffff;
     --text: #1d1424;
     --muted: #6b5d74;
-    --border: #f0e1d5;
-    --accent: #d6005f;
     --grad-text: linear-gradient(100deg, #ff7a00 0%, #ff3d3d 48%, #e5007a 100%);
     --hero-1: rgb(255 196 0 / 34%);
     --hero-2: rgb(229 0 122 / 20%);
     --hero-3: rgb(255 106 31 / 24%);
-    --hero-sheen: rgb(255 255 255 / 70%);
-    --comb: rgb(29 20 36 / 5.5%);
-    --shadow-sm: 0 1px 2px rgb(60 30 50 / 6%), 0 4px 12px rgb(60 30 50 / 6%);
-    --shadow-md: 0 2px 6px rgb(60 30 50 / 6%), 0 14px 36px rgb(60 30 50 / 10%);
-    --old: rgb(255 255 255 / 55%);
   }
   .dark {
     --bg: #130b18;
     --hero-base: #1d1226;
-    --surface: #1f1527;
     --text: #fbf5ff;
     --muted: #b9abc3;
-    --border: #36283f;
-    --accent: #ff5ca8;
     --grad-text: linear-gradient(100deg, #ffc23d 0%, #ff6a4d 48%, #ff4fa0 100%);
     --hero-1: rgb(255 184 0 / 16%);
     --hero-2: rgb(229 0 122 / 24%);
     --hero-3: rgb(255 106 31 / 14%);
-    --hero-sheen: rgb(255 255 255 / 3%);
-    --comb: rgb(255 255 255 / 4.5%);
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 12px rgb(0 0 0 / 22%);
-    --shadow-md: 0 2px 6px rgb(0 0 0 / 30%), 0 14px 36px rgb(0 0 0 / 38%);
-    --old: rgb(31 21 39 / 60%);
   }
 
   html, body {
@@ -61,104 +45,21 @@
     height: 630px;
   }
   body {
-    position: relative;
     overflow: hidden;
-    background: linear-gradient(var(--bg) 35%, var(--hero-base));
     color: var(--text);
     font-family: "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
-  }
-
-  /* The hero's wash of HEX colours: yellow top left, pink top right, orange below. */
-  .wash {
-    position: absolute;
-    inset: 0;
+    /* The homepage's wash of HEX colours: yellow top left, pink top right, orange below. */
     background:
       radial-gradient(44% 62% at 10% 16%, var(--hero-1), transparent 70%),
       radial-gradient(42% 60% at 92% 12%, var(--hero-2), transparent 70%),
-      radial-gradient(64% 54% at 50% 104%, var(--hero-3), transparent 72%);
-  }
-  .sheen {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(170deg, var(--hero-sheen) 0%, transparent 45%);
-  }
-
-  /* A faint honeycomb at the edges, fading out behind the words. */
-  .comb {
-    position: absolute;
-    inset: 0;
-    color: var(--comb);
-    -webkit-mask-image: radial-gradient(62% 72% at 50% 50%, transparent 38%, #000 100%);
-    mask-image: radial-gradient(62% 72% at 50% 50%, transparent 38%, #000 100%);
+      radial-gradient(64% 54% at 50% 104%, var(--hero-3), transparent 72%),
+      linear-gradient(var(--bg) 35%, var(--hero-base));
   }
 
   .frame {
-    position: relative;
     box-sizing: border-box;
     height: 100%;
-    padding: 52px 64px 50px;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 13px; /* 0.35 x the wordmark, as the site's lockup */
-  }
-  .brand__text {
-    display: grid;
-    gap: 5px;
-    line-height: 1;
-  }
-  .brand__name {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 37px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  .brand__tagline {
-    color: var(--muted);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 11px;
-    padding: 10px 20px 10px 16px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    color: var(--muted);
-    font-size: 20px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .pill b {
-    color: var(--text);
-    font-weight: 700;
-  }
-  .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #12b76a;
-    box-shadow: 0 0 0 4px rgb(18 183 106 / 18%);
-  }
-
-  .main {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -166,13 +67,26 @@
     text-align: center;
   }
 
-  h1 {
-    margin: 0;
+  /* The lockup: the mark 1.5 times the wordmark's size, 0.35 of it apart (brand/README.md). */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .brand span {
     font-family: "Space Grotesk", sans-serif;
-    font-size: 82px;
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    margin: 46px 0 0;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 80px;
     font-weight: 700;
     letter-spacing: -0.03em;
-    line-height: 1.02;
+    line-height: 1.04;
   }
   .grad {
     background: var(--grad-text);
@@ -181,169 +95,31 @@
     color: transparent;
   }
 
-  /* 0x… becomes yourname.hex */
-  .swap {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    margin-top: 34px;
-  }
-  .old {
-    position: relative;
-    padding: 15px 26px;
-    border: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
-    border-radius: 999px;
-    background: var(--old);
-    color: var(--muted);
-    font-family: "JetBrains Mono", monospace;
-    font-size: 25px;
-    font-weight: 500;
-  }
-  .old::after {
-    content: "";
-    position: absolute;
-    left: 18px;
-    right: 18px;
-    top: calc(50% - 1px);
-    height: 2.5px;
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--muted) 70%, transparent);
-    transform: rotate(-2deg);
-  }
-  .arrow {
-    flex: none;
-  }
-  .new {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    padding: 13px 30px 13px 16px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--surface);
-    box-shadow:
-      var(--shadow-md),
-      0 0 0 7px color-mix(in srgb, var(--accent) 8%, transparent);
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 36px;
-    font-weight: 700;
-    letter-spacing: -0.015em;
-  }
-  .new__mark {
-    display: grid;
-    place-items: center;
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #ffc400 0%, #ff6a1f 50%, #e5007a 100%);
-    color: #fff;
-  }
-
-  .bottom {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .chains {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .chain {
-    gap: 10px;
-    padding: 9px 18px 9px 10px;
-    color: var(--text);
-  }
-  .chain img {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-  }
-  .chain .eth {
-    padding: 4px;
-    box-sizing: border-box;
-    background: #eef0f8;
-  }
-  .price {
-    margin-left: 8px;
-    color: var(--muted);
-    font-size: 21px;
-    font-weight: 600;
-  }
-  .price b {
-    color: var(--text);
-  }
   .url {
-    font-family: "Space Grotesk", sans-serif;
-    font-size: 27px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    margin-top: 40px;
+    color: var(--muted);
+    font-size: 28px;
+    font-weight: 600;
   }
 </style>
 </head>
 <body>
-  <div class="wash"></div>
-  <div class="sheen"></div>
-  <svg class="comb" width="1200" height="630" aria-hidden="true">
-    <defs>
-      <pattern id="comb" width="48.5" height="84" patternUnits="userSpaceOnUse" patternTransform="translate(-10 -6)">
-        <path d="M24.24 0 48.5 14v28L24.24 56 0 42V14zm0 56v28" fill="none" stroke="currentColor" stroke-width="1.6" />
-      </pattern>
-    </defs>
-    <rect width="1200" height="630" fill="url(#comb)" />
-  </svg>
-
   <div class="frame">
-    <div class="top">
-      <div class="brand">
-        <svg width="51" height="58" viewBox="8.748 5.6 46.503 52.8" aria-hidden="true">
-          <defs>
-            <linearGradient id="route" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58">
-              <stop offset="0" stop-color="#FFC400" />
-              <stop offset="0.5" stop-color="#FF6A1F" />
-              <stop offset="1" stop-color="#E5007A" />
-            </linearGradient>
-          </defs>
-          <path fill="url(#route)" d="M33.45 5.989L53.802 17.739A2.9 2.9 0 0 1 50.902 22.761L30.55 11.011A2.9 2.9 0 0 1 33.45 5.989ZM55.252 20.25L55.252 43.75A2.9 2.9 0 0 1 49.452 43.75L49.452 20.25A2.9 2.9 0 0 1 55.252 20.25ZM53.802 46.261L33.45 58.011A2.9 2.9 0 0 1 30.55 52.989L50.902 41.239A2.9 2.9 0 0 1 53.802 46.261ZM30.55 58.011L10.198 46.261A2.9 2.9 0 0 1 13.098 41.239L33.45 52.989A2.9 2.9 0 0 1 30.55 58.011ZM8.748 43.75L8.748 20.25A2.9 2.9 0 0 1 14.548 20.25L14.548 43.75A2.9 2.9 0 0 1 8.748 43.75ZM13.098 17.739L33.45 29.489A2.9 2.9 0 0 1 30.55 34.511L10.198 22.761A2.9 2.9 0 0 1 13.098 17.739ZM24.6 32A7.4 7.4 0 1 1 39.4 32A7.4 7.4 0 1 1 24.6 32Z" />
-        </svg>
-        <div class="brand__text">
-          <span class="brand__name">HexNS</span>
-          <span class="brand__tagline">HEX Name Service</span>
-        </div>
-      </div>
-      <span class="pill"><span class="dot"></span><span>Built on <b>ENSv2</b> · Live now</span></span>
+    <div class="brand">
+      <svg width="58" height="66" viewBox="8.748 5.6 46.503 52.8" aria-hidden="true">
+        <defs>
+          <linearGradient id="route" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58">
+            <stop offset="0" stop-color="#FFC400" />
+            <stop offset="0.5" stop-color="#FF6A1F" />
+            <stop offset="1" stop-color="#E5007A" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#route)" d="M33.45 5.989L53.802 17.739A2.9 2.9 0 0 1 50.902 22.761L30.55 11.011A2.9 2.9 0 0 1 33.45 5.989ZM55.252 20.25L55.252 43.75A2.9 2.9 0 0 1 49.452 43.75L49.452 20.25A2.9 2.9 0 0 1 55.252 20.25ZM53.802 46.261L33.45 58.011A2.9 2.9 0 0 1 30.55 52.989L50.902 41.239A2.9 2.9 0 0 1 53.802 46.261ZM30.55 58.011L10.198 46.261A2.9 2.9 0 0 1 13.098 41.239L33.45 52.989A2.9 2.9 0 0 1 30.55 58.011ZM8.748 43.75L8.748 20.25A2.9 2.9 0 0 1 14.548 20.25L14.548 43.75A2.9 2.9 0 0 1 8.748 43.75ZM13.098 17.739L33.45 29.489A2.9 2.9 0 0 1 30.55 34.511L10.198 22.761A2.9 2.9 0 0 1 13.098 17.739ZM24.6 32A7.4 7.4 0 1 1 39.4 32A7.4 7.4 0 1 1 24.6 32Z" />
+      </svg>
+      <span>HexNS</span>
     </div>
-
-    <div class="main">
-      <h1>Your <span class="grad">.hex</span> name on<br>PulseChain and Ethereum</h1>
-      <div class="swap">
-        <span class="old">0x8f3C…b2E1</span>
-        <svg class="arrow" width="58" height="24" viewBox="0 0 58 24" aria-hidden="true">
-          <defs>
-            <linearGradient id="arrow" x1="0" y1="0" x2="58" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stop-color="#ff7a00" />
-              <stop offset="1" stop-color="#e5007a" />
-            </linearGradient>
-          </defs>
-          <path d="M2 12h50M42 3l11 9-11 9" fill="none" stroke="url(#arrow)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <span class="new">
-          <span class="new__mark">
-            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </span>
-          <span>yourname<span class="grad">.hex</span></span>
-        </span>
-      </div>
-    </div>
-
-    <div class="bottom">
-      <div class="chains">
-        <span class="pill chain"><img src="../../web/src/assets/chains/pulsechain.png" alt=""> PulseChain</span>
-        <span class="pill chain"><img class="eth" src="../../web/src/assets/chains/ethereum.svg" alt=""> Ethereum</span>
-        <span class="price">From <b>$10 a year</b> for both</span>
-      </div>
-      <span class="url">hexns.domains</span>
-    </div>
+    <h1>Your <span class="grad">.hex</span> name on<br>PulseChain and Ethereum</h1>
+    <div class="url">hexns.domains</div>
   </div>
 </body>
 </html>
