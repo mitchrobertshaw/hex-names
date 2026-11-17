@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+<meta charset="utf-8">
+<title>HexNS share image</title>
+<!-- The picture shown when someone shares hexns.domains (1200 x 630). render.cjs makes the PNGs
+     from this page; the font comes from web/node_modules, so run npm ci in web/ first. -->
+<style>
+  @font-face {
+    font-family: "Space Grotesk";
+    src: url("../../web/node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2") format("woff2-variations");
+    font-weight: 300 700;
+  }
+
+  /* The site's own colours (web/src/styles.css). */
+  .light {
+    --bg: #fff9f4;
+    --hero-base: #ffefe3;
+    --text: #1d1424;
+    --muted: #6b5d74;
+    --grad-text: linear-gradient(100deg, #ff7a00 0%, #ff3d3d 48%, #e5007a 100%);
+    --hero-1: rgb(255 196 0 / 34%);
+    --hero-2: rgb(229 0 122 / 20%);
+    --hero-3: rgb(255 106 31 / 24%);
+  }
+  .dark {
+    --bg: #130b18;
+    --hero-base: #1d1226;
+    --text: #fbf5ff;
+    --muted: #b9abc3;
+    --grad-text: linear-gradient(100deg, #ffc23d 0%, #ff6a4d 48%, #ff4fa0 100%);
+    --hero-1: rgb(255 184 0 / 16%);
+    --hero-2: rgb(229 0 122 / 24%);
+    --hero-3: rgb(255 106 31 / 14%);
+  }
+
+  html, body {
+    margin: 0;
+    width: 1200px;
+    height: 630px;
+  }
+  body {
+    overflow: hidden;
+    color: var(--text);
+    font-family: "Space Grotesk", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* The homepage's wash of HEX colours: yellow top left, pink top right, orange below. */
+    background:
+      radial-gradient(44% 62% at 10% 16%, var(--hero-1), transparent 70%),
+      radial-gradient(42% 60% at 92% 12%, var(--hero-2), transparent 70%),
+      radial-gradient(64% 54% at 50% 104%, var(--hero-3), transparent 72%),
+      linear-gradient(var(--bg) 35%, var(--hero-base));
+  }
+
+  .frame {
+    box-sizing: border-box;
+    height: 100%;
+    padding: 0 88px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  /* The lockup: the mark 1.5 times the wordmark's size, 0.35 of it apart (brand/README.md). */
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+  }
+  .brand span {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  h1 {
+    margin: 52px 0 0;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 116px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+  }
+  .grad {
+    background: var(--grad-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="brand">
+      <svg width="63" height="72" viewBox="8.748 5.6 46.503 52.8" aria-hidden="true">
+        <defs>
+          <linearGradient id="route" gradientUnits="userSpaceOnUse" x1="10" y1="6" x2="54" y2="58">
+            <stop offset="0" stop-color="#FFC400" />
+            <stop offset="0.5" stop-color="#FF6A1F" />
+            <stop offset="1" stop-color="#E5007A" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#route)" d="M33.45 5.989L53.802 17.739A2.9 2.9 0 0 1 50.902 22.761L30.55 11.011A2.9 2.9 0 0 1 33.45 5.989ZM55.252 20.25L55.252 43.75A2.9 2.9 0 0 1 49.452 43.75L49.452 20.25A2.9 2.9 0 0 1 55.252 20.25ZM53.802 46.261L33.45 58.011A2.9 2.9 0 0 1 30.55 52.989L50.902 41.239A2.9 2.9 0 0 1 53.802 46.261ZM30.55 58.011L10.198 46.261A2.9 2.9 0 0 1 13.098 41.239L33.45 52.989A2.9 2.9 0 0 1 30.55 58.011ZM8.748 43.75L8.748 20.25A2.9 2.9 0 0 1 14.548 20.25L14.548 43.75A2.9 2.9 0 0 1 8.748 43.75ZM13.098 17.739L33.45 29.489A2.9 2.9 0 0 1 30.55 34.511L10.198 22.761A2.9 2.9 0 0 1 13.098 17.739ZM24.6 32A7.4 7.4 0 1 1 39.4 32A7.4 7.4 0 1 1 24.6 32Z" />
+      </svg>
+      <span>HexNS</span>
+    </div>
+    <h1>Your <span class="grad">.hex</span> name<br>on PulseChain<br>and Ethereum</h1>
+  </div>
+</body>
+</html>

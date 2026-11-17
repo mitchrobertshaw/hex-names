@@ -17,9 +17,19 @@ billboard, in a browser or in any design tool.
 | `hexns-app-icon.svg` / `-1024.png` | App icon: white mark on the gradient. |
 | `hexns-app-icon-dark.svg` / `-1024.png` | App icon: colour mark on dark. |
 | `hexns-mark-1024.png` | The mark in colour as a picture, transparent background. |
+| `hexns-share-image.png` | The picture shown when hexns.domains is shared, 1200 × 630. The website's copy is `web/public/og-image.png`. |
+| `hexns-share-image-dark.png` | The same picture in dark, to post by hand. |
 
 The website's own icons (favicon, phone home-screen icons) are in `web/public`, and the mark itself
 is in `web/src/components/Logo.tsx`.
+
+## Share picture
+
+`share-image/share-image.html` is the design of the share picture: the logo and the website's
+headline, in the website's colours and font. If the headline changes, change that page and make the
+pictures again with `share-image/render.cjs` (how, at its top): it writes
+`web/public/og-image.png` and both pictures here. Sites that show link previews keep the old
+picture for a while; X and Facebook each have a page to make them fetch it again.
 
 ## Colours
 
