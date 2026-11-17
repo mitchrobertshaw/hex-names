@@ -17,6 +17,7 @@
   "scripts": {
     "build": "mm-snap build",
     "serve": "mm-snap serve",
+    "sandbox": "mm-snap sandbox",
     "start": "mm-snap watch",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

@@ -5,10 +5,14 @@ import type { Address, Hex } from 'viem';
 
 import type { Call, CallResult, Chain } from './names';
 
-/** Public RPC servers for each chain, tried in order. */
+/**
+ * Public RPC servers for each chain, tried in order. Each must accept requests from any web page
+ * (Access-Control-Allow-Origin: *), as the snap runs inside MetaMask, in the browser; all six did on
+ * 17 November 2026. `npm run test:live` checks that each one still answers.
+ */
 export const RPC_URLS: Record<Chain, readonly string[]> = {
   'eip155:369': ['https://rpc.pulsechain.com', 'https://pulsechain-rpc.publicnode.com', 'https://rpc-pulsechain.g4mm4.io'],
-  'eip155:1': ['https://ethereum-rpc.publicnode.com', 'https://eth.llamarpc.com', 'https://cloudflare-eth.com'],
+  'eip155:1': ['https://ethereum-rpc.publicnode.com', 'https://eth.drpc.org', 'https://cloudflare-eth.com'],
 };
 
 /** How long to wait for one server before trying the next, in milliseconds. */

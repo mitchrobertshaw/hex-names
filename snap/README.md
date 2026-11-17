@@ -48,17 +48,23 @@ chains.
 
 ## Try it
 
-It runs in [MetaMask Flask](https://metamask.io/flask/), MetaMask's edition for developers, until
-MetaMask approves it for everyone (below).
+Until MetaMask approves it for everyone (below), the snap only installs in
+[MetaMask Flask](https://metamask.io/flask/), MetaMask's edition for developers. Use Flask in a
+browser profile of its own, with a new wallet: never your main recovery phrase. You also need
+[Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 npm ci
-npm run build
-npm run serve
+npm run sandbox
 ```
 
-Then install `local:http://localhost:8080` from a page that calls `wallet_requestSnaps`, switch
-MetaMask Flask to PulseChain, and type `mick.hex` as the recipient of a send.
+That builds the snap and starts MetaMask's Snaps Sandbox at http://localhost:8080. Open that page
+in the browser with Flask, click **Install Snap**, and approve in Flask. The snap stays installed
+after you stop the sandbox.
+
+Then, in Flask, switch to PulseChain (chain 369; add it if Flask doesn't have it), start a send,
+and type `mick.hex` as the recipient: Flask shows the address, found by HexNS. Try
+`testname.pdai` and `pdai.pls` too, and `mick.hex` with Flask on Ethereum.
 
 ## Tests
 
@@ -71,7 +77,8 @@ npm run test:live
 
 `npm test` checks the lookup logic against pretend contracts, and installs the built snap in
 MetaMask's snap simulator. `npm run test:live` also looks up real names on PulseChain and Ethereum
-(`mick.hex`, `testname.pdai`, `pdai.pls`, and `pdai.pls`'s address). CI runs both.
+(`mick.hex`, `testname.pdai`, `pdai.pls`, and `pdai.pls`'s address), and checks that each RPC
+server the snap uses still answers. CI runs both.
 
 ## Getting it into MetaMask
 

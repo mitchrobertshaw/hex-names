@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PULSECHAIN } from './names';
-import { isRevert, makeCall } from './rpc';
+import { RPC_URLS, isRevert, makeCall } from './rpc';
 
 const URLS = { 'eip155:369': ['https://one', 'https://two'], 'eip155:1': ['https://eth'] } as const;
 const TO = '0x774822450c94A9fdD82febb3aF528C8e6e192bae';
@@ -67,4 +67,31 @@ describe('makeCall', () => {
     expect(isRevert({ code: -32000, message: 'execution reverted: ResolverNotFound' })).toBe(true);
     expect(isRevert({ code: -32005, message: 'limit exceeded' })).toBe(false);
   });
+});
+
+// Each server in the list, on its own, so one that stops working shows up here rather than only
+// making lookups slower. A server gets three tries, so one slow moment isn't a failure.
+describe.runIf(Boolean(process.env.LIVE))('the RPC servers', () => {
+  const CHAIN_IDS = { 'eip155:369': '0x171', 'eip155:1': '0x1' } as const;
+  for (const [chain, urls] of Object.entries(RPC_URLS) as [keyof typeof CHAIN_IDS, readonly string[]][]) {
+    for (const url of urls) {
+      it(`${url} answers for ${chain}`, async () => {
+        let answer: unknown;
+        for (let attempt = 0; attempt < 3 && answer !== CHAIN_IDS[chain]; attempt++) {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
+              signal: AbortSignal.timeout(10_000),
+            });
+            answer = ((await response.json()) as { result?: unknown }).result;
+          } catch (error) {
+            answer = error instanceof Error ? error.message : error;
+          }
+        }
+        expect(answer).toBe(CHAIN_IDS[chain]);
+      }, 40_000);
+    }
+  }
 });
