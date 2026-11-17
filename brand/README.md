@@ -46,7 +46,7 @@ picture for a while; X and Facebook each have a page to make them fetch it again
   On its own, it can be as large as you like.
 - With "HEX Name Service" in small type beneath the wordmark (11px, in the muted colour), make the
   mark tall enough to span both lines: 34px beside a 20px wordmark, as in the website's top bar.
-  On screens narrower than 360px, leave the tagline out.
+  On screens narrower than 400px, leave the tagline out.
 - Leave space around the mark at least the size of its centre node.
 - Smallest sizes: 16px tall for the mark, 16px for the square favicon.
 - Use the files as they are: no other colours, outlines, shadows or stretching.

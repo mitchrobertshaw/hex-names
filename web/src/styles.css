@@ -305,8 +305,8 @@ img {
   white-space: nowrap;
 }
 
-/* The smallest phones have no room for it beside the buttons. */
-@media (max-width: 359px) {
+/* Phones narrower than 400px have no room for it beside the buttons. */
+@media (max-width: 399px) {
   .brand__tagline {
     display: none;
   }
@@ -336,7 +336,8 @@ img {
   margin-left: auto;
 }
 
-.theme-toggle {
+.theme-toggle,
+.icon-button {
   display: inline-grid;
   flex: none;
   place-items: center;
@@ -353,7 +354,8 @@ img {
     color 0.15s;
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.icon-button:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -366,6 +368,17 @@ img {
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* Narrow phones: a little less room between the brand and the buttons, so they all fit. */
+@media (max-width: 420px) {
+  .nav__inner {
+    gap: 12px;
+  }
+
+  .nav__actions {
+    gap: 8px;
+  }
 }
 
 @media (min-width: 720px) {
