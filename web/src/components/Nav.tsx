@@ -1,6 +1,7 @@
 import { appUrl } from "../site";
 import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
+import { XLink } from "./XLink";
 
 export function Nav() {
   return (
@@ -14,6 +15,7 @@ export function Nav() {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="nav__actions">
+          <XLink />
           <ThemeToggle />
           <a className="button button--primary button--small" href={appUrl()}>
             Launch app

@@ -17,3 +17,6 @@ export function appUrl(path = "/"): string {
   if (protocol === "file:" || /(^|\.)hexns\.domains$/.test(hostname)) return `https://app.hexns.domains${withRef}`;
   return `${origin}/app${withRef}`;
 }
+
+/** HexNS on X, linked from the top of the homepage and the app. */
+export const X_URL = "https://x.com/HexNSdomains";

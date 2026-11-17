@@ -1,5 +1,6 @@
 import { Brand } from "../components/Brand";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { XLink } from "../components/XLink";
 import { deployment, network } from "./network";
 import { NetworkNotice } from "./NetworkNotice";
 import { MyNamesPage, NamePage, SearchPage } from "./pages";
@@ -34,6 +35,7 @@ export function App() {
             </a>
           </nav>
           <div className="nav__actions">
+            <XLink />
             <ThemeToggle />
             <WalletButton />
           </div>
