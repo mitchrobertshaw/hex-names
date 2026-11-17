@@ -389,6 +389,15 @@ out of revenue, and nobody tops it up by hand: [money](deploy/bot/README.md#mone
 `npm run check-claim` checks the bot can claim real bridge messages. It finds one on the live bridge
 that has been signed but not yet claimed, and simulates claiming it. Nothing is sent.
 
+## For wallets
+
+- **MetaMask:** the [`snap/`](snap/README.md) folder is a MetaMask snap, "PulseChain Names", that
+  lets people send to `.hex`, `.pdai` and `.pls` names on PulseChain, and `.hex` names on Ethereum.
+  It needs MetaMask's approval before regular MetaMask can install it; the snap's README has the
+  steps.
+- **Other wallets:** [docs/WALLETS.md](docs/WALLETS.md) has everything a wallet needs to look up
+  `.hex`, `.pdai` and `.pls` names itself.
+
 ## For websites
 
 - **On PulseChain:**
