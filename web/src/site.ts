@@ -20,3 +20,9 @@ export function appUrl(path = "/"): string {
 
 /** HexNS on X, linked from the top of the homepage and the app. */
 export const X_URL = "https://x.com/HexNSdomains";
+
+/** PulseChain Names, the MetaMask snap for .hex, .pdai and .pls names, built by HexNS. */
+export const SNAP_REPO = "https://github.com/mitchrobertshaw/pulsechain-names-snap";
+
+/** The PulseChain Names video on YouTube, shown on the /metamask page. */
+export const SNAP_VIDEO_ID = "gubE6BTv6j0";

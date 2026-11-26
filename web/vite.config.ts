@@ -11,10 +11,11 @@ export default defineConfig(({ mode }) => {
     plugins: single ? [react(), viteSingleFile()] : [react()],
     // The site reads the reserved names list from ../script, outside this folder.
     server: { fs: { allow: [".."] } },
-    // Two pages: the homepage, and the app (app.hexns.domains, or /app on a preview link).
+    // Three pages: the homepage, the app (app.hexns.domains, or /app on a preview link), and
+    // /metamask, the unlisted page for the PulseChain Names snap and its video.
     build: single
       ? { outDir: "dist-single", chunkSizeWarningLimit: 4000 }
-      : { rollupOptions: { input: { main: "index.html", app: "app/index.html" } } },
+      : { rollupOptions: { input: { main: "index.html", app: "app/index.html", metamask: "metamask/index.html" } } },
     test: { environment: "node" },
   };
 });
