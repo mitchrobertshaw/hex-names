@@ -3,13 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Google Tag Manager (GTM-56Q2CZ5W), which sends visits to Google Analytics. Only on
-         hexns.domains: the app (app/index.html) leaves it out. See web/README.md, "Analytics". -->
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-56Q2CZ5W"></script>
+    <!-- Google Tag Manager (GTM-56Q2CZ5W), which sends visits to Google Analytics. It loads only on
+         hexns.domains itself, so the testnet copy, preview links and copies on a computer count no
+         visits. See web/README.md, "Analytics". -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+      if (/^(www\.)?hexns\.domains$/.test(location.hostname)) {
+        document.head.appendChild(Object.assign(document.createElement('script'), {
+          async: true,
+          src: 'https://www.googletagmanager.com/gtm.js?id=GTM-56Q2CZ5W',
+        }));
+      }
     </script>
     <title>HexNS | .hex names for PulseChain and Ethereum</title>
     <meta

@@ -3,6 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Google Analytics (G-E354R613Z3), the same property the homepage's Tag Manager sends to. The
+         app loads the Analytics tag on its own, not Tag Manager, so only Google's measuring code
+         runs beside wallets signing payments. It loads only on app.hexns.domains itself, so the
+         testnet copy, preview links and copies on a computer count no visits. See web/README.md,
+         "Analytics". -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-E354R613Z3');
+      if (location.hostname === 'app.hexns.domains') {
+        document.head.appendChild(Object.assign(document.createElement('script'), {
+          async: true,
+          src: 'https://www.googletagmanager.com/gtag/js?id=G-E354R613Z3',
+        }));
+      }
+    </script>
     <title>HexNS app | Buy and manage .hex names</title>
     <meta
       name="description"

@@ -140,20 +140,25 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 
 ## Analytics
 
-Every page of hexns.domains loads Google Tag Manager, container `GTM-56Q2CZ5W`, at the top of its
-`<head>` ([`index.html`](index.html)). What it measures is set up in Tag Manager, not here: the
-container's Google Analytics 4 tag (`G-E354R613Z3`) counts visits. Whatever you publish in Tag
-Manager goes live on the site straight away, with no change to this repo.
+Visits to the site and the app go to one Google Analytics 4 property, `G-E354R613Z3`, from a
+script at the top of each page's `<head>`:
 
-- **Not on the app.** app.hexns.domains ([`app/index.html`](app/index.html)) leaves it out. Tag
-  Manager runs whatever its tags say, so anyone who can publish in the container could run their
-  own code beside wallets signing payments. To measure the app as well, add the Google Analytics
-  tag on its own (gtag.js with `G-E354R613Z3`): it only sends measurements.
-- **Who can publish** in the container decides what runs on the homepage. Keep that list short,
-  with two-step verification on each of those Google accounts.
-- **Cookies.** Google Analytics sets cookies. In the EU, and elsewhere with rules like it, visitors
-  must agree to those first, and the site doesn't ask yet: Google's consent mode with a cookie
-  banner would.
+- **hexns.domains** ([`index.html`](index.html), and every other page of it) loads Google Tag
+  Manager, container `GTM-56Q2CZ5W`, whose Analytics tag counts the visits. What it measures is
+  set up in Tag Manager, not here, and whatever is published there goes live straight away.
+- **app.hexns.domains** ([`app/index.html`](app/index.html)) loads the Google Analytics tag on its
+  own (gtag.js), not Tag Manager. Tag Manager runs whatever its tags say, so anyone who could
+  publish in the container could run their own code beside wallets signing payments; the Analytics
+  tag only measures. What it records, such as moves between the app's pages, is set in Analytics
+  under Admin > Data streams.
+- **Only the live addresses count.** Each page loads its tag only on its live address, so the
+  testnet copy (hexns-testnet), preview links and copies opened on a computer send nothing.
+- **Who can publish** in the Tag Manager container decides what runs on hexns.domains. Keep that
+  list short, with two-step verification on each of those Google accounts.
+- **Cookies.** Google Analytics sets cookies, shared by hexns.domains and app.hexns.domains, so a
+  visit that goes from one to the other counts as one. In the EU, and elsewhere with rules like
+  it, visitors must agree to those first, and the site doesn't ask yet: Google's consent mode with
+  a cookie banner would.
 
 ## Changing things
 
