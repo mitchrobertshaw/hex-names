@@ -204,6 +204,21 @@ Every push to `main` then redeploys the site, and every pull request gets its ow
 - **Colours and layout** are in [`src/styles.css`](src/styles.css), with light and dark versions at
   the top.
 
+## Search engines
+
+The site is open to search engines. Only the unlisted /metamask page asks not to be listed, and
+Netlify asks the same for every preview link.
+
+- [`public/robots.txt`](public/robots.txt) lets every crawler in and points to
+  [`public/sitemap.xml`](public/sitemap.xml), which lists the homepage. app.hexns.domains serves the
+  same two files.
+- The homepage's canonical link ([`index.html`](index.html)) names `https://hexns.domains/`, so
+  referral links (`?ref=alice`), the testnet copy and preview links all count as that one page.
+- The page's words are drawn by its JavaScript, which Google runs before it indexes a page.
+- To get listed sooner and see how Google sees the site, add it to
+  [Google Search Console](https://search.google.com/search-console) and submit the sitemap there.
+  [Bing Webmaster Tools](https://www.bing.com/webmasters) can import the site from Search Console.
+
 ## Running it yourself
 
 Optional, with Node.js 22 or later:

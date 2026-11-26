@@ -1,0 +1,7 @@
+# hexns.domains and app.hexns.domains: every search engine is welcome. The unlisted /metamask
+# page asks not to be listed with its own noindex, which crawlers can only see if they may visit
+# it, so nothing is blocked here. See web/README.md, "Search engines".
+User-agent: *
+Allow: /
+
+Sitemap: https://hexns.domains/sitemap.xml
