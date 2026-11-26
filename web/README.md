@@ -138,6 +138,23 @@ and the launch: [deploy/website/README.md](../deploy/website/README.md).
 
 Every push to `main` then redeploys the site, and every pull request gets its own preview link.
 
+## Analytics
+
+Every page of hexns.domains loads Google Tag Manager, container `GTM-56Q2CZ5W`, at the top of its
+`<head>` ([`index.html`](index.html)). What it measures is set up in Tag Manager, not here: the
+container's Google Analytics 4 tag (`G-E354R613Z3`) counts visits. Whatever you publish in Tag
+Manager goes live on the site straight away, with no change to this repo.
+
+- **Not on the app.** app.hexns.domains ([`app/index.html`](app/index.html)) leaves it out. Tag
+  Manager runs whatever its tags say, so anyone who can publish in the container could run their
+  own code beside wallets signing payments. To measure the app as well, add the Google Analytics
+  tag on its own (gtag.js with `G-E354R613Z3`): it only sends measurements.
+- **Who can publish** in the container decides what runs on the homepage. Keep that list short,
+  with two-step verification on each of those Google accounts.
+- **Cookies.** Google Analytics sets cookies. In the EU, and elsewhere with rules like it, visitors
+  must agree to those first, and the site doesn't ask yet: Google's consent mode with a cookie
+  banner would.
+
 ## Changing things
 
 - **The floating names** are HEX KOLs, listed in [`src/data/featured.ts`](src/data/featured.ts)
